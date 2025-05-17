@@ -278,13 +278,13 @@ function plotStrategyResult(data: any) {
 			},
 			scales: {
 				x: { display: true, title: { display: true, text: "Time" } },
-				y: { display: true, title: { display: true, text: "Price (USD)" } },
+				y: { display: true, title: { display: true, text: "Price (USD)" }, position: "right" },
 			},
 		},
 	});
 }
 
-// Show result summary (date range, price stats, forecast error)
+// Show result summary (date range, price stats, forecast error, next prediction)
 function showSummary(data: any) {
 	if (!data || !data.result || !Array.isArray(data.result.dates)) {
 		summaryDiv.innerHTML = "";
@@ -293,6 +293,7 @@ function showSummary(data: any) {
 	const dates = data.result.dates;
 	const price: number[] = data.result.price;
 	const forecast: number[] = data.result.forecast;
+	const errorCorrectedForecast: number[] = data.result.errorCorrectedForecast;
 	const n = price.length;
 	const min = Math.min(...price).toFixed(2);
 	const max = Math.max(...price).toFixed(2);
@@ -308,6 +309,16 @@ function showSummary(data: any) {
 			) / n
 		).toFixed(2);
 	}
+	// Show next error-corrected forecast if available
+	let nextPrediction = null;
+	if (
+		errorCorrectedForecast &&
+		errorCorrectedForecast.length > 0 &&
+		errorCorrectedForecast[errorCorrectedForecast.length - 1] != null
+	) {
+		nextPrediction =
+			errorCorrectedForecast[errorCorrectedForecast.length - 1].toFixed(2);
+	}
 	summaryDiv.innerHTML = `
     <b>Result Summary:</b><br/>
     Date Range: <b>${dates[0]}</b> to <b>${dates[dates.length - 1]}</b><br/>
@@ -317,7 +328,12 @@ function showSummary(data: any) {
 				? `Mean Forecast Error: <b>${forecastError}</b><br/>`
 				: ""
 		}
-    Data points: <b>${n}</b>
+    Data points: <b>${n}</b><br/>
+    ${
+			nextPrediction !== null
+				? `<span style='color:orange;'>Next Error-Corrected Forecast: <b>${nextPrediction}</b></span><br/>`
+				: ""
+		}
   `;
 }
 
