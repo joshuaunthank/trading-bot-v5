@@ -1,0 +1,26 @@
+{
+	"name": "trading-bot-backend",
+	"version": "1.0.0",
+	"main": "dist/index.js",
+	"type": "commonjs",
+	"scripts": {
+		"start": "node dist/index.js",
+		"dev": "ts-node src/index.ts",
+		"build": "tsc"
+	},
+	"dependencies": {
+		"@types/chart.js": "^2.9.41",
+		"ccxt": "*",
+		"chart.js": "^4.4.9",
+		"cors": "*",
+		"dotenv": "^16.5.0",
+		"express": "*",
+		"technicalindicators": "*"
+	},
+	"devDependencies": {
+		"@types/cors": "*",
+		"@types/express": "*",
+		"ts-node": "*",
+		"typescript": "*"
+	}
+}
