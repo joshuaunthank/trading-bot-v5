@@ -138,14 +138,45 @@ window.addEventListener("DOMContentLoaded", () => {
 	startLiveRawFeed();
 });
 
-// Add a chart container
+// Add a chart container with fullscreen button and style controls
 const chartDiv = document.createElement("div");
 chartDiv.innerHTML = `
   <h2>Strategy Result Chart</h2>
+  <button id="fullscreen-chart" style="float:right;margin-bottom:0.5em;">Fullscreen</button>
+  <label style="float:right;margin-right:1em;">
+    <input type="checkbox" id="toggle-points" checked style="vertical-align:middle;" /> Show Data Points
+  </label>
   <canvas id="result-chart" width="800" height="400"></canvas>
 `;
 app!.appendChild(chartDiv);
 let chart: Chart | null = null;
+
+// Fullscreen handler
+const fullscreenBtn = document.getElementById(
+	"fullscreen-chart"
+) as HTMLButtonElement;
+fullscreenBtn.onclick = () => {
+	const canvas = document.getElementById("result-chart") as HTMLCanvasElement;
+	if (canvas.requestFullscreen) {
+		canvas.requestFullscreen();
+	} else if ((canvas as any).webkitRequestFullscreen) {
+		(canvas as any).webkitRequestFullscreen();
+	}
+};
+
+// Point toggle handler
+const togglePoints = document.getElementById(
+	"toggle-points"
+) as HTMLInputElement;
+let showPoints = togglePoints.checked;
+togglePoints.onchange = () => {
+	showPoints = togglePoints.checked;
+	// Re-plot with new point style
+	try {
+		const data = JSON.parse(output.textContent || "{}");
+		plotStrategyResult(data);
+	} catch {}
+};
 
 // Helper to format time axis labels based on timeframe
 function formatTimeLabels(dates: string[], timeframe: string): string[] {
@@ -175,12 +206,23 @@ function plotStrategyResult(data: any) {
 	const price = data.result.price;
 	const forecast = data.result.forecast;
 	const errorCorrectedForecast = data.result.errorCorrectedForecast;
+	const pointRadius = showPoints ? 2 : 0;
+	const pointHoverRadius = showPoints ? 4 : 0;
+	const pointBackgroundColor = showPoints
+		? "rgba(0,0,0,0.15)"
+		: "rgba(0,0,0,0)";
+	const pointBorderColor = showPoints ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0)";
 	const datasets = [
 		{
 			label: "Actual Price",
 			data: price,
 			borderColor: "blue",
 			fill: false,
+			borderWidth: 2,
+			pointRadius,
+			pointHoverRadius,
+			pointBackgroundColor,
+			pointBorderColor,
 		},
 	];
 	if (forecast && forecast.length === price.length) {
@@ -189,6 +231,11 @@ function plotStrategyResult(data: any) {
 			data: forecast,
 			borderColor: "green",
 			fill: false,
+			borderWidth: 2,
+			pointRadius,
+			pointHoverRadius,
+			pointBackgroundColor,
+			pointBorderColor,
 		});
 	}
 	if (
@@ -200,29 +247,15 @@ function plotStrategyResult(data: any) {
 			data: errorCorrectedForecast,
 			borderColor: "orange",
 			fill: false,
+			borderWidth: 2,
+			pointRadius,
+			pointHoverRadius,
+			pointBackgroundColor,
+			pointBorderColor,
 			// @ts-ignore
 			spanGaps: true,
-			// @ts-ignore
-			borderWidth: 2,
 		});
 	}
-	// Remove MACD_HIST Forecast overlay from chart
-	// if (macdHistForecast && macdHistForecast.length === price.length) {
-	// 	datasets.push({
-	// 		label: "MACD_HIST Forecast",
-	// 		data: macdHistForecast,
-	// 		borderColor: "#00ff99",
-	// 		fill: false,
-	// 		pointRadius: 1,
-	// 		spanGaps: true,
-	// 		borderWidth: 2,
-	// 		borderDash: [6, 4] as any,
-	// 		segment: {
-	// 			borderDash: [6, 4],
-	// 		},
-	// 		yAxisID: "y",
-	// 	} as any);
-	// }
 	if (chart) chart.destroy();
 	chart = new Chart(ctx, {
 		type: "line",

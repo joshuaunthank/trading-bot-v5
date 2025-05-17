@@ -254,37 +254,46 @@ export class ArimaMacdLagStrategy implements Strategy {
 			}
 			result.macdHistForecast = macdHistForecast;
 
-			// === Error Correction Linear Regression ===
-			// Align arrays for error correction
+			// === Error Correction Linear Regression (hybrid: current + lag1 features) ===
 			const forecast = result.forecast;
 			const price = result.price;
-			const macdHistF = macdHistForecast;
-			const lag1F = result.lag1;
-			const lag4F = result.lag4;
 			const n = forecast.length;
-			// Compute error (actual - forecast)
 			const error: number[] = [];
 			for (let i = 0; i < n; i++) {
 				const f = forecast[i];
 				const p = price[i];
 				error.push(f != null && p != null ? p - f : 0);
 			}
-			// Prepare features for error regression (skip first 4 for lag safety)
+			const ema5F = result.ema5;
+			const ema10F = result.ema10;
+			const ema30F = result.ema30;
+			const macdF = result.macd;
+			const macdSignalF = result.macdSignal;
+			const macdHistF = result.macdHist;
+			const lag1F = result.lag1;
 			const errorFeatures: number[][] = [];
 			const errorY: number[] = [];
-			for (let i = 4; i < n; i++) {
+			for (let i = 1; i < n; i++) {
 				if (
-					lag1F[i - 1] != null &&
-					lag4F[i - 1] != null &&
-					macdHistF[i - 1] != null &&
+					ema5F[i] != null &&
+					ema10F[i] != null &&
+					ema30F[i] != null &&
+					macdF[i] != null &&
+					macdSignalF[i] != null &&
+					macdHistF[i] != null &&
+					lag1F[i] != null &&
 					error[i - 1] != null
 				) {
 					errorFeatures.push([
 						1,
-						lag1F[i - 1],
-						lag4F[i - 1],
-						macdHistF[i - 1] ?? 0,
-						error[i - 1],
+						ema5F[i] ?? 0,
+						ema10F[i] ?? 0,
+						ema30F[i] ?? 0,
+						macdF[i] ?? 0,
+						macdSignalF[i] ?? 0,
+						macdHistF[i] ?? 0,
+						lag1F[i] ?? 0,
+						error[i - 1] ?? 0,
 					]);
 					errorY.push(error[i]);
 				}
@@ -299,17 +308,19 @@ export class ArimaMacdLagStrategy implements Strategy {
 					errorY.map((v) => [v])
 				);
 				const betaE = dot(XtXinvE, XtyE).map((b) => b[0]);
-				// Forecast error (out-of-sample, using only lagged features)
-				for (let i = 4; i < n; i++) {
+				for (let i = 1; i < n; i++) {
 					errorForecast[i] =
 						betaE[0] +
-						betaE[1] * lag1F[i - 1] +
-						betaE[2] * lag4F[i - 1] +
-						betaE[3] * (macdHistF[i - 1] ?? 0) +
-						betaE[4] * error[i - 1];
+						betaE[1] * (ema5F[i] ?? 0) +
+						betaE[2] * (ema10F[i] ?? 0) +
+						betaE[3] * (ema30F[i] ?? 0) +
+						betaE[4] * (macdF[i] ?? 0) +
+						betaE[5] * (macdSignalF[i] ?? 0) +
+						betaE[6] * (macdHistF[i] ?? 0) +
+						betaE[7] * (lag1F[i] ?? 0) +
+						betaE[8] * (error[i - 1] ?? 0);
 				}
 			}
-			// Error-corrected forecast = ARIMA forecast + error forecast
 			const errorCorrectedForecast: (number | null)[] = forecast.map((f, i) =>
 				f != null && errorForecast[i] != null ? f + errorForecast[i]! : null
 			);
