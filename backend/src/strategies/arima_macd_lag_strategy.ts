@@ -1,6 +1,8 @@
 import { Strategy } from "../strategy";
 import ccxt from "ccxt";
 import { MACD, EMA } from "technicalindicators";
+// @ts-ignore
+import { jStat } from "jstat";
 
 export class ArimaMacdLagStrategy implements Strategy {
 	name = "ARIMA_MACD_LAG";
@@ -181,6 +183,8 @@ export class ArimaMacdLagStrategy implements Strategy {
 			errorCorrectionRSquared?: number | null;
 			errorCorrectionCoefficients?: number[] | null;
 			errorCorrectionStdErr?: number[] | null;
+			errorCorrectionPValues?: number[] | null;
+			errorCorrectionModelPValue?: number | null;
 		} = {
 			dates: timestamps
 				.slice(offset)
@@ -307,6 +311,8 @@ export class ArimaMacdLagStrategy implements Strategy {
 			let errorCorrectionRSquared: number | null = null;
 			let errorCorrectionCoefficients: number[] | null = null;
 			let errorCorrectionStdErr: number[] | null = null;
+			let errorCorrectionPValues: number[] | null = null;
+			let errorCorrectionModelPValue: number | null = null;
 			if (errorFeatures.length > 4) {
 				const XtE = transpose(errorFeatures);
 				const XtXE = dot(XtE, errorFeatures);
@@ -332,7 +338,25 @@ export class ArimaMacdLagStrategy implements Strategy {
 					Math.sqrt(Math.abs(row[j]) * sigma2)
 				);
 				const errorCorrectionCoefficients = betaE;
-				// ...existing code for errorForecast and nextErrorCorrectedForecast...
+				// --- Compute p-values using jStat ---
+				const df = nObs - p;
+				errorCorrectionPValues = betaE.map((coef, j) => {
+					const stderr = errorCorrectionStdErr ? errorCorrectionStdErr[j] : 0;
+					if (!stderr || stderr === 0) return 1;
+					const t = coef / stderr;
+					// Two-sided p-value from t-distribution
+					const pval = 2 * (1 - jStat.studentt.cdf(Math.abs(t), df));
+					return pval;
+				});
+				// --- Compute overall model p-value (F-test) ---
+				if (ssRes > 0 && ssTot > 0 && nObs > p && p > 1) {
+					const msr = (ssTot - ssRes) / (p - 1);
+					const mse = ssRes / (nObs - p);
+					const f = msr / mse;
+					const modelPval = 1 - jStat.centralF.cdf(f, p - 1, nObs - p);
+					errorCorrectionModelPValue = modelPval;
+				}
+				// Forecast error (out-of-sample, using only lagged features)
 				for (let i = 1; i < n; i++) {
 					errorForecast[i] =
 						betaE[0] +
@@ -392,6 +416,8 @@ export class ArimaMacdLagStrategy implements Strategy {
 				result.errorCorrectionRSquared = errorCorrectionRSquared;
 				result.errorCorrectionCoefficients = errorCorrectionCoefficients;
 				result.errorCorrectionStdErr = errorCorrectionStdErr;
+				result.errorCorrectionPValues = errorCorrectionPValues;
+				result.errorCorrectionModelPValue = errorCorrectionModelPValue;
 			}
 		}
 		return { result };
