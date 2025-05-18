@@ -31,13 +31,42 @@ export class ArimaMacdLagStrategy implements Strategy {
 			undefined,
 			params.limit || 1000
 		);
-		if (!ohlcv || ohlcv.length === 0)
-			throw new Error("No data returned from Binance");
+		// === REMOVE IN-PROGRESS CANDLE (DATA LEAKAGE GUARD) ===
+		const now = Date.now();
+		const timeframeMs =
+			{
+				"1m": 60_000,
+				"3m": 180_000,
+				"5m": 300_000,
+				"15m": 900_000,
+				"30m": 1_800_000,
+				"1h": 3_600_000,
+				"2h": 7_200_000,
+				"4h": 14_400_000,
+				"1d": 86_400_000,
+			}[params.timeframe] || 0;
+		// Strictly filter to only closed candles (timestamp < now - timeframeMs)
+		const closedOhlcv = ohlcv.filter(
+			(c) => typeof c[0] === "number" && c[0] < now - timeframeMs
+		);
+		if (!closedOhlcv || closedOhlcv.length === 0)
+			throw new Error("No closed candles returned from Binance");
+		// Debug: log last 3 closed candle timestamps and closes
+		console.log(
+			"Last 3 closed candle timestamps:",
+			closedOhlcv.slice(-3).map((c) => c[0])
+		);
+		console.log(
+			"Last 3 closed candle closes:",
+			closedOhlcv.slice(-3).map((c) => c[4])
+		);
+		// Use only closed candles for all calculations
+		const ohlcvUsed = closedOhlcv;
 
 		// Prepare data
-		const closes = ohlcv.map((c) => Number(c[4]));
-		const opens = ohlcv.map((c) => Number(c[1]));
-		const timestamps = ohlcv.map((c) => c[0]);
+		const closes = ohlcvUsed.map((c) => Number(c[4]));
+		const opens = ohlcvUsed.map((c) => Number(c[1]));
+		const timestamps = ohlcvUsed.map((c) => c[0]);
 		const openToCloseReturn = closes.map(
 			(close, i) => (close - opens[i]) / opens[i]
 		);
@@ -420,6 +449,11 @@ export class ArimaMacdLagStrategy implements Strategy {
 				result.errorCorrectionModelPValue = errorCorrectionModelPValue;
 			}
 		}
-		return { result };
+		return {
+			result: {
+				...result,
+				lastClosedCandleTimestamp: timestamps[timestamps.length - 1],
+			},
+		};
 	}
 }
