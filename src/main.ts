@@ -289,9 +289,10 @@ async function loadFeed() {
 			tr.onmouseout = () => (tr.style.background = "");
 			tbody.appendChild(tr);
 		}
-		feedStatus.textContent =
-			`Last updated: ${new Date().toLocaleTimeString()} | ` +
-			feedStatus.textContent;
+		// Only show 'Last updated' after the table is filled
+		feedStatus.textContent = `Last updated: ${new Date(
+			data[0][0]
+		).toLocaleTimeString()}`;
 		try {
 			const dataObj = JSON.parse(output.textContent || "{}");
 			plotStrategyResult(dataObj);
@@ -389,7 +390,7 @@ document.addEventListener("fullscreenchange", () => {
 		canvas.width = window.innerWidth;
 		canvas.height = window.innerHeight - chartDiv.offsetTop - 20;
 	} else {
-		fullscreenBtn.textContent = "Fullscreen";
+		fullscreenBtn.textContent = "⛶";
 		canvas.width = 800;
 		canvas.height = 400;
 	}
