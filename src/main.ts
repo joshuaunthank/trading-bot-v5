@@ -530,6 +530,45 @@ function plotStrategyResult(data: any) {
 			spanGaps: true,
 		});
 	}
+	// --- Visualize the true next-step error-corrected forecast as a single point ---
+	if (
+		data.result.nextErrorCorrectedForecast != null &&
+		!isNaN(data.result.nextErrorCorrectedForecast)
+	) {
+		const nextVal = Number(data.result.nextErrorCorrectedForecast);
+		const nextLabel = labels[labels.length - 1];
+		// Plot as a red star at the next time step (extend x axis by 1)
+		const nextTime = new Date(data.result.dates[data.result.dates.length - 1]);
+		let nextTimeLabel;
+		if (timeframe.endsWith("m")) {
+			const n = parseInt(timeframe);
+			nextTime.setMinutes(nextTime.getMinutes() + n);
+			nextTimeLabel = nextTime.toLocaleString();
+		} else if (timeframe.endsWith("h")) {
+			const n = parseInt(timeframe);
+			nextTime.setHours(nextTime.getHours() + n);
+			nextTimeLabel = nextTime.toLocaleString();
+		} else if (timeframe.endsWith("d")) {
+			const n = parseInt(timeframe);
+			nextTime.setDate(nextTime.getDate() + n);
+			nextTimeLabel = nextTime.toLocaleDateString();
+		} else {
+			nextTimeLabel = nextTime.toLocaleString();
+		}
+		datasets.push({
+			label: "Next Error-Corrected Forecast",
+			data: Array(labels.length).fill(null).concat([nextVal]),
+			borderColor: "#ff2d55",
+			backgroundColor: "#ff2d55",
+			pointStyle: "star",
+			pointRadius: 8,
+			pointHoverRadius: 10,
+			showLine: false,
+			fill: false,
+			// Add the next label to the x axis
+		});
+		labels.push(nextTimeLabel);
+	}
 
 	// --- Chart.js UI/UX Enhancements ---
 	const customTooltip = {
@@ -665,7 +704,6 @@ function showSummary(data: any) {
 			) / n
 		).toFixed(2);
 	}
-	// Show next error-corrected forecast if available
 	let nextPrediction = null;
 	if (
 		errorCorrectedForecast &&
@@ -675,6 +713,79 @@ function showSummary(data: any) {
 		nextPrediction =
 			errorCorrectedForecast[errorCorrectedForecast.length - 1].toFixed(2);
 	}
+	let nextStepPrediction = null;
+	if (
+		data.result.nextErrorCorrectedForecast != null &&
+		!isNaN(data.result.nextErrorCorrectedForecast)
+	) {
+		nextStepPrediction = Number(data.result.nextErrorCorrectedForecast).toFixed(
+			2
+		);
+	}
+
+	// --- Show error correction regression stats if available ---
+	let regressionStats = "";
+	if (data.result.errorCorrectionRSquared != null) {
+		regressionStats += `<br/><span style='color:#ffb347;'>Error Correction R²: <b>${data.result.errorCorrectionRSquared.toFixed(
+			4
+		)}</b></span>`;
+	}
+	if (
+		Array.isArray(data.result.errorCorrectionCoefficients) &&
+		data.result.errorCorrectionCoefficients.length > 0
+	) {
+		regressionStats += `<br/>Coefficients:<br/><span style='font-size:0.98em;'>`;
+		const names = [
+			"Intercept",
+			"EMA5",
+			"EMA10",
+			"EMA30",
+			"MACD",
+			"MACD Signal",
+			"MACD Hist",
+			"Lag1",
+			"Prev Error",
+		];
+		for (let i = 0; i < data.result.errorCorrectionCoefficients.length; ++i) {
+			const name = names[i] || `Coef${i}`;
+			const val = data.result.errorCorrectionCoefficients[i];
+			let stderr = null;
+			if (
+				Array.isArray(data.result.errorCorrectionStdErr) &&
+				data.result.errorCorrectionStdErr.length > i
+			) {
+				stderr = data.result.errorCorrectionStdErr[i];
+			}
+			let pval = null;
+			if (
+				Array.isArray(data.result.errorCorrectionPValues) &&
+				data.result.errorCorrectionPValues.length > i
+			) {
+				pval = data.result.errorCorrectionPValues[i];
+			}
+			regressionStats +=
+				`${name}: <b>${val.toFixed(5)}</b>` +
+				(stderr != null
+					? ` <span style='color:#aaa;'>(±${stderr.toFixed(5)})</span>`
+					: "") +
+				(pval != null
+					? ` <span style='color:#b0e57c;'>(p=${
+							pval < 0.0001 ? "<0.0001" : pval.toFixed(4)
+					  })</span>`
+					: "") +
+				"<br/>";
+		}
+		regressionStats += `</span>`;
+	}
+	// Show overall model p-value if available
+	if (typeof data.result.errorCorrectionModelPValue === "number") {
+		regressionStats += `<br/><span style='color:#b0e57c;'>Model p-value: <b>${
+			data.result.errorCorrectionModelPValue < 0.0001
+				? "<0.0001"
+				: data.result.errorCorrectionModelPValue.toFixed(4)
+		}</b></span>`;
+	}
+
 	summaryDiv.innerHTML = `
     <b>Result Summary:</b><br/>
     Date Range: <b>${dates[0]}</b> to <b>${dates[dates.length - 1]}</b><br/>
@@ -687,9 +798,15 @@ function showSummary(data: any) {
     Data points: <b>${n}</b><br/>
     ${
 			nextPrediction !== null
-				? `<span style='color:orange;'>Next Error-Corrected Forecast: <b>${nextPrediction}</b></span><br/>`
+				? `<span style='color:orange;'>Last Error-Corrected Forecast: <b>${nextPrediction}</b></span><br/>`
 				: ""
 		}
+    ${
+			nextStepPrediction !== null
+				? `<span style='color:#ffb347;'>True Next Error-Corrected Forecast: <b>${nextStepPrediction}</b></span><br/>`
+				: ""
+		}
+    ${regressionStats}
   `;
 }
 

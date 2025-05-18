@@ -177,6 +177,10 @@ export class ArimaMacdLagStrategy implements Strategy {
 			macdLag4: number[];
 			macdHistForecast?: (number | null)[];
 			errorCorrectedForecast?: (number | null)[];
+			nextErrorCorrectedForecast?: number | null;
+			errorCorrectionRSquared?: number | null;
+			errorCorrectionCoefficients?: number[] | null;
+			errorCorrectionStdErr?: number[] | null;
 		} = {
 			dates: timestamps
 				.slice(offset)
@@ -299,6 +303,10 @@ export class ArimaMacdLagStrategy implements Strategy {
 				}
 			}
 			let errorForecast: (number | null)[] = Array(n).fill(null);
+			let nextErrorCorrectedForecast: number | null = null;
+			let errorCorrectionRSquared: number | null = null;
+			let errorCorrectionCoefficients: number[] | null = null;
+			let errorCorrectionStdErr: number[] | null = null;
 			if (errorFeatures.length > 4) {
 				const XtE = transpose(errorFeatures);
 				const XtXE = dot(XtE, errorFeatures);
@@ -308,6 +316,23 @@ export class ArimaMacdLagStrategy implements Strategy {
 					errorY.map((v) => [v])
 				);
 				const betaE = dot(XtXinvE, XtyE).map((b) => b[0]);
+				// Compute predictions for R^2 and std errors
+				const yPred = errorFeatures.map((row) =>
+					row.reduce((sum, v, j) => sum + v * betaE[j], 0)
+				);
+				const yTrue = errorY;
+				const nObs = yTrue.length;
+				const p = betaE.length;
+				const meanY = yTrue.reduce((a, b) => a + b, 0) / nObs;
+				const ssTot = yTrue.reduce((sum, v) => sum + (v - meanY) ** 2, 0);
+				const ssRes = yTrue.reduce((sum, v, i) => sum + (v - yPred[i]) ** 2, 0);
+				const errorCorrectionRSquared = ssTot === 0 ? null : 1 - ssRes / ssTot;
+				const sigma2 = ssRes / (nObs - p);
+				const errorCorrectionStdErr = XtXinvE.map((row, j) =>
+					Math.sqrt(Math.abs(row[j]) * sigma2)
+				);
+				const errorCorrectionCoefficients = betaE;
+				// ...existing code for errorForecast and nextErrorCorrectedForecast...
 				for (let i = 1; i < n; i++) {
 					errorForecast[i] =
 						betaE[0] +
@@ -320,11 +345,54 @@ export class ArimaMacdLagStrategy implements Strategy {
 						betaE[7] * (lag1F[i] ?? 0) +
 						betaE[8] * (error[i - 1] ?? 0);
 				}
+				// --- True next-step error-corrected forecast ---
+				const i = n - 1;
+				nextErrorCorrectedForecast = null;
+				if (
+					ema5F[i] != null &&
+					ema10F[i] != null &&
+					ema30F[i] != null &&
+					macdF[i] != null &&
+					macdSignalF[i] != null &&
+					macdHistF[i] != null &&
+					lag1F[i] != null &&
+					error[i - 1] != null &&
+					forecast[i] != null
+				) {
+					// For a true next-step forecast, use only information available up to i (i.e., do not use any info from the current close)
+					// Predict the next ARIMA forecast using the AR coefficients and the last 4 openToCloseReturn values
+					const lastReturns = openToCloseReturn.slice(
+						openToCloseReturn.length - 4
+					);
+					const nextForecastedDiff =
+						arCoefficients[0] * lastReturns[3] +
+						arCoefficients[1] * lastReturns[2] +
+						arCoefficients[2] * lastReturns[1] +
+						arCoefficients[3] * lastReturns[0];
+					const nextArimaForecast =
+						closes[closes.length - 1] * (1 + nextForecastedDiff);
+					// For error correction, use the latest available features (all lagged, i.e., up to i)
+					const nextError =
+						betaE[0] +
+						betaE[1] * (ema5F[i] ?? 0) +
+						betaE[2] * (ema10F[i] ?? 0) +
+						betaE[3] * (ema30F[i] ?? 0) +
+						betaE[4] * (macdF[i] ?? 0) +
+						betaE[5] * (macdSignalF[i] ?? 0) +
+						betaE[6] * (macdHistF[i] ?? 0) +
+						betaE[7] * (lag1F[i] ?? 0) +
+						betaE[8] * (error[i] ?? 0);
+					nextErrorCorrectedForecast = nextArimaForecast + nextError;
+				}
+				const errorCorrectedForecast: (number | null)[] = forecast.map((f, i) =>
+					f != null && errorForecast[i] != null ? f + errorForecast[i]! : null
+				);
+				result.errorCorrectedForecast = errorCorrectedForecast;
+				result.nextErrorCorrectedForecast = nextErrorCorrectedForecast;
+				result.errorCorrectionRSquared = errorCorrectionRSquared;
+				result.errorCorrectionCoefficients = errorCorrectionCoefficients;
+				result.errorCorrectionStdErr = errorCorrectionStdErr;
 			}
-			const errorCorrectedForecast: (number | null)[] = forecast.map((f, i) =>
-				f != null && errorForecast[i] != null ? f + errorForecast[i]! : null
-			);
-			result.errorCorrectedForecast = errorCorrectedForecast;
 		}
 		return { result };
 	}
