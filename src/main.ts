@@ -256,47 +256,56 @@ async function loadFeed() {
 			(document.getElementById("symbol") as HTMLInputElement)?.value ||
 			"BTC/USDT";
 		const symbolApi = symbol.replace("/", "");
+		const limit =
+			Number((document.getElementById("limit") as HTMLInputElement)?.value) ||
+			1000;
 		const res = await fetch(
-			`https://api.binance.com/api/v3/klines?symbol=${symbolApi}&interval=${tf}&limit=20`
+			`https://api.binance.com/api/v3/klines?symbol=${symbolApi}&interval=${tf}&limit=${limit}`
 		);
 		const data = await res.json();
 		const tbody = document.querySelector("#feed-table tbody")!;
 		tbody.innerHTML = "";
-		for (const row of data.reverse()) {
+		// Reverse for table display only
+		const reversed = [...data].reverse();
+		for (const row of reversed) {
 			const tr = document.createElement("tr");
 			tr.innerHTML = `
-        <td style=\"padding:6px 10px; border-bottom:1px solid #222; color:#fff;\">${new Date(
-					row[0]
-				).toLocaleString()}</td>
-        <td style=\"padding:6px 10px; border-bottom:1px solid #222; color:#6cf; font-weight:600;\">${Number(
-					row[1]
-				).toFixed(2)}</td>
-        <td style=\"padding:6px 10px; border-bottom:1px solid #222; color:#7f7; font-weight:600;\">${Number(
-					row[2]
-				).toFixed(2)}</td>
-        <td style=\"padding:6px 10px; border-bottom:1px solid #222; color:#f77; font-weight:600;\">${Number(
-					row[3]
-				).toFixed(2)}</td>
-        <td style=\"padding:6px 10px; border-bottom:1px solid #222; color:#fff; font-weight:600;\">${Number(
-					row[4]
-				).toFixed(2)}</td>
-        <td style=\"padding:6px 10px; border-bottom:1px solid #222; color:#ffb347; font-weight:600;\">${Number(
-					row[5]
-				).toFixed(3)}</td>
+        <td>${new Date(row[0]).toLocaleString()}</td>
+        <td class="feed-td-open">${Number(row[1]).toFixed(2)}</td>
+        <td class="feed-td-high">${Number(row[2]).toFixed(2)}</td>
+        <td class="feed-td-low">${Number(row[3]).toFixed(2)}</td>
+        <td class="feed-td-close">${Number(row[4]).toFixed(2)}</td>
+        <td class="feed-td-volume">${Number(row[5]).toFixed(3)}</td>
       `;
 			tr.style.transition = "background 0.2s";
-			tr.onmouseover = () => (tr.style.background = "#222");
+			tr.onmouseover = () => (tr.style.background = "#23242a");
 			tr.onmouseout = () => (tr.style.background = "");
 			tbody.appendChild(tr);
 		}
 		// Only show 'Last updated' after the table is filled
 		feedStatus.textContent = `Last updated: ${new Date(
-			data[0][0]
+			reversed[0][0]
 		).toLocaleTimeString()}`;
+
+		// --- Plot BTC price on chart in chronological order ---
+		const priceDates = data.map((row: any) => new Date(row[0]).toISOString());
+		const priceVals = data.map((row: any) => Number(row[4]));
+		const chartData = {
+			result: {
+				dates: priceDates,
+				price: priceVals,
+				forecast: null,
+				errorCorrectedForecast: null,
+			},
+		};
+		plotStrategyResult(chartData);
+
 		try {
 			const dataObj = JSON.parse(output.textContent || "{}");
-			plotStrategyResult(dataObj);
-			showSummary(dataObj);
+			if (dataObj && dataObj.result && dataObj.result.forecast) {
+				plotStrategyResult(dataObj);
+				showSummary(dataObj);
+			}
 		} catch {}
 	} catch {
 		feedStatus.textContent = "Feed update failed";
@@ -353,7 +362,7 @@ chartDiv.innerHTML = `
     <canvas id="result-chart" width="800" height="400"></canvas>
   </div>
 `;
-app!.appendChild(chartDiv);
+app!.insertBefore(chartDiv, feedDiv); // Insert chart above feed
 let chart: Chart | null = null;
 
 // Ensure chart canvas is sized correctly on initial render
@@ -466,12 +475,15 @@ function plotStrategyResult(data: any) {
 		: "rgba(0,0,0,0)";
 	const pointBorderColor = showPoints ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0)";
 
-	// --- Preserve zoom/pan state ---
+	// --- Always plot all data, but set zoom to latest 20 points ---
 	let prevMin: any = undefined;
 	let prevMax: any = undefined;
-	if (chart && chart.scales && chart.scales.x) {
-		prevMin = chart.scales.x.min;
-		prevMax = chart.scales.x.max;
+	if (labels.length > 20) {
+		prevMin = labels[labels.length - 20];
+		prevMax = labels[labels.length - 1];
+	} else {
+		prevMin = labels[0];
+		prevMax = labels[labels.length - 1];
 	}
 
 	const datasets = [
@@ -618,6 +630,8 @@ function plotStrategyResult(data: any) {
 			},
 		},
 	});
+	// Store the current labels for zoom/pan logic
+	(chart as any).__lastLabels = labels;
 	// Ensure correct sizing after chart creation
 	setTimeout(() => {
 		ctx.width = 800;

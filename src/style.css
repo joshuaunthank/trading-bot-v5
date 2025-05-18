@@ -323,6 +323,18 @@ button:focus-visible {
 	letter-spacing: 0.02em;
 	background: #232323;
 }
+#feed-table tbody {
+	display: block;
+	max-height: 340px;
+	min-height: 120px;
+	overflow-y: auto;
+	width: 100%;
+}
+#feed-table tr {
+	display: table;
+	width: 100%;
+	table-layout: fixed;
+}
 #feed-table td {
 	padding: 6px 10px;
 	border-bottom: 1px solid #23262f;
