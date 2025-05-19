@@ -536,7 +536,7 @@ function plotStrategyResult(data: any) {
 		!isNaN(data.result.nextErrorCorrectedForecast)
 	) {
 		const nextVal = Number(data.result.nextErrorCorrectedForecast);
-		const nextLabel = labels[labels.length - 1];
+		// const nextLabel = labels[labels.length - 1]; // Unused, remove to fix TS error
 		// Plot as a red star at the next time step (extend x axis by 1)
 		const nextTime = new Date(data.result.dates[data.result.dates.length - 1]);
 		let nextTimeLabel;
@@ -559,13 +559,12 @@ function plotStrategyResult(data: any) {
 			label: "Next Error-Corrected Forecast",
 			data: Array(labels.length).fill(null).concat([nextVal]),
 			borderColor: "#ff2d55",
-			backgroundColor: "#ff2d55",
-			pointStyle: "star",
+			pointBackgroundColor: "#ff2d55",
 			pointRadius: 8,
 			pointHoverRadius: 10,
-			showLine: false,
 			fill: false,
-			// Add the next label to the x axis
+			borderWidth: 2,
+			pointBorderColor: "#ff2d55",
 		});
 		labels.push(nextTimeLabel);
 	}
@@ -735,17 +734,20 @@ function showSummary(data: any) {
 		data.result.errorCorrectionCoefficients.length > 0
 	) {
 		regressionStats += `<br/>Coefficients:<br/><span style='font-size:0.98em;'>`;
-		const names = [
-			"Intercept",
-			"EMA5",
-			"EMA10",
-			"EMA30",
-			"MACD",
-			"MACD Signal",
-			"MACD Hist",
-			"Lag1",
-			"Prev Error",
-		];
+		// Use coefficientNames from backend if present, else fallback to default
+		const names = Array.isArray(data.result.errorCorrectionCoefficientNames)
+			? data.result.errorCorrectionCoefficientNames
+			: [
+					"Intercept",
+					"EMA5",
+					"EMA10",
+					"EMA30",
+					"MACD",
+					"MACD Signal",
+					"MACD Hist",
+					"Lag1",
+					"Prev Error",
+			  ];
 		for (let i = 0; i < data.result.errorCorrectionCoefficients.length; ++i) {
 			const name = names[i] || `Coef${i}`;
 			const val = data.result.errorCorrectionCoefficients[i];

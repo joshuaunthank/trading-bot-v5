@@ -214,6 +214,7 @@ export class ArimaMacdLagStrategy implements Strategy {
 			errorCorrectionStdErr?: number[] | null;
 			errorCorrectionPValues?: number[] | null;
 			errorCorrectionModelPValue?: number | null;
+			errorCorrectionCoefficientNames?: string[];
 		} = {
 			dates: timestamps
 				.slice(offset)
@@ -447,6 +448,17 @@ export class ArimaMacdLagStrategy implements Strategy {
 				result.errorCorrectionStdErr = errorCorrectionStdErr;
 				result.errorCorrectionPValues = errorCorrectionPValues;
 				result.errorCorrectionModelPValue = errorCorrectionModelPValue;
+				result.errorCorrectionCoefficientNames = [
+					"Intercept",
+					"EMA5",
+					"EMA10",
+					"EMA30",
+					"MACD",
+					"MACD Signal",
+					"MACD Hist",
+					"Lag1",
+					"Prev Error",
+				];
 			}
 		}
 		return {

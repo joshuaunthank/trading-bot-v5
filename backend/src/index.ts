@@ -3,10 +3,9 @@ import express from "express";
 import cors from "cors";
 import { Strategy } from "./strategy";
 import { Model } from "./model";
-import { ArimaMacdStrategy } from "./strategies/arima_macd_strategy";
-import { BBRSIEMAStrategy } from "./strategies/bb_rsi_ema_strategy";
-import { ArimaMacdLagStrategy } from "./strategies/arima_macd_lag_strategy";
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
 
 dotenv.config();
 
@@ -22,14 +21,29 @@ async function createBinanceMarginClient(apiKey: string, secret: string) {
 	return exchange;
 }
 
-// Placeholder for dynamic strategy/model loading
-const strategies: Strategy[] = [];
-const models: Model[] = [];
+// Dynamic strategy loader
+function loadStrategies(): Strategy[] {
+	const strategies: Strategy[] = [];
+	const strategiesDir = path.join(__dirname, "strategies");
+	for (const file of fs.readdirSync(strategiesDir)) {
+		if (file.endsWith("_strategy.ts") || file.endsWith("_strategy.js")) {
+			const mod = require(path.join(strategiesDir, file));
+			for (const key in mod) {
+				if (typeof mod[key] === "function" && mod[key].prototype?.run) {
+					try {
+						const instance = new mod[key]();
+						if (instance.name && instance.run) strategies.push(instance);
+					} catch {}
+				}
+			}
+		}
+	}
+	return strategies;
+}
 
-// Register example strategy
-strategies.push(new ArimaMacdStrategy());
-strategies.push(new BBRSIEMAStrategy());
-strategies.push(new ArimaMacdLagStrategy());
+// Placeholder for dynamic strategy/model loading
+const strategies: Strategy[] = loadStrategies();
+const models: Model[] = [];
 
 // Express API setup
 const app = express();
