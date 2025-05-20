@@ -149,6 +149,8 @@ feedDiv.innerHTML = `
           <th>Volume</th>
           <th>Forecast</th>
           <th>Hit?</th>
+          <th>Return (%)</th>
+          <th>Spread</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -279,16 +281,22 @@ async function loadFeed() {
 		// Try to get forecast/hit data from last strategy run (if available)
 		let forecastMap: Record<string, number | null> = {};
 		let hitMap: Record<string, boolean | null> = {};
+		let forecastReturnMap: Record<string, number | null> = {};
+		let forecastSpreadMap: Record<string, number | null> = {};
 		try {
 			const dataObj = JSON.parse(output.textContent || "{}");
 			if (dataObj && dataObj.result && Array.isArray(dataObj.result.dates)) {
 				const dates = dataObj.result.dates;
 				const forecasts = dataObj.result.forecast || [];
 				const hits = dataObj.result.hitForecast || [];
+				const forecastReturns = dataObj.result.forecastReturn || [];
+				const forecastSpreads = dataObj.result.forecastSpread || [];
 				for (let i = 0; i < dates.length; ++i) {
 					const iso = new Date(dates[i]).toISOString();
 					forecastMap[iso] = forecasts[i] ?? null;
 					hitMap[iso] = hits[i] ?? null;
+					forecastReturnMap[iso] = forecastReturns[i] ?? null;
+					forecastSpreadMap[iso] = forecastSpreads[i] ?? null;
 				}
 			}
 		} catch {}
@@ -298,6 +306,8 @@ async function loadFeed() {
 			const iso = new Date(row[0]).toISOString();
 			const forecastVal = forecastMap[iso] ?? null;
 			const hitVal = hitMap[iso] ?? null;
+			const returnVal = forecastReturnMap[iso];
+			const spreadVal = forecastSpreadMap[iso];
 			const tr = document.createElement("tr");
 			tr.innerHTML = `
         <td>${new Date(row[0]).toLocaleString()}</td>
@@ -311,6 +321,12 @@ async function loadFeed() {
 				}</td>
         <td class="feed-td-hit">${
 					hitVal === true ? "✅" : hitVal === false ? "❌" : "-"
+				}</td>
+        <td class="feed-td-return">${
+					returnVal != null ? (returnVal * 100).toFixed(2) + "%" : "-"
+				}</td>
+        <td class="feed-td-spread">${
+					spreadVal != null ? Number(spreadVal).toFixed(2) : "-"
 				}</td>
       `;
 			tr.style.transition = "background 0.2s";

@@ -217,6 +217,8 @@ export class ArimaMacdLagStrategy implements Strategy {
 			errorCorrectionCoefficientNames?: string[];
 			hitForecast?: boolean[];
 			hitRate?: number;
+			forecastReturn?: (number | null)[];
+			forecastSpread?: (number | null)[];
 		} = {
 			dates: timestamps
 				.slice(offset)
@@ -472,6 +474,9 @@ export class ArimaMacdLagStrategy implements Strategy {
 		const closesAligned = ohlcvAligned.map((c) => Number(c[4]));
 		const forecastAligned = result.forecast;
 		const hitForecast: boolean[] = [];
+		const forecastReturn: (number | null)[] = [];
+		const forecastSpread: (number | null)[] = [];
+		// Remove duplicate/old logic for ret, forecastReturn, and forecastSpread
 		for (let i = 0; i < nRows; i++) {
 			const open = opensAligned[i];
 			const high = highsAligned[i];
@@ -481,28 +486,39 @@ export class ArimaMacdLagStrategy implements Strategy {
 			// Defensive: treat NaN as null
 			if (forecast === undefined || forecast === null || isNaN(forecast)) {
 				hitForecast.push(false);
+				forecastReturn.push(null);
+				forecastSpread.push(null);
 				continue;
 			}
+			// Determine hit first
+			let isHit = false;
 			if (forecast > open) {
-				// Bullish: did high or close reach/surpass forecast?
 				if (high >= forecast || close >= forecast) {
-					hitForecast.push(true);
-				} else {
-					hitForecast.push(false);
+					isHit = true;
 				}
 			} else if (forecast < open) {
-				// Bearish: did low or close reach/surpass forecast?
 				if (low <= forecast || close <= forecast) {
-					hitForecast.push(true);
-				} else {
-					hitForecast.push(false);
+					isHit = true;
 				}
-			} else {
-				// Forecast equals open, treat as no signal
-				hitForecast.push(false);
 			}
+			hitForecast.push(isHit);
+
+			// Spread: only show positive if hit, else keep sign
+			const spread = forecast - open;
+			forecastSpread.push(isHit ? Math.abs(spread) : spread);
+
+			// Return: only show positive if hit, else keep sign
+			let ret = 0;
+			if (forecast > open) {
+				ret = (close - open) / open;
+			} else if (forecast < open) {
+				ret = (open - close) / open;
+			}
+			forecastReturn.push(isHit ? Math.abs(ret) : ret);
 		}
 		result.hitForecast = hitForecast;
+		result.forecastReturn = forecastReturn;
+		result.forecastSpread = forecastSpread;
 		const hitCount = hitForecast.filter(Boolean).length;
 		const hitRate = nRows > 0 ? hitCount / nRows : 0;
 		result.hitRate = hitRate;
