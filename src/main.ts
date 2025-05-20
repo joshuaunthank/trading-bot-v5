@@ -596,7 +596,7 @@ function plotStrategyResult(data: any) {
 			.concat([nextErrorCorrectedForecast]);
 		const markerLabels = [...labels, nextLabel];
 		datasets.push({
-			label: "Next Error-Corrected Forecast",
+			label: "Next Candle Close Forecast", // updated label for clarity and consistency
 			data: markerData,
 			borderColor: "#ff2d55",
 			pointBackgroundColor: "#ff2d55",
@@ -848,13 +848,12 @@ function showSummary(data: any) {
 		}
     Data points: <b>${n}</b><br/>
     ${
-			nextPrediction !== null
-				? `<span style='color:orange;'>Last Error-Corrected Forecast: <b>${nextPrediction}</b></span><br/>`
-				: ""
+			// Remove 'Last Error-Corrected Forecast' as it's not useful
+			""
 		}
     ${
 			nextStepPrediction !== null
-				? `<span style='color:#ffb347;'>True Next Error-Corrected Forecast: <b>${nextStepPrediction}</b></span><br/>`
+				? `<span style='color:#ffb347;'>Next Candle Close Forecast: <b>${nextStepPrediction}</b></span><br/>`
 				: ""
 		}
     ${regressionStats}
