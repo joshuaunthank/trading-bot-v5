@@ -215,6 +215,8 @@ export class ArimaMacdLagStrategy implements Strategy {
 			errorCorrectionPValues?: number[] | null;
 			errorCorrectionModelPValue?: number | null;
 			errorCorrectionCoefficientNames?: string[];
+			hitForecast?: boolean[];
+			hitRate?: number;
 		} = {
 			dates: timestamps
 				.slice(offset)
@@ -461,6 +463,50 @@ export class ArimaMacdLagStrategy implements Strategy {
 				];
 			}
 		}
+		// === Backtest: Calculate hit/miss for each forecast (align to historical timeframes) ===
+		const nRows = result.price.length;
+		const ohlcvAligned = ohlcvUsed.slice(ohlcvUsed.length - nRows);
+		const highsAligned = ohlcvAligned.map((c) => Number(c[2]));
+		const lowsAligned = ohlcvAligned.map((c) => Number(c[3]));
+		const opensAligned = ohlcvAligned.map((c) => Number(c[1]));
+		const closesAligned = ohlcvAligned.map((c) => Number(c[4]));
+		const forecastAligned = result.forecast;
+		const hitForecast: boolean[] = [];
+		for (let i = 0; i < nRows; i++) {
+			const open = opensAligned[i];
+			const high = highsAligned[i];
+			const low = lowsAligned[i];
+			const close = closesAligned[i];
+			let forecast = forecastAligned[i];
+			// Defensive: treat NaN as null
+			if (forecast === undefined || forecast === null || isNaN(forecast)) {
+				hitForecast.push(false);
+				continue;
+			}
+			if (forecast > open) {
+				// Bullish: did high or close reach/surpass forecast?
+				if (high >= forecast || close >= forecast) {
+					hitForecast.push(true);
+				} else {
+					hitForecast.push(false);
+				}
+			} else if (forecast < open) {
+				// Bearish: did low or close reach/surpass forecast?
+				if (low <= forecast || close <= forecast) {
+					hitForecast.push(true);
+				} else {
+					hitForecast.push(false);
+				}
+			} else {
+				// Forecast equals open, treat as no signal
+				hitForecast.push(false);
+			}
+		}
+		result.hitForecast = hitForecast;
+		const hitCount = hitForecast.filter(Boolean).length;
+		const hitRate = nRows > 0 ? hitCount / nRows : 0;
+		result.hitRate = hitRate;
+
 		return {
 			result: {
 				...result,

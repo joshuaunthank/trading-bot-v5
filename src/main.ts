@@ -104,6 +104,12 @@ document.getElementById("run-form")!.onsubmit = async (e) => {
 		);
 		const data = await res.json();
 		output.textContent = JSON.stringify(data, null, 2);
+		// --- Ensure table/chart/summary update after run ---
+		if (data && data.result && data.result.forecast) {
+			plotStrategyResult(data);
+			showSummary(data);
+			await loadFeed(); // update table with new forecast/hit
+		}
 	} catch (err) {
 		output.textContent = "Error: " + err;
 	}
@@ -141,6 +147,8 @@ feedDiv.innerHTML = `
           <th>Low</th>
           <th>Close</th>
           <th>Volume</th>
+          <th>Forecast</th>
+          <th>Hit?</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -267,7 +275,29 @@ async function loadFeed() {
 		tbody.innerHTML = "";
 		// Reverse for table display only
 		const reversed = [...data].reverse();
-		for (const row of reversed) {
+
+		// Try to get forecast/hit data from last strategy run (if available)
+		let forecastMap: Record<string, number | null> = {};
+		let hitMap: Record<string, boolean | null> = {};
+		try {
+			const dataObj = JSON.parse(output.textContent || "{}");
+			if (dataObj && dataObj.result && Array.isArray(dataObj.result.dates)) {
+				const dates = dataObj.result.dates;
+				const forecasts = dataObj.result.forecast || [];
+				const hits = dataObj.result.hitForecast || [];
+				for (let i = 0; i < dates.length; ++i) {
+					const iso = new Date(dates[i]).toISOString();
+					forecastMap[iso] = forecasts[i] ?? null;
+					hitMap[iso] = hits[i] ?? null;
+				}
+			}
+		} catch {}
+
+		for (let i = 0; i < reversed.length; ++i) {
+			const row = reversed[i];
+			const iso = new Date(row[0]).toISOString();
+			const forecastVal = forecastMap[iso] ?? null;
+			const hitVal = hitMap[iso] ?? null;
 			const tr = document.createElement("tr");
 			tr.innerHTML = `
         <td>${new Date(row[0]).toLocaleString()}</td>
@@ -276,6 +306,12 @@ async function loadFeed() {
         <td class="feed-td-low">${Number(row[3]).toFixed(2)}</td>
         <td class="feed-td-close">${Number(row[4]).toFixed(2)}</td>
         <td class="feed-td-volume">${Number(row[5]).toFixed(3)}</td>
+        <td class="feed-td-forecast">${
+					forecastVal != null ? Number(forecastVal).toFixed(2) : "-"
+				}</td>
+        <td class="feed-td-hit">${
+					hitVal === true ? "✅" : hitVal === false ? "❌" : "-"
+				}</td>
       `;
 			tr.style.transition = "background 0.2s";
 			tr.onmouseover = () => (tr.style.background = "#23242a");
@@ -752,15 +788,6 @@ function showSummary(data: any) {
 			) / n
 		).toFixed(2);
 	}
-	let nextPrediction = null;
-	if (
-		errorCorrectedForecast &&
-		errorCorrectedForecast.length > 0 &&
-		errorCorrectedForecast[errorCorrectedForecast.length - 1] != null
-	) {
-		nextPrediction =
-			errorCorrectedForecast[errorCorrectedForecast.length - 1].toFixed(2);
-	}
 	let nextStepPrediction = null;
 	if (
 		data.result.nextErrorCorrectedForecast != null &&
@@ -837,6 +864,14 @@ function showSummary(data: any) {
 		}</b></span>`;
 	}
 
+	// Show hit rate if available
+	let hitRateHtml = "";
+	if (typeof data.result.hitRate === "number") {
+		hitRateHtml = `<span style='color:#b0e57c;'>Hit Rate: <b>${(
+			data.result.hitRate * 100
+		).toFixed(1)}%</b></span><br/>`;
+	}
+
 	summaryDiv.innerHTML = `
     <b>Result Summary:</b><br/>
     Date Range: <b>${dates[0]}</b> to <b>${dates[dates.length - 1]}</b><br/>
@@ -856,6 +891,7 @@ function showSummary(data: any) {
 				? `<span style='color:#ffb347;'>Next Candle Close Forecast: <b>${nextStepPrediction}</b></span><br/>`
 				: ""
 		}
+    ${hitRateHtml}
     ${regressionStats}
   `;
 }
