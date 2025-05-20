@@ -788,7 +788,6 @@ function showSummary(data: any) {
 	const dates = data.result.dates;
 	const price: number[] = data.result.price;
 	const forecast: number[] = data.result.forecast;
-	const errorCorrectedForecast: number[] = data.result.errorCorrectedForecast;
 	const n = price.length;
 	const min = Math.min(...price).toFixed(2);
 	const max = Math.max(...price).toFixed(2);
@@ -803,6 +802,38 @@ function showSummary(data: any) {
 				0
 			) / n
 		).toFixed(2);
+	}
+
+	// --- Cumulative P&L calculation ---
+	let cumPL = null;
+	let balanceHtml = "";
+	if (
+		data.result.cumulativePnL &&
+		typeof data.result.cumulativePnL.absolute === "number" &&
+		typeof data.result.cumulativePnL.percent === "number"
+	) {
+		const abs = data.result.cumulativePnL.absolute.toFixed(2);
+		const pct = data.result.cumulativePnL.percent.toFixed(2);
+		cumPL = `${abs} (${pct}%)`;
+		if (
+			typeof data.result.startingBalance === "number" &&
+			typeof data.result.endingBalance === "number"
+		) {
+			balanceHtml = `<span style='color:#b0e57c;'>Starting Balance: <b>${data.result.startingBalance.toFixed(
+				2
+			)}</b></span><br/>
+			<span style='color:#b0e57c;'>Ending Balance: <b>${data.result.endingBalance.toFixed(
+				2
+			)}</b></span><br/>`;
+		}
+	} else if (Array.isArray(data.result.forecastReturn)) {
+		// Fallback: percent sum
+		const returns = data.result.forecastReturn.filter(
+			(r: any) => typeof r === "number"
+		);
+		cumPL =
+			(returns.reduce((a: number, b: number) => a + b, 0) * 100).toFixed(2) +
+			"%";
 	}
 	let nextStepPrediction = null;
 	if (
@@ -826,7 +857,6 @@ function showSummary(data: any) {
 		data.result.errorCorrectionCoefficients.length > 0
 	) {
 		regressionStats += `<br/>Coefficients:<br/><span style='font-size:0.98em;'>`;
-		// Use coefficientNames from backend if present, else fallback to default
 		const names = Array.isArray(data.result.errorCorrectionCoefficientNames)
 			? data.result.errorCorrectionCoefficientNames
 			: [
@@ -871,7 +901,6 @@ function showSummary(data: any) {
 		}
 		regressionStats += `</span>`;
 	}
-	// Show overall model p-value if available
 	if (typeof data.result.errorCorrectionModelPValue === "number") {
 		regressionStats += `<br/><span style='color:#b0e57c;'>Model p-value: <b>${
 			data.result.errorCorrectionModelPValue < 0.0001
@@ -880,7 +909,6 @@ function showSummary(data: any) {
 		}</b></span>`;
 	}
 
-	// Show hit rate if available
 	let hitRateHtml = "";
 	if (typeof data.result.hitRate === "number") {
 		hitRateHtml = `<span style='color:#b0e57c;'>Hit Rate: <b>${(
@@ -898,6 +926,12 @@ function showSummary(data: any) {
 				: ""
 		}
     Data points: <b>${n}</b><br/>
+    ${balanceHtml}
+    ${
+			cumPL !== null
+				? `<span style='color:#b0e57c;'>Cumulative P&L: <b>${cumPL}</b></span><br/>`
+				: ""
+		}
     ${
 			// Remove 'Last Error-Corrected Forecast' as it's not useful
 			""

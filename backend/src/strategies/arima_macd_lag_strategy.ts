@@ -3,6 +3,7 @@ import ccxt from "ccxt";
 import { MACD, EMA } from "technicalindicators";
 // @ts-ignore
 import { jStat } from "jstat";
+import { fetchMarginBalance, calculateCumulativePnL } from "../utils";
 
 export class ArimaMacdLagStrategy implements Strategy {
 	name = "ARIMA_MACD_LAG";
@@ -219,6 +220,10 @@ export class ArimaMacdLagStrategy implements Strategy {
 			hitRate?: number;
 			forecastReturn?: (number | null)[];
 			forecastSpread?: (number | null)[];
+			// Portfolio balance and P&L
+			startingBalance?: number;
+			endingBalance?: number;
+			cumulativePnL?: { absolute: number; percent: number };
 		} = {
 			dates: timestamps
 				.slice(offset)
@@ -522,6 +527,33 @@ export class ArimaMacdLagStrategy implements Strategy {
 		const hitCount = hitForecast.filter(Boolean).length;
 		const hitRate = nRows > 0 ? hitCount / nRows : 0;
 		result.hitRate = hitRate;
+
+		// === Fetch starting margin account balance ===
+		const quoteAsset = params.symbol.split("/")[1] || "USDT";
+		let startingBalance = 0;
+		try {
+			startingBalance = await fetchMarginBalance(exchange, quoteAsset);
+		} catch (err) {
+			console.warn("Could not fetch starting margin balance:", err);
+			startingBalance = 0;
+		}
+
+		// === Simulate ending balance using forecast returns ===
+		let endingBalance = startingBalance;
+		if (startingBalance > 0 && Array.isArray(result.forecastReturn)) {
+			for (const ret of result.forecastReturn) {
+				if (typeof ret === "number" && !isNaN(ret)) {
+					endingBalance *= 1 + ret;
+				}
+			}
+		}
+		const cumulativePnL = calculateCumulativePnL(
+			startingBalance,
+			endingBalance
+		);
+		result.startingBalance = startingBalance;
+		result.endingBalance = endingBalance;
+		result.cumulativePnL = cumulativePnL;
 
 		return {
 			result: {
