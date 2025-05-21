@@ -1,5 +1,6 @@
 import ccxt from "ccxt";
 import express from "express";
+import type { Request, Response } from "express";
 import cors from "cors";
 import { Strategy } from "./strategy";
 import { Model } from "./model";
@@ -71,9 +72,79 @@ app.use(express.json());
 	}
 });
 
+// Fetch OHLCV data for a symbol/timeframe/limit
+(app as any).get("/api/ohlcv", async (req: any, res: any) => {
+	try {
+		const symbol =
+			typeof req.query.symbol === "string" ? req.query.symbol : "BTC/USDT";
+		const timeframe =
+			typeof req.query.timeframe === "string" ? req.query.timeframe : "4h";
+		const limit = req.query.limit ? Number(req.query.limit) : 1000;
+		const binance = new ccxt.binance({ enableRateLimit: true });
+		await binance.loadMarkets();
+		const ohlcv = await binance.fetchOHLCV(symbol, timeframe, undefined, limit);
+		if (!ohlcv || !ohlcv.length) {
+			return res.status(404).json({ error: "No OHLCV data returned" });
+		}
+		const result = {
+			dates: ohlcv.map((row) => new Date(Number(row[0])).toISOString()),
+			open: ohlcv.map((row) => row[1]),
+			high: ohlcv.map((row) => row[2]),
+			low: ohlcv.map((row) => row[3]),
+			close: ohlcv.map((row) => row[4]),
+			volume: ohlcv.map((row) => row[5]),
+			price: ohlcv.map((row) => row[4]), // for chart compatibility
+		};
+		res.json({ result });
+	} catch (err) {
+		if (err instanceof Error) {
+			res.status(500).json({ error: err.message });
+		} else {
+			res.status(500).json({ error: "Failed to fetch OHLCV" });
+		}
+	}
+});
+(app as any).get("/api/ohlcv/", async (req: any, res: any) => {
+	try {
+		const symbol =
+			typeof req.query.symbol === "string" ? req.query.symbol : "BTC/USDT";
+		const timeframe =
+			typeof req.query.timeframe === "string" ? req.query.timeframe : "4h";
+		const limit = req.query.limit ? Number(req.query.limit) : 1000;
+		const binance = new ccxt.binance({ enableRateLimit: true });
+		await binance.loadMarkets();
+		const ohlcv = await binance.fetchOHLCV(symbol, timeframe, undefined, limit);
+		if (!ohlcv || !ohlcv.length) {
+			return res.status(404).json({ error: "No OHLCV data returned" });
+		}
+		const result = {
+			dates: ohlcv.map((row) => new Date(Number(row[0])).toISOString()),
+			open: ohlcv.map((row) => row[1]),
+			high: ohlcv.map((row) => row[2]),
+			low: ohlcv.map((row) => row[3]),
+			close: ohlcv.map((row) => row[4]),
+			volume: ohlcv.map((row) => row[5]),
+			price: ohlcv.map((row) => row[4]), // for chart compatibility
+		};
+		res.json({ result });
+	} catch (err) {
+		if (err instanceof Error) {
+			res.status(500).json({ error: err.message });
+		} else {
+			res.status(500).json({ error: "Failed to fetch OHLCV" });
+		}
+	}
+});
+
+// Catch-all for unmatched routes (debug)
+app.use((req, res) => {
+	console.warn(`[404] Unmatched route: ${req.method} ${req.url}`);
+	res.status(404).json({ error: "Not found" });
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-	console.log(`Backend API listening on port ${PORT}`);
+	console.log(`Backend API listening on port ${PORT} (try GET /api/ohlcv)`);
 });
 
 // Example usage (replace with your API keys)

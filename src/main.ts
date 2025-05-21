@@ -231,136 +231,190 @@ async function scheduleFeedUpdate() {
 
 async function loadFeed() {
 	updateFeedTitle();
-	const tf = getCurrentTimeframe();
-	const ms = timeframeToMs(tf);
-	const serverNow = await getBinanceServerTime();
-	let nextClose;
-	if (tf.endsWith("m")) {
-		const n = parseInt(tf);
-		nextClose = Math.ceil(serverNow / (n * 60 * 1000)) * (n * 60 * 1000);
-	} else if (tf.endsWith("h")) {
-		const n = parseInt(tf);
-		nextClose =
-			Math.ceil(serverNow / (n * 60 * 60 * 1000)) * (n * 60 * 60 * 1000);
-	} else if (tf.endsWith("d")) {
-		const n = parseInt(tf);
-		nextClose =
-			Math.ceil(serverNow / (n * 24 * 60 * 60 * 1000)) *
-			(n * 24 * 60 * 60 * 1000);
-	} else {
-		nextClose = serverNow + ms;
-	}
-	const msToNext = Math.max(nextClose - serverNow, 1000);
-	if (msToNext > 2000) {
-		feedStatus.textContent = `Next update in ${Math.round(
-			msToNext / 1000
-		)}s (Binance time), then every ${tf}`;
-	} else {
-		feedStatus.textContent = `Updating... (Binance time), then every ${tf}`;
-	}
-	feedStatus.textContent = feedStatus.textContent; // force update
+	const tbody = document.querySelector("#feed-table tbody")!;
+	tbody.innerHTML = "";
+	let dataObj: any = null;
 	try {
-		feedStatus.textContent = "Auto-updating...";
-		const tf = getCurrentTimeframe();
-		const symbol =
-			(document.getElementById("symbol") as HTMLInputElement)?.value ||
-			"BTC/USDT";
-		const symbolApi = symbol.replace("/", "");
-		const limit =
-			Number((document.getElementById("limit") as HTMLInputElement)?.value) ||
-			1000;
-		const res = await fetch(
-			`https://api.binance.com/api/v3/klines?symbol=${symbolApi}&interval=${tf}&limit=${limit}`
-		);
-		const data = await res.json();
-		const tbody = document.querySelector("#feed-table tbody")!;
-		tbody.innerHTML = "";
-		// Reverse for table display only
-		const reversed = [...data].reverse();
-
-		// Try to get forecast/hit data from last strategy run (if available)
-		let forecastMap: Record<string, number | null> = {};
-		let hitMap: Record<string, boolean | null> = {};
-		let forecastReturnMap: Record<string, number | null> = {};
-		let forecastSpreadMap: Record<string, number | null> = {};
-		try {
-			const dataObj = JSON.parse(output.textContent || "{}");
-			if (dataObj && dataObj.result && Array.isArray(dataObj.result.dates)) {
-				const dates = dataObj.result.dates;
-				const forecasts = dataObj.result.forecast || [];
-				const hits = dataObj.result.hitForecast || [];
-				const forecastReturns = dataObj.result.forecastReturn || [];
-				const forecastSpreads = dataObj.result.forecastSpread || [];
-				for (let i = 0; i < dates.length; ++i) {
-					const iso = new Date(dates[i]).toISOString();
-					forecastMap[iso] = forecasts[i] ?? null;
-					hitMap[iso] = hits[i] ?? null;
-					forecastReturnMap[iso] = forecastReturns[i] ?? null;
-					forecastSpreadMap[iso] = forecastSpreads[i] ?? null;
-				}
+		dataObj = JSON.parse(output.textContent || "{}");
+	} catch {}
+	// Debug: print backend result keys and array lengths
+	if (dataObj && dataObj.result) {
+		console.log("[DEBUG] Backend result keys:", Object.keys(dataObj.result));
+		[
+			"dates",
+			"open",
+			"high",
+			"low",
+			"close",
+			"price",
+			"volume",
+			"forecast",
+			"hitForecast",
+			"forecastReturn",
+			"forecastSpread",
+		].forEach((key) => {
+			if (Array.isArray(dataObj.result[key])) {
+				console.log(`[DEBUG] ${key}: length =`, dataObj.result[key].length);
 			}
-		} catch {}
-
-		for (let i = 0; i < reversed.length; ++i) {
-			const row = reversed[i];
-			const iso = new Date(row[0]).toISOString();
-			const forecastVal = forecastMap[iso] ?? null;
-			const hitVal = hitMap[iso] ?? null;
-			const returnVal = forecastReturnMap[iso];
-			const spreadVal = forecastSpreadMap[iso];
+		});
+	}
+	if (
+		dataObj &&
+		dataObj.result &&
+		Array.isArray(dataObj.result.dates) &&
+		Array.isArray(dataObj.result.price)
+	) {
+		const n = dataObj.result.dates.length;
+		const dates = dataObj.result.dates;
+		const price = dataObj.result.price;
+		const forecasts = dataObj.result.forecast || [];
+		const hits = dataObj.result.hitForecast || [];
+		const forecastReturns = dataObj.result.forecastReturn || [];
+		const forecastSpreads = dataObj.result.forecastSpread || [];
+		for (let i = n - 1; i >= 0; --i) {
 			const tr = document.createElement("tr");
 			tr.innerHTML = `
-        <td>${new Date(row[0]).toLocaleString()}</td>
-        <td class="feed-td-open">${Number(row[1]).toFixed(2)}</td>
-        <td class="feed-td-high">${Number(row[2]).toFixed(2)}</td>
-        <td class="feed-td-low">${Number(row[3]).toFixed(2)}</td>
-        <td class="feed-td-close">${Number(row[4]).toFixed(2)}</td>
-        <td class="feed-td-volume">${Number(row[5]).toFixed(3)}</td>
-        <td class="feed-td-forecast">${
-					forecastVal != null ? Number(forecastVal).toFixed(2) : "-"
+				<td>${new Date(dates[i]).toLocaleString()}</td>
+				<td class="feed-td-open">${
+					price[i] != null ? Number(price[i]).toFixed(2) : "-"
 				}</td>
-        <td class="feed-td-hit">${
-					hitVal === true ? "✅" : hitVal === false ? "❌" : "-"
+				<td class="feed-td-high">${
+					price[i] != null ? Number(price[i]).toFixed(2) : "-"
 				}</td>
-        <td class="feed-td-return">${
-					returnVal != null ? (returnVal * 100).toFixed(2) + "%" : "-"
+				<td class="feed-td-low">${
+					price[i] != null ? Number(price[i]).toFixed(2) : "-"
 				}</td>
-        <td class="feed-td-spread">${
-					spreadVal != null ? Number(spreadVal).toFixed(2) : "-"
+				<td class="feed-td-close">${
+					price[i] != null ? Number(price[i]).toFixed(2) : "-"
 				}</td>
-      `;
+				<td class="feed-td-volume">-</td>
+				<td class="feed-td-forecast">${
+					forecasts[i] != null ? Number(forecasts[i]).toFixed(2) : "-"
+				}</td>
+				<td class="feed-td-hit">${
+					hits[i] === true ? "✅" : hits[i] === false ? "❌" : "-"
+				}</td>
+				<td class="feed-td-return">${
+					forecastReturns[i] != null
+						? (forecastReturns[i] * 100).toFixed(2) + "%"
+						: "-"
+				}</td>
+				<td class="feed-td-spread">${
+					forecastSpreads[i] != null
+						? Number(forecastSpreads[i]).toFixed(2)
+						: "-"
+				}</td>
+			`;
 			tr.style.transition = "background 0.2s";
 			tr.onmouseover = () => (tr.style.background = "#23242a");
 			tr.onmouseout = () => (tr.style.background = "");
 			tbody.appendChild(tr);
 		}
-		// Only show 'Last updated' after the table is filled
+		// --- Append next candle row if nextErrorCorrectedForecast is present ---
+		if (
+			dataObj.result.nextErrorCorrectedForecast !== undefined &&
+			dataObj.result.nextErrorCorrectedForecast !== null &&
+			!isNaN(dataObj.result.nextErrorCorrectedForecast)
+		) {
+			const lastDate = new Date(dates[dates.length - 1]);
+			const tf =
+				(document.getElementById("timeframe") as HTMLInputElement)?.value ||
+				"4h";
+			const timeframeMs = timeframeToMs(tf);
+			const nextCandleDate = new Date(lastDate.getTime() + timeframeMs);
+			const tr = document.createElement("tr");
+			tr.innerHTML = `
+				<td>${nextCandleDate.toLocaleString()}</td>
+				<td class="feed-td-open">-</td>
+				<td class="feed-td-high">-</td>
+				<td class="feed-td-low">-</td>
+				<td class="feed-td-close">-</td>
+				<td class="feed-td-volume">-</td>
+				<td class="feed-td-forecast">${Number(
+					dataObj.result.nextErrorCorrectedForecast
+				).toFixed(2)}</td>
+				<td class="feed-td-hit">-</td>
+				<td class="feed-td-return">-</td>
+				<td class="feed-td-spread">-</td>
+			`;
+			tr.style.background = "#232323";
+			tr.style.fontStyle = "italic";
+			tbody.insertBefore(tr, tbody.firstChild);
+		}
 		feedStatus.textContent = `Last updated: ${new Date(
-			reversed[0][0]
+			dates[n - 1]
 		).toLocaleTimeString()}`;
-
-		// --- Plot BTC price on chart in chronological order ---
-		const priceDates = data.map((row: any) => new Date(row[0]).toISOString());
-		const priceVals = data.map((row: any) => Number(row[4]));
-		const chartData = {
-			result: {
-				dates: priceDates,
-				price: priceVals,
-				forecast: null,
-				errorCorrectedForecast: null,
-			},
-		};
-		plotStrategyResult(chartData);
-
+		// Also plot chart
+		plotStrategyResult({ result: dataObj.result });
+	} else {
+		// No strategy result: fetch OHLCV from backend
+		const symbol =
+			(document.getElementById("symbol") as HTMLInputElement)?.value ||
+			"BTC/USDT";
+		const timeframe =
+			(document.getElementById("timeframe") as HTMLInputElement)?.value || "4h";
+		const limit =
+			Number((document.getElementById("limit") as HTMLInputElement)?.value) ||
+			1000;
 		try {
-			const dataObj = JSON.parse(output.textContent || "{}");
-			if (dataObj && dataObj.result && dataObj.result.forecast) {
-				plotStrategyResult(dataObj);
-				showSummary(dataObj);
+			const res = await fetch(
+				`http://localhost:3001/api/ohlcv?symbol=${encodeURIComponent(
+					symbol
+				)}&timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`
+			);
+			const ohlcvData = await res.json();
+			if (
+				ohlcvData &&
+				ohlcvData.result &&
+				Array.isArray(ohlcvData.result.dates)
+			) {
+				const n = ohlcvData.result.dates.length;
+				const dates = ohlcvData.result.dates;
+				const open = ohlcvData.result.open;
+				const high = ohlcvData.result.high;
+				const low = ohlcvData.result.low;
+				const close = ohlcvData.result.close;
+				const volume = ohlcvData.result.volume;
+				for (let i = n - 1; i >= 0; --i) {
+					const tr = document.createElement("tr");
+					tr.innerHTML = `
+						<td>${new Date(dates[i]).toLocaleString()}</td>
+						<td class="feed-td-open">${
+							open[i] != null ? Number(open[i]).toFixed(2) : "-"
+						}</td>
+						<td class="feed-td-high">${
+							high[i] != null ? Number(high[i]).toFixed(2) : "-"
+						}</td>
+						<td class="feed-td-low">${low[i] != null ? Number(low[i]).toFixed(2) : "-"}</td>
+						<td class="feed-td-close">${
+							close[i] != null ? Number(close[i]).toFixed(2) : "-"
+						}</td>
+						<td class="feed-td-volume">${
+							volume[i] != null ? Number(volume[i]).toFixed(3) : "-"
+						}</td>
+						<td class="feed-td-forecast">-</td>
+						<td class="feed-td-hit">-</td>
+						<td class="feed-td-return">-</td>
+						<td class="feed-td-spread">-</td>
+					`;
+					tr.style.transition = "background 0.2s";
+					tr.onmouseover = () => (tr.style.background = "#23242a");
+					tr.onmouseout = () => (tr.style.background = "");
+					tbody.appendChild(tr);
+				}
+				feedStatus.textContent = `Last updated: ${new Date(
+					dates[n - 1]
+				).toLocaleTimeString()}`;
+				// Plot chart with price only
+				plotStrategyResult({ result: { dates, price: close } });
+			} else {
+				tbody.innerHTML = `<tr><td colspan='10'>No OHLCV data available from backend.</td></tr>`;
+				feedStatus.textContent = "No backend data";
 			}
-		} catch {}
-	} catch {
-		feedStatus.textContent = "Feed update failed";
+		} catch (err) {
+			tbody.innerHTML = `<tr><td colspan='10'>Failed to fetch OHLCV from backend.</td></tr>`;
+			feedStatus.textContent = "No backend data";
+		}
 	}
 }
 
