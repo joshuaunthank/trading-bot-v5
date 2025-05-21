@@ -6,6 +6,7 @@ import ccxt from "ccxt";
 import { MACD, EMA } from "technicalindicators";
 // @ts-ignore
 import { jStat } from "jstat";
+import { transpose, dot, invert2D } from "../mathUtils";
 
 export class ArimaMacdLagAdaptiveStrategy implements Strategy {
 	name = "ARIMA_MACD_LAG_ADAPTIVE";
@@ -152,40 +153,4 @@ export class ArimaMacdLagAdaptiveStrategy implements Strategy {
 			},
 		};
 	}
-}
-
-function invert2D(matrix: number[][]): number[][] {
-	const n = matrix.length;
-	const identity = Array.from({ length: n }, (_, i) =>
-		Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))
-	);
-	for (let i = 0; i < n; i++) {
-		let pivot = matrix[i][i];
-		if (pivot === 0) {
-			// Pivoting: swap with a lower row
-			for (let j = i + 1; j < n; j++) {
-				if (matrix[j][i] !== 0) {
-					[matrix[i], matrix[j]] = [matrix[j], matrix[i]];
-					[identity[i], identity[j]] = [identity[j], identity[i]];
-					pivot = matrix[i][i];
-					break;
-				}
-			}
-		}
-		if (pivot === 0)
-			throw new Error("Matrix is singular and cannot be inverted");
-		for (let j = 0; j < n; j++) {
-			matrix[i][j] /= pivot;
-			identity[i][j] /= pivot;
-		}
-		for (let j = 0; j < n; j++) {
-			if (j === i) continue;
-			const factor = matrix[j][i];
-			for (let k = 0; k < n; k++) {
-				matrix[j][k] -= factor * matrix[i][k];
-				identity[j][k] -= factor * identity[i][k];
-			}
-		}
-	}
-	return identity;
 }

@@ -4,6 +4,9 @@ import { MACD, EMA } from "technicalindicators";
 // @ts-ignore
 import { jStat } from "jstat";
 import { fetchMarginBalance, calculateCumulativePnL } from "../utils";
+import { transpose, dot, invert2D } from "../mathUtils";
+import { alignArrays } from "../arrayUtils";
+import { toNumberArray, toBBArray } from "../indicatorUtils";
 
 export class ArimaMacdLagStrategy implements Strategy {
 	name = "ARIMA_MACD_LAG";
@@ -89,47 +92,6 @@ export class ArimaMacdLagStrategy implements Strategy {
 		// Add bias column for intercept
 		const Xmat = X.map((row) => [1, ...row]);
 		// OLS: beta = (X^T X)^-1 X^T y
-		function transpose(m: number[][]) {
-			return m[0].map((_, i) => m.map((row) => row[i]));
-		}
-		function dot(a: number[][], b: number[][]) {
-			return a.map((row) =>
-				b[0].map((_, j) => row.reduce((sum, v, k) => sum + v * b[k][j], 0))
-			);
-		}
-		function invert2D(m: number[][]) {
-			// Only for small matrices, use numeric.js or mathjs for production
-			const size = m.length;
-			const I = Array.from({ length: size }, (_, i) =>
-				Array(size)
-					.fill(0)
-					.map((_, j) => (i === j ? 1 : 0))
-			);
-			// Gaussian elimination
-			const M = m.map((row) => row.slice());
-			for (let i = 0; i < size; i++) {
-				let maxRow = i;
-				for (let k = i + 1; k < size; k++)
-					if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
-				[M[i], M[maxRow]] = [M[maxRow], M[i]];
-				[I[i], I[maxRow]] = [I[maxRow], I[i]];
-				const div = M[i][i];
-				for (let j = 0; j < size; j++) {
-					M[i][j] /= div;
-					I[i][j] /= div;
-				}
-				for (let k = 0; k < size; k++) {
-					if (k !== i) {
-						const factor = M[k][i];
-						for (let j = 0; j < size; j++) {
-							M[k][j] -= factor * M[i][j];
-							I[k][j] -= factor * I[i][j];
-						}
-					}
-				}
-			}
-			return I;
-		}
 		const Xt = transpose(Xmat);
 		const XtX = dot(Xt, Xmat);
 		const XtXinv = invert2D(XtX);
@@ -183,16 +145,38 @@ export class ArimaMacdLagStrategy implements Strategy {
 		const macdLag1 = macdDiff.map((v, i, arr) => (i > 0 ? arr[i - 1] : 0));
 		const macdLag4 = macdDiff.map((v, i, arr) => (i > 3 ? arr[i - 4] : 0));
 
-		// Align all arrays
-		const minLen = Math.min(
-			closes.length - 4,
-			arimaForecast.length,
-			macd.length,
-			ema5.length,
-			ema10.length,
-			ema30.length
-		);
-		const offset = closes.length - minLen;
+		// Align all arrays needed for modeling and output
+		const aligned = alignArrays({
+			dates: timestamps,
+			price: closes,
+			forecast: arimaForecast,
+			macd: macd.map((m) => m.MACD),
+			macdSignal: macd.map((m) => m.signal),
+			macdHist: macd.map((m) => m.histogram),
+			ema5,
+			ema10,
+			ema30,
+			lag1,
+			lag4,
+			macdLag1,
+			macdLag4,
+		});
+		const dates = aligned.dates;
+		const price = aligned.price;
+		const forecast = aligned.forecast;
+		const macdAligned = aligned.macd;
+		const macdSignalAligned = aligned.macdSignal;
+		const macdHistAligned = aligned.macdHist;
+		const ema5Aligned = aligned.ema5;
+		const ema10Aligned = aligned.ema10;
+		const ema30Aligned = aligned.ema30;
+		const lag1Aligned = aligned.lag1;
+		const lag4Aligned = aligned.lag4;
+		const macdLag1Aligned = aligned.macdLag1;
+		const macdLag4Aligned = aligned.macdLag4;
+		const minLen = price.length;
+
+		// Defensive: filter out undefined from dates before mapping to ISO string
 		const result: {
 			dates: string[];
 			price: number[];
@@ -225,52 +209,45 @@ export class ArimaMacdLagStrategy implements Strategy {
 			endingBalance?: number;
 			cumulativePnL?: { absolute: number; percent: number };
 		} = {
-			dates: timestamps
-				.slice(offset)
+			dates: dates
 				.filter((t): t is number => t !== undefined)
 				.map((t) => new Date(t).toISOString()),
-			price: closes.slice(offset),
-			forecast: arimaForecast.slice(arimaForecast.length - minLen),
-			macd: macd.slice(macd.length - minLen).map((m) => m.MACD),
-			macdSignal: macd.slice(macd.length - minLen).map((m) => m.signal),
-			macdHist: macd.slice(macd.length - minLen).map((m) => m.histogram),
-			ema5: ema5.slice(ema5.length - minLen),
-			ema10: ema10.slice(ema10.length - minLen),
-			ema30: ema30.slice(ema30.length - minLen),
-			lag1: lag1.slice(lag1.length - minLen),
-			lag4: lag4.slice(lag4.length - minLen),
-			macdLag1: macdLag1.slice(macdLag1.length - minLen),
-			macdLag4: macdLag4.slice(macdLag4.length - minLen),
+			price: price,
+			forecast: forecast,
+			macd: macdAligned,
+			macdSignal: macdSignalAligned,
+			macdHist: macdHistAligned,
+			ema5: ema5Aligned,
+			ema10: ema10Aligned,
+			ema30: ema30Aligned,
+			lag1: lag1Aligned,
+			lag4: lag4Aligned,
+			macdLag1: macdLag1Aligned,
+			macdLag4: macdLag4Aligned,
 		};
 		// === MACD Histogram Forecast using Linear Regression on EMAs ===
-		const macdHist = macd
-			.slice(macd.length - minLen)
-			.map((m) => m.histogram ?? 0);
-		const ema5Aligned = ema5.slice(ema5.length - minLen);
-		const ema10Aligned = ema10.slice(ema10.length - minLen);
-		const ema30Aligned = ema30.slice(ema30.length - minLen);
-		const macdSignalArr = macd
-			.slice(macd.length - minLen)
-			.map((m) => m.signal ?? 0);
+		// Use only the aligned variables from alignArrays
+		const macdHist = macdHistAligned;
+		const macdSignalArr = macdSignalAligned;
+		// Remove redeclaration of ema5Aligned, ema10Aligned, ema30Aligned here
 		const emaFeatures: number[][] = [];
 		const macdHistY: number[] = [];
 		for (let i = 2; i < minLen; i++) {
-			// Use lagged EMAs, lagged MACD_HIST, lagged MACD, lagged MACD signal, lagged returns
 			emaFeatures.push([
 				1,
 				ema5Aligned[i - 1],
 				ema10Aligned[i - 1],
 				ema30Aligned[i - 1],
-				macdHist[i - 1],
-				macdHist[i - 2],
+				macdHist[i - 1] ?? 0,
+				macdHist[i - 2] ?? 0,
 				macdArr[i - 1],
 				macdArr[i - 2],
-				macdSignalArr[i - 1],
-				macdSignalArr[i - 2],
-				lag1[i - 1],
-				lag4[i - 1],
+				macdSignalArr[i - 1] ?? 0,
+				macdSignalArr[i - 2] ?? 0,
+				lag1Aligned[i - 1],
+				lag4Aligned[i - 1],
 			]);
-			macdHistY.push(macdHist[i]);
+			macdHistY.push(macdHist[i] ?? 0);
 		}
 		if (emaFeatures.length > 4) {
 			const Xt2 = transpose(emaFeatures);
@@ -289,14 +266,14 @@ export class ArimaMacdLagStrategy implements Strategy {
 						beta2[1] * ema5Aligned[i - 1] +
 						beta2[2] * ema10Aligned[i - 1] +
 						beta2[3] * ema30Aligned[i - 1] +
-						beta2[4] * macdHist[i - 1] +
-						beta2[5] * macdHist[i - 2] +
+						beta2[4] * (macdHist[i - 1] ?? 0) +
+						beta2[5] * (macdHist[i - 2] ?? 0) +
 						beta2[6] * macdArr[i - 1] +
 						beta2[7] * macdArr[i - 2] +
-						beta2[8] * macdSignalArr[i - 1] +
-						beta2[9] * macdSignalArr[i - 2] +
-						beta2[10] * lag1[i - 1] +
-						beta2[11] * lag4[i - 1]
+						beta2[8] * (macdSignalArr[i - 1] ?? 0) +
+						beta2[9] * (macdSignalArr[i - 2] ?? 0) +
+						beta2[10] * lag1Aligned[i - 1] +
+						beta2[11] * lag4Aligned[i - 1]
 				);
 			}
 			result.macdHistForecast = macdHistForecast;

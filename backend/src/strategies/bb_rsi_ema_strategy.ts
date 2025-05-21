@@ -1,6 +1,7 @@
 import { Strategy } from "../strategy";
 import ccxt from "ccxt";
 import { EMA, RSI, BollingerBands, ATR } from "technicalindicators";
+import { toNumberArray, toBBArray } from "../indicatorUtils";
 
 // Simple in-memory state for last trade timestamp and trade history
 const tradeState: Record<
@@ -52,25 +53,6 @@ export class BBRSIEMAStrategy implements Strategy {
 		const bbPeriod = 20;
 		const bbStdDev = 2;
 		const atrPeriod = 14;
-		// Remove undefineds and cast Num to number for technicalindicators
-		function toNumberArray(arr: any[]): number[] {
-			return arr
-				.map((v) =>
-					typeof v === "number" ? v : v === undefined ? NaN : Number(v)
-				)
-				.filter((v) => !isNaN(v));
-		}
-		function toBBArray(
-			arr: any[]
-		): { upper: number; lower: number; middle: number }[] {
-			return arr.filter(
-				(v) =>
-					v &&
-					typeof v.upper === "number" &&
-					typeof v.lower === "number" &&
-					typeof v.middle === "number"
-			);
-		}
 		const ema = toNumberArray(
 			EMA.calculate({ period: emaPeriod, values: closes })
 		);

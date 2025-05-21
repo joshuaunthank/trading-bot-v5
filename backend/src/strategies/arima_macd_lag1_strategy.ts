@@ -3,6 +3,7 @@ import ccxt from "ccxt";
 import { MACD, EMA } from "technicalindicators";
 // @ts-ignore
 import { jStat } from "jstat";
+import { transpose, dot, invert2D } from "../mathUtils";
 
 export class ArimaMacdLag1Strategy implements Strategy {
 	name = "ARIMA_MACD_LAG1";
@@ -74,45 +75,6 @@ export class ArimaMacdLag1Strategy implements Strategy {
 			y.push(openToCloseReturn[i]);
 		}
 		const Xmat = X.map((row) => [1, ...row]);
-		function transpose(m: number[][]) {
-			return m[0].map((_, i) => m.map((row) => row[i]));
-		}
-		function dot(a: number[][], b: number[][]) {
-			return a.map((row) =>
-				b[0].map((_, j) => row.reduce((sum, v, k) => sum + v * b[k][j], 0))
-			);
-		}
-		function invert2D(m: number[][]) {
-			const size = m.length;
-			const I = Array.from({ length: size }, (_, i) =>
-				Array(size)
-					.fill(0)
-					.map((_, j) => (i === j ? 1 : 0))
-			);
-			const M = m.map((row) => row.slice());
-			for (let i = 0; i < size; i++) {
-				let maxRow = i;
-				for (let k = i + 1; k < size; k++)
-					if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
-				[M[i], M[maxRow]] = [M[maxRow], M[i]];
-				[I[i], I[maxRow]] = [I[maxRow], I[i]];
-				const div = M[i][i];
-				for (let j = 0; j < size; j++) {
-					M[i][j] /= div;
-					I[i][j] /= div;
-				}
-				for (let k = 0; k < size; k++) {
-					if (k !== i) {
-						const factor = M[k][i];
-						for (let j = 0; j < size; j++) {
-							M[k][j] -= factor * M[i][j];
-							I[k][j] -= factor * I[i][j];
-						}
-					}
-				}
-			}
-			return I;
-		}
 		const Xt = transpose(Xmat);
 		const XtX = dot(Xt, Xmat);
 		const XtXinv = invert2D(XtX);
