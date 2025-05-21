@@ -64,6 +64,10 @@ export class ArimaMacdLagStrategy implements Strategy {
 			"Last 3 closed candle closes:",
 			closedOhlcv.slice(-3).map((c) => c[4])
 		);
+		// Debug: log last 5 candles from Binance OHLCV
+		console.log("Last 5 raw OHLCV from Binance:", ohlcv.slice(-5));
+		// Debug: log last 5 closed candles used for calculations
+		console.log("Last 5 closed OHLCV used:", closedOhlcv.slice(-5));
 		// Use only closed candles for all calculations
 		const ohlcvUsed = closedOhlcv;
 
@@ -73,6 +77,33 @@ export class ArimaMacdLagStrategy implements Strategy {
 		const timestamps = ohlcvUsed.map((c) => c[0]);
 		const openToCloseReturn = closes.map(
 			(close, i) => (close - opens[i]) / opens[i]
+		);
+
+		// === Calculate MACD and EMAs (strict out-of-sample) ===
+		const macdInput = {
+			values: closes.slice(0, closes.length - 1), // exclude last close for strict out-of-sample
+			fastPeriod: 10,
+			slowPeriod: 30,
+			signalPeriod: 5,
+			SimpleMAOscillator: false,
+			SimpleMASignal: false,
+		};
+		const macd = MACD.calculate(macdInput) as Array<{
+			MACD: number;
+			signal: number;
+			histogram: number;
+		}>;
+		const ema5 = EMA.calculate({ period: 5, values: closes });
+		const ema10 = EMA.calculate({ period: 10, values: closes });
+		const ema30 = EMA.calculate({ period: 30, values: closes });
+		const closeReturn = closes.map((v: number, i: number, arr: number[]) =>
+			i > 0 ? (v - arr[i - 1]) / arr[i - 1] : 0
+		);
+		const lag1 = closeReturn.map((v: number, i: number, arr: number[]) =>
+			i > 0 ? arr[i - 1] : 0
+		);
+		const lag4 = closeReturn.map((v: number, i: number, arr: number[]) =>
+			i > 3 ? arr[i - 4] : 0
 		);
 
 		// === Dynamically fit AR(4) coefficients using linear regression ===
@@ -118,49 +149,23 @@ export class ArimaMacdLagStrategy implements Strategy {
 			arimaForecast.push(closes[i - 1] * (1 + forecastedDiff[i - 4]));
 		}
 
-		// MACD and EMA
-		const macdInput = {
-			values: closes.slice(0, closes.length - 1),
-			fastPeriod: 10,
-			slowPeriod: 30,
-			signalPeriod: 5,
-			SimpleMAOscillator: false,
-			SimpleMASignal: false,
-		};
-		const macd = MACD.calculate(macdInput);
-		const ema5 = EMA.calculate({ period: 5, values: closes });
-		const ema10 = EMA.calculate({ period: 10, values: closes });
-		const ema30 = EMA.calculate({ period: 30, values: closes });
-
-		// Lagged returns and EMAs
-		const closeReturn = closes.map((v, i, arr) =>
-			i > 0 ? (v - arr[i - 1]) / arr[i - 1] : 0
-		);
-		const lag1 = closeReturn.map((v, i, arr) => (i > 0 ? arr[i - 1] : 0));
-		const lag4 = closeReturn.map((v, i, arr) => (i > 3 ? arr[i - 4] : 0));
-
-		// MACD diff and lags
-		const macdArr = macd.map((m) => m.MACD ?? 0);
-		const macdDiff = macdArr.map((v, i, arr) => (i > 0 ? v - arr[i - 1] : 0));
-		const macdLag1 = macdDiff.map((v, i, arr) => (i > 0 ? arr[i - 1] : 0));
-		const macdLag4 = macdDiff.map((v, i, arr) => (i > 3 ? arr[i - 4] : 0));
-
-		// Align all arrays needed for modeling and output
+		// --- Strict out-of-sample alignment fix ---
+		// Use only number[] arrays, no null padding
+		const outputLen = arimaForecast.length;
 		const aligned = alignArrays({
-			dates: timestamps,
-			price: closes,
+			dates: timestamps.slice(4, 4 + outputLen),
+			price: closes.slice(4, 4 + outputLen),
 			forecast: arimaForecast,
 			macd: macd.map((m) => m.MACD),
 			macdSignal: macd.map((m) => m.signal),
 			macdHist: macd.map((m) => m.histogram),
-			ema5,
-			ema10,
-			ema30,
-			lag1,
-			lag4,
-			macdLag1,
-			macdLag4,
+			ema5: ema5,
+			ema10: ema10,
+			ema30: ema30,
+			lag1: lag1,
+			lag4: lag4,
 		});
+		// Use the full aligned arrays, do NOT slice off the last value
 		const dates = aligned.dates;
 		const price = aligned.price;
 		const forecast = aligned.forecast;
@@ -172,8 +177,6 @@ export class ArimaMacdLagStrategy implements Strategy {
 		const ema30Aligned = aligned.ema30;
 		const lag1Aligned = aligned.lag1;
 		const lag4Aligned = aligned.lag4;
-		const macdLag1Aligned = aligned.macdLag1;
-		const macdLag4Aligned = aligned.macdLag4;
 		const minLen = price.length;
 
 		// Defensive: filter out undefined from dates before mapping to ISO string
@@ -189,8 +192,6 @@ export class ArimaMacdLagStrategy implements Strategy {
 			ema30: number[];
 			lag1: number[];
 			lag4: number[];
-			macdLag1: number[];
-			macdLag4: number[];
 			macdHistForecast?: (number | null)[];
 			errorCorrectedForecast?: (number | null)[];
 			nextErrorCorrectedForecast?: number | null;
@@ -222,8 +223,6 @@ export class ArimaMacdLagStrategy implements Strategy {
 			ema30: ema30Aligned,
 			lag1: lag1Aligned,
 			lag4: lag4Aligned,
-			macdLag1: macdLag1Aligned,
-			macdLag4: macdLag4Aligned,
 		};
 		// === MACD Histogram Forecast using Linear Regression on EMAs ===
 		// Use only the aligned variables from alignArrays
@@ -240,8 +239,6 @@ export class ArimaMacdLagStrategy implements Strategy {
 				ema30Aligned[i - 1],
 				macdHist[i - 1] ?? 0,
 				macdHist[i - 2] ?? 0,
-				macdArr[i - 1],
-				macdArr[i - 2],
 				macdSignalArr[i - 1] ?? 0,
 				macdSignalArr[i - 2] ?? 0,
 				lag1Aligned[i - 1],
@@ -268,12 +265,10 @@ export class ArimaMacdLagStrategy implements Strategy {
 						beta2[3] * ema30Aligned[i - 1] +
 						beta2[4] * (macdHist[i - 1] ?? 0) +
 						beta2[5] * (macdHist[i - 2] ?? 0) +
-						beta2[6] * macdArr[i - 1] +
-						beta2[7] * macdArr[i - 2] +
-						beta2[8] * (macdSignalArr[i - 1] ?? 0) +
-						beta2[9] * (macdSignalArr[i - 2] ?? 0) +
-						beta2[10] * lag1Aligned[i - 1] +
-						beta2[11] * lag4Aligned[i - 1]
+						beta2[6] * (macdSignalArr[i - 1] ?? 0) +
+						beta2[7] * (macdSignalArr[i - 2] ?? 0) +
+						beta2[8] * lag1Aligned[i - 1] +
+						beta2[9] * lag4Aligned[i - 1]
 				);
 			}
 			result.macdHistForecast = macdHistForecast;
@@ -447,12 +442,41 @@ export class ArimaMacdLagStrategy implements Strategy {
 				];
 			}
 		}
+		// --- After alignment, log last 5 aligned candles for backend output ---
+		console.log(
+			"Last 5 aligned output candles:",
+			aligned.dates.slice(-5).map((d, i) => ({
+				date: d !== undefined ? new Date(Number(d)).toISOString() : undefined,
+				price: aligned.price.slice(-5)[i],
+				forecast: aligned.forecast.slice(-5)[i],
+			}))
+		);
+		// --- Alignment debug: compare last 5 aligned dates to last 5 closed OHLCV dates ---
+		const last5AlignedDates = aligned.dates
+			.slice(-5)
+			.map((d) =>
+				d !== undefined ? new Date(Number(d)).toISOString() : undefined
+			);
+		const last5ClosedOhlcvDates = closedOhlcv
+			.slice(-5)
+			.map((c) => new Date(Number(c[0])).toISOString());
+		console.log("Last 5 aligned dates (ISO):", last5AlignedDates);
+		console.log("Last 5 closed OHLCV dates (ISO):", last5ClosedOhlcvDates);
+		// Defensive: warn if not strictly aligned
+		if (
+			JSON.stringify(last5AlignedDates) !==
+			JSON.stringify(last5ClosedOhlcvDates)
+		) {
+			console.warn(
+				"WARNING: Last 5 aligned output dates do not match last 5 closed OHLCV dates! Alignment issue detected."
+			);
+		}
 		// === Backtest: Calculate hit/miss for each forecast (align to historical timeframes) ===
 		const nRows = result.price.length;
 		const ohlcvAligned = ohlcvUsed.slice(ohlcvUsed.length - nRows);
 		const highsAligned = ohlcvAligned.map((c) => Number(c[2]));
 		const lowsAligned = ohlcvAligned.map((c) => Number(c[3]));
-		const opensAligned = ohlcvAligned.map((c) => Number(c[1]));
+		// const opensAligned = ohlcvAligned.map((c) => Number(c[1]));
 		const closesAligned = ohlcvAligned.map((c) => Number(c[4]));
 		const forecastAligned = result.forecast;
 		const hitForecast: boolean[] = [];
@@ -460,13 +484,20 @@ export class ArimaMacdLagStrategy implements Strategy {
 		const forecastSpread: (number | null)[] = [];
 		// Remove duplicate/old logic for ret, forecastReturn, and forecastSpread
 		for (let i = 0; i < nRows; i++) {
-			const open = opensAligned[i];
+			const open = ohlcvAligned[i][1];
 			const high = highsAligned[i];
 			const low = lowsAligned[i];
 			const close = closesAligned[i];
 			let forecast = forecastAligned[i];
 			// Defensive: treat NaN as null
 			if (forecast === undefined || forecast === null || isNaN(forecast)) {
+				hitForecast.push(false);
+				forecastReturn.push(null);
+				forecastSpread.push(null);
+				continue;
+			}
+			// Defensive: treat open as 0 if undefined, or skip this row
+			if (open === undefined || open === null || isNaN(open)) {
 				hitForecast.push(false);
 				forecastReturn.push(null);
 				forecastSpread.push(null);
@@ -539,4 +570,6 @@ export class ArimaMacdLagStrategy implements Strategy {
 			},
 		};
 	}
+	// === REMOVE DUPLICATE INDICATOR/LAG DECLARATIONS AT CLASS LEVEL ===
+	// (All indicator and lag variables are already declared inside async run)
 }

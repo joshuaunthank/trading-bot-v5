@@ -364,6 +364,109 @@ button:focus-visible {
 	color: #ffb347;
 }
 
+/* Config Modal Styles */
+#config-modal {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 1000;
+	display: none;
+	align-items: center;
+	justify-content: center;
+}
+.config-modal-backdrop {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.55);
+	z-index: 1;
+}
+.config-modal-content {
+	position: relative;
+	z-index: 2;
+	background: #23272f;
+	border-radius: 14px;
+	box-shadow: 0 8px 32px #0008;
+	padding: 2.2rem 2.5rem 1.5rem 2.5rem;
+	min-width: 320px;
+	max-width: 95vw;
+	color: #fff;
+	display: flex;
+	flex-direction: column;
+	gap: 1.2em;
+	align-items: stretch;
+}
+.config-modal-content h2 {
+	margin: 0 0 0.7em 0;
+	color: #ffb347;
+	font-size: 1.35em;
+	font-weight: 700;
+	text-align: left;
+}
+.config-row {
+	margin-bottom: 1.1em;
+	font-size: 1.08em;
+	display: flex;
+	align-items: center;
+	gap: 0.7em;
+}
+.config-row label {
+	cursor: pointer;
+	user-select: none;
+}
+.config-row input[type="checkbox"] {
+	margin-right: 0.5em;
+	accent-color: #ffb347;
+}
+.config-modal-actions {
+	display: flex;
+	gap: 1.2em;
+	justify-content: flex-end;
+	margin-top: 0.5em;
+}
+#config-cancel,
+#config-save {
+	background: #181818;
+	color: #fff;
+	border: 1px solid #333;
+	border-radius: 8px;
+	padding: 0.5em 1.2em;
+	font-size: 1em;
+	font-weight: 500;
+	transition: border-color 0.2s, background 0.2s;
+}
+#config-cancel:hover,
+#config-save:hover {
+	border-color: #ffb347;
+	background: #232323;
+	color: #fff;
+}
+#config-btn {
+	background: #181818;
+	color: #ffb347;
+	border: 1px solid #333;
+	border-radius: 8px;
+	padding: 0.4em 1em;
+	font-size: 1.2em;
+	font-weight: 600;
+	cursor: pointer;
+	transition: border-color 0.2s, background 0.2s, color 0.2s;
+	margin-left: 0.5em;
+}
+#config-btn:hover {
+	border-color: #ffb347;
+	background: #232323;
+	color: #fff;
+}
+.config-gear {
+	font-size: 1.2em;
+	vertical-align: middle;
+}
+
 @media (prefers-color-scheme: light) {
 	:root {
 		color: #213547;

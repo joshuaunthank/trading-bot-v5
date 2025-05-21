@@ -274,7 +274,14 @@ async function loadFeed() {
 		for (let i = n - 1; i >= 0; --i) {
 			const tr = document.createElement("tr");
 			tr.innerHTML = `
-				<td>${new Date(dates[i]).toLocaleString()}</td>
+				<td>${
+					useUTC
+						? new Date(dates[i])
+								.toISOString()
+								.replace("T", " ")
+								.replace(".000Z", " UTC")
+						: new Date(dates[i]).toLocaleString()
+				}</td>
 				<td class="feed-td-open">${
 					price[i] != null ? Number(price[i]).toFixed(2) : "-"
 				}</td>
@@ -288,7 +295,7 @@ async function loadFeed() {
 					price[i] != null ? Number(price[i]).toFixed(2) : "-"
 				}</td>
 				<td class="feed-td-volume">-</td>
-				<td class="feed-td-forecast">${
+				<td class="feed-td-forecast">$${
 					forecasts[i] != null ? Number(forecasts[i]).toFixed(2) : "-"
 				}</td>
 				<td class="feed-td-hit">${
@@ -324,7 +331,14 @@ async function loadFeed() {
 			const nextCandleDate = new Date(lastDate.getTime() + timeframeMs);
 			const tr = document.createElement("tr");
 			tr.innerHTML = `
-				<td>${nextCandleDate.toLocaleString()}</td>
+				<td>${
+					useUTC
+						? nextCandleDate
+								.toISOString()
+								.replace("T", " ")
+								.replace(".000Z", " UTC")
+						: nextCandleDate.toLocaleString()
+				}</td>
 				<td class="feed-td-open">-</td>
 				<td class="feed-td-high">-</td>
 				<td class="feed-td-low">-</td>
@@ -375,27 +389,53 @@ async function loadFeed() {
 				const low = ohlcvData.result.low;
 				const close = ohlcvData.result.close;
 				const volume = ohlcvData.result.volume;
+				// Patch: fallback arrays for forecast columns
+				const forecasts: number[] = [];
+				const hits: (boolean | null)[] = [];
+				const forecastReturns: number[] = [];
+				const forecastSpreads: number[] = [];
 				for (let i = n - 1; i >= 0; --i) {
 					const tr = document.createElement("tr");
 					tr.innerHTML = `
-						<td>${new Date(dates[i]).toLocaleString()}</td>
+						<td>${
+							useUTC
+								? new Date(dates[i])
+										.toISOString()
+										.replace("T", " ")
+										.replace(".000Z", " UTC")
+								: new Date(dates[i]).toLocaleString()
+						}</td>
 						<td class="feed-td-open">${
-							open[i] != null ? Number(open[i]).toFixed(2) : "-"
+							open && open[i] != null ? Number(open[i]).toFixed(2) : "-"
 						}</td>
 						<td class="feed-td-high">${
-							high[i] != null ? Number(high[i]).toFixed(2) : "-"
+							high && high[i] != null ? Number(high[i]).toFixed(2) : "-"
 						}</td>
-						<td class="feed-td-low">${low[i] != null ? Number(low[i]).toFixed(2) : "-"}</td>
+						<td class="feed-td-low">${
+							low && low[i] != null ? Number(low[i]).toFixed(2) : "-"
+						}</td>
 						<td class="feed-td-close">${
-							close[i] != null ? Number(close[i]).toFixed(2) : "-"
+							close && close[i] != null ? Number(close[i]).toFixed(2) : "-"
 						}</td>
 						<td class="feed-td-volume">${
-							volume[i] != null ? Number(volume[i]).toFixed(3) : "-"
+							volume && volume[i] != null ? Number(volume[i]).toFixed(3) : "-"
 						}</td>
-						<td class="feed-td-forecast">-</td>
-						<td class="feed-td-hit">-</td>
-						<td class="feed-td-return">-</td>
-						<td class="feed-td-spread">-</td>
+						<td class="feed-td-forecast">$${
+							forecasts[i] != null ? Number(forecasts[i]).toFixed(2) : "-"
+						}</td>
+						<td class="feed-td-hit">${
+							hits[i] === true ? "✅" : hits[i] === false ? "❌" : "-"
+						}</td>
+						<td class="feed-td-return">${
+							forecastReturns[i] != null
+								? (forecastReturns[i] * 100).toFixed(2) + "%"
+								: "-"
+						}</td>
+						<td class="feed-td-spread">${
+							forecastSpreads[i] != null
+								? Number(forecastSpreads[i]).toFixed(2)
+								: "-"
+						}</td>
 					`;
 					tr.style.transition = "background 0.2s";
 					tr.onmouseover = () => (tr.style.background = "#23242a");
@@ -525,41 +565,91 @@ window.addEventListener("resize", () => {
 	if (chart) chart.resize();
 });
 
-// Point toggle handler
-const togglePoints = document.getElementById(
-	"toggle-points"
-) as HTMLInputElement;
-let showPoints = false;
-togglePoints.onchange = () => {
-	showPoints = togglePoints.checked;
+// --- Config Modal HTML ---
+const configModal = document.createElement("div");
+configModal.id = "config-modal";
+configModal.innerHTML = `
+  <div class="config-modal-backdrop"></div>
+  <div class="config-modal-content">
+    <h2>Settings</h2>
+    <form id="config-form">
+      <div class="config-row">
+        <label>
+          <input type="checkbox" id="toggle-utc" checked />
+          Display time in UTC
+        </label>
+      </div>
+      <div class="config-row">
+        <label>
+          <input type="checkbox" id="toggle-modal-points" />
+          Show data points on chart
+        </label>
+      </div>
+      <div class="config-modal-actions">
+        <button type="button" id="config-cancel">Cancel</button>
+        <button type="submit" id="config-save">Save</button>
+      </div>
+    </form>
+  </div>
+`;
+document.body.appendChild(configModal);
+configModal.style.display = "none";
+
+// --- Config Button ---
+const configBtn = document.createElement("button");
+configBtn.id = "config-btn";
+configBtn.title = "Settings";
+configBtn.innerHTML = "<span class='config-gear'>&#9881;</span>";
+const topSectionActions = document.querySelector(".top-section-actions");
+topSectionActions?.appendChild(configBtn);
+
+// --- Config State ---
+let useUTC = true;
+let showPoints: boolean = false;
+
+// --- Modal Logic ---
+configBtn.onclick = () => {
+	(document.getElementById("toggle-utc") as HTMLInputElement).checked = useUTC;
+	(document.getElementById("toggle-modal-points") as HTMLInputElement).checked =
+		showPoints;
+	configModal.style.display = "flex";
+};
+const configBackdrop = configModal.querySelector(".config-modal-backdrop");
+if (configBackdrop) {
+	configBackdrop.addEventListener("click", () => {
+		configModal.style.display = "none";
+	});
+}
+document.getElementById("config-cancel")!.onclick = () => {
+	configModal.style.display = "none";
+};
+document.getElementById("config-form")!.onsubmit = (e) => {
+	e.preventDefault();
+	useUTC = (document.getElementById("toggle-utc") as HTMLInputElement).checked;
+	showPoints = (
+		document.getElementById("toggle-modal-points") as HTMLInputElement
+	).checked;
+	configModal.style.display = "none";
+	// Update all displays
+	loadFeed();
 	try {
 		const data = JSON.parse(output.textContent || "{}");
 		plotStrategyResult(data);
-		// After re-plot, re-apply fullscreen sizing if in fullscreen
-		const canvas = document.getElementById("result-chart") as HTMLCanvasElement;
-		const chartDiv = canvas.parentElement as HTMLElement;
-		if (document.fullscreenElement === chartDiv) {
-			canvas.width = window.innerWidth;
-			canvas.height = window.innerHeight - chartDiv.offsetTop - 20;
-			if (chart) chart.resize();
-		}
 	} catch {}
 };
 
-// Helper to format time axis labels based on timeframe
-function formatTimeLabels(dates: string[], timeframe: string): string[] {
-	if (timeframe.endsWith("m")) {
-		// e.g. 15m, 30m
-		return dates.map((d) => new Date(d).toLocaleString());
-	} else if (timeframe.endsWith("h")) {
-		// e.g. 1h, 4h
-		return dates.map((d) => new Date(d).toLocaleString());
-	} else if (timeframe.endsWith("d")) {
-		// e.g. 1d
-		return dates.map((d) => new Date(d).toLocaleDateString());
-	}
-	return dates;
+// --- Update time formatting helpers ---
+// Helper to format time axis labels based on timezone
+function formatTimeLabels(dates: string[]): string[] {
+	return dates.map((d) =>
+		useUTC
+			? new Date(d).toISOString().replace("T", " ").replace(".000Z", " UTC")
+			: new Date(d).toLocaleString()
+	);
 }
+
+// Patch table/next row time display in loadFeed
+// (see below for further patching)
 
 // Helper to plot results if available
 function plotStrategyResult(data: any) {
@@ -568,12 +658,10 @@ function plotStrategyResult(data: any) {
 		ctx.getContext("2d")!.clearRect(0, 0, ctx.width, ctx.height);
 		return;
 	}
-	const timeframe =
-		(document.getElementById("timeframe") as HTMLInputElement)?.value || "4h";
 	const timestamps = data.result.dates.map((d: string) =>
 		new Date(d).getTime()
 	);
-	const labels = formatTimeLabels(data.result.dates, timeframe);
+	const labels = formatTimeLabels(data.result.dates);
 	const price = data.result.price;
 	const arimaForecast = data.result.forecast;
 	let errorCorrectedForecast = data.result.errorCorrectedForecast;
