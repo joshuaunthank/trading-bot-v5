@@ -497,14 +497,15 @@ chartDiv.innerHTML = `
   <div class="chart-header-row">
     <h2 class="chart-title">Strategy Result Chart</h2>
     <div class="chart-controls">
-      <label class="toggle-points-label">
-        <input type="checkbox" id="toggle-points" /> Show Data Points
-      </label>
+      <button id="reset-zoom-chart" class="reset-zoom-btn" title="Reset Zoom">&#8634;</button>
       <button id="fullscreen-chart" class="fullscreen-btn" title="Fullscreen Chart">⛶</button>
     </div>
   </div>
   <hr class="chart-divider" />
-  <div class="chart-canvas-wrap">
+  <div class="chart-canvas-wrap" style="position:relative;">
+    <div id="chart-spinner" class="chart-spinner-overlay" style="display:none;">
+      <div class="chart-spinner"></div>
+    </div>
     <canvas id="result-chart" width="800" height="400"></canvas>
   </div>
 `;
@@ -651,161 +652,243 @@ function formatTimeLabels(dates: string[]): string[] {
 // Patch table/next row time display in loadFeed
 // (see below for further patching)
 
+// Spinner control helpers
+function showChartSpinner() {
+	const spinner = document.getElementById("chart-spinner");
+	if (spinner) spinner.style.display = "flex";
+}
+function hideChartSpinner() {
+	const spinner = document.getElementById("chart-spinner");
+	if (spinner) spinner.style.display = "none";
+}
+
 // Helper to plot results if available
 function plotStrategyResult(data: any) {
-	const ctx = document.getElementById("result-chart") as HTMLCanvasElement;
-	if (!data || !data.result || !Array.isArray(data.result.dates)) {
-		ctx.getContext("2d")!.clearRect(0, 0, ctx.width, ctx.height);
-		return;
-	}
-	const timestamps = data.result.dates.map((d: string) =>
-		new Date(d).getTime()
-	);
-	const labels = formatTimeLabels(data.result.dates);
-	const price = data.result.price;
-	const arimaForecast = data.result.forecast;
-	let errorCorrectedForecast = data.result.errorCorrectedForecast;
-	const nextErrorCorrectedForecast = data.result.nextErrorCorrectedForecast;
-	const pointRadius = showPoints ? 2 : 0;
-	const pointHoverRadius = showPoints ? 4 : 0;
-	const pointBackgroundColor = showPoints
-		? "rgba(0,0,0,0.15)"
-		: "rgba(0,0,0,0)";
-	const pointBorderColor = showPoints ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0)";
+	showChartSpinner();
+	setTimeout(() => {
+		const ctx = document.getElementById("result-chart") as HTMLCanvasElement;
+		if (!data || !data.result || !Array.isArray(data.result.dates)) {
+			ctx.getContext("2d")!.clearRect(0, 0, ctx.width, ctx.height);
+			hideChartSpinner();
+			return;
+		}
+		const timestamps = data.result.dates.map((d: string) =>
+			new Date(d).getTime()
+		);
+		const labels = formatTimeLabels(data.result.dates);
+		const price = data.result.price;
+		const arimaForecast = data.result.forecast;
+		let errorCorrectedForecast = data.result.errorCorrectedForecast;
+		const nextErrorCorrectedForecast = data.result.nextErrorCorrectedForecast;
+		const pointRadius = showPoints ? 2 : 0;
+		const pointHoverRadius = showPoints ? 4 : 0;
+		const pointBackgroundColor = showPoints
+			? "rgba(0,0,0,0.15)"
+			: "rgba(0,0,0,0)";
+		const pointBorderColor = showPoints ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0)";
 
-	// --- Calculate timeframe in ms ---
-	const timeframeMs = timestamps.length > 1 ? timestamps[1] - timestamps[0] : 0;
+		// --- Calculate timeframe in ms ---
+		const timeframeMs =
+			timestamps.length > 1 ? timestamps[1] - timestamps[0] : 0;
 
-	// --- Chart.js UI/UX Enhancements (define locally to avoid TS errors) ---
-	const customTooltip = {
-		enabled: true,
-		mode: "index" as const,
-		intersect: false,
-		callbacks: {
-			label: function (context: any) {
-				let label = context.dataset.label || "";
-				if (label) label += ": ";
-				if (context.parsed.y != null) label += context.parsed.y.toFixed(2);
-				return label;
+		// --- Chart.js UI/UX Enhancements (define locally to avoid TS errors) ---
+		const customTooltip = {
+			enabled: true,
+			mode: "index" as const,
+			intersect: false,
+			callbacks: {
+				label: function (context: any) {
+					let label = context.dataset.label || "";
+					if (label) label += ": ";
+					if (context.parsed.y != null) label += context.parsed.y.toFixed(2);
+					return label;
+				},
+				title: function (context: any) {
+					return context[0].label;
+				},
 			},
-			title: function (context: any) {
-				return context[0].label;
+			backgroundColor: "rgba(30,30,30,0.95)",
+			borderColor: "#fff",
+			borderWidth: 1,
+			bodyColor: "#fff",
+			titleColor: "#fff700",
+			padding: 10,
+			displayColors: true,
+		};
+		const customLegend = {
+			labels: {
+				color: "#ccc",
+				font: { size: 16, weight: "bold" as const },
+				padding: 20,
+				boxWidth: 24,
 			},
-		},
-		backgroundColor: "rgba(30,30,30,0.95)",
-		borderColor: "#fff",
-		borderWidth: 1,
-		bodyColor: "#fff",
-		titleColor: "#fff700",
-		padding: 10,
-		displayColors: true,
-	};
-	const customLegend = {
-		labels: {
-			color: "#ccc",
-			font: { size: 16, weight: "bold" as const },
-			padding: 20,
-			boxWidth: 24,
-		},
-	};
-	const customLayout = {
-		padding: {
-			top: 40,
-			bottom: 10,
-			left: 10,
-			right: 30,
-		},
-	};
-	const customHover = {
-		mode: "nearest" as const,
-		intersect: false,
-	};
+		};
+		const customLayout = {
+			padding: {
+				top: 40,
+				bottom: 10,
+				left: 10,
+				right: 30,
+			},
+		};
+		const customHover = {
+			mode: "nearest" as const,
+			intersect: false,
+		};
 
-	// --- Always plot all data, but set zoom to latest 20 points ---
-	let prevMin: any = undefined;
-	let prevMax: any = undefined;
-	if (labels.length > 20) {
-		prevMin = labels[labels.length - 20];
-		prevMax = labels[labels.length - 1];
-	} else {
-		prevMin = labels[0];
-		prevMax = labels[labels.length - 1];
-	}
+		// --- Always plot all data, but set zoom to latest 20 points ---
+		let prevMin: any = undefined;
+		let prevMax: any = undefined;
+		if (labels.length > 20) {
+			prevMin = labels[labels.length - 20];
+			prevMax = labels[labels.length - 1];
+		} else {
+			prevMin = labels[0];
+			prevMax = labels[labels.length - 1];
+		}
 
-	const datasets = [
-		{
-			label: "Actual Price",
-			data: price,
-			borderColor: "blue",
-			fill: false,
-			borderWidth: 2,
-			pointRadius,
-			pointHoverRadius,
-			pointBackgroundColor,
-			pointBorderColor,
-		},
-	];
-	if (arimaForecast && arimaForecast.length === price.length) {
-		datasets.push({
-			label: "ARIMA Forecast",
-			data: arimaForecast,
-			borderColor: "green",
-			fill: false,
-			borderWidth: 2,
-			pointRadius,
-			pointHoverRadius,
-			pointBackgroundColor,
-			pointBorderColor,
-		});
-	}
-	if (
-		errorCorrectedForecast &&
-		errorCorrectedForecast.length === price.length
-	) {
-		datasets.push({
-			label: "Error Corrected Forecast",
-			data: errorCorrectedForecast,
-			borderColor: "orange",
-			fill: false,
-			borderWidth: 2,
-			pointRadius,
-			pointHoverRadius,
-			pointBackgroundColor,
-			pointBorderColor,
-			// @ts-ignore
-			spanGaps: true,
-		});
-	}
-	// --- Visualize the true next-step error-corrected forecast as a single point at the next candle ---
-	if (
-		nextErrorCorrectedForecast !== null &&
-		!isNaN(nextErrorCorrectedForecast) &&
-		timeframeMs > 0
-	) {
-		const lastClosedDate = new Date(timestamps[timestamps.length - 1]);
-		const nextCandleOpen = new Date(lastClosedDate.getTime() + timeframeMs);
-		const nextLabel = nextCandleOpen.toLocaleString();
-		const markerData = Array(labels.length)
-			.fill(null)
-			.concat([nextErrorCorrectedForecast]);
-		const markerLabels = [...labels, nextLabel];
-		datasets.push({
-			label: "Next Candle Close Forecast", // updated label for clarity and consistency
-			data: markerData,
-			borderColor: "#ff2d55",
-			pointBackgroundColor: "#ff2d55",
-			pointRadius: 8,
-			pointHoverRadius: 10,
-			fill: false,
-			borderWidth: 2,
-			pointBorderColor: "#ff2d55",
-		});
-		// Use markerLabels for the x-axis
+		const datasets = [
+			{
+				label: "Actual Price",
+				data: price,
+				borderColor: "blue",
+				fill: false,
+				borderWidth: 2,
+				pointRadius,
+				pointHoverRadius,
+				pointBackgroundColor,
+				pointBorderColor,
+			},
+		];
+		if (arimaForecast && arimaForecast.length === price.length) {
+			datasets.push({
+				label: "ARIMA Forecast",
+				data: arimaForecast,
+				borderColor: "green",
+				fill: false,
+				borderWidth: 2,
+				pointRadius,
+				pointHoverRadius,
+				pointBackgroundColor,
+				pointBorderColor,
+			});
+		}
+		if (
+			errorCorrectedForecast &&
+			errorCorrectedForecast.length === price.length
+		) {
+			datasets.push({
+				label: "Error Corrected Forecast",
+				data: errorCorrectedForecast,
+				borderColor: "orange",
+				fill: false,
+				borderWidth: 2,
+				pointRadius,
+				pointHoverRadius,
+				pointBackgroundColor,
+				pointBorderColor,
+				// @ts-ignore
+				spanGaps: true,
+			});
+		}
+		// --- Visualize the true next-step error-corrected forecast as a single point at the next candle ---
+		if (
+			nextErrorCorrectedForecast !== null &&
+			!isNaN(nextErrorCorrectedForecast) &&
+			timeframeMs > 0
+		) {
+			const lastClosedDate = new Date(timestamps[timestamps.length - 1]);
+			const nextCandleOpen = new Date(lastClosedDate.getTime() + timeframeMs);
+			const nextLabel = nextCandleOpen.toLocaleString();
+			const markerData = Array(labels.length)
+				.fill(null)
+				.concat([nextErrorCorrectedForecast]);
+			const markerLabels = [...labels, nextLabel];
+			datasets.push({
+				label: "Next Candle Close Forecast", // updated label for clarity and consistency
+				data: markerData,
+				borderColor: "#ff2d55",
+				pointBackgroundColor: "#ff2d55",
+				pointRadius: 8,
+				pointHoverRadius: 10,
+				fill: false,
+				borderWidth: 2,
+				pointBorderColor: "#ff2d55",
+			});
+			// Use markerLabels for the x-axis
+			if (chart) chart.destroy();
+			chart = new Chart(ctx, {
+				type: "line",
+				data: {
+					labels: markerLabels,
+					datasets,
+				},
+				options: {
+					responsive: false,
+					plugins: {
+						legend: customLegend,
+						tooltip: customTooltip,
+						zoom: {
+							pan: { enabled: true, mode: "x" },
+							zoom: {
+								wheel: { enabled: true },
+								pinch: { enabled: true },
+								mode: "x",
+							},
+						},
+					},
+					layout: customLayout,
+					hover: customHover,
+					scales: {
+						x: {
+							display: true,
+							title: {
+								display: true,
+								text: "Time",
+								color: "#ccc",
+								font: { weight: "bold" as const },
+							},
+							ticks: { color: "#aaa", maxRotation: 45, minRotation: 20 },
+							min: prevMin,
+							max: prevMax,
+							grid: {
+								color: "#23242a", // Add vertical grid lines for readability
+								drawOnChartArea: true,
+								drawTicks: true,
+								lineWidth: 1,
+							},
+						},
+						y: {
+							display: true,
+							title: {
+								display: true,
+								text: "Price (USD)",
+								color: "#ccc",
+								font: { weight: "bold" as const },
+							},
+							position: "right",
+							ticks: { color: "#aaa" },
+							grid: { color: "rgba(255,255,255,0.08)" },
+						},
+					},
+				},
+			});
+			(chart as any).__lastLabels = markerLabels;
+			setTimeout(() => {
+				ctx.width = 800;
+				ctx.height = 400;
+				chart!.resize();
+				hideChartSpinner();
+			}, 0);
+			return;
+		}
+
+		// If no next forecast, plot as usual
 		if (chart) chart.destroy();
 		chart = new Chart(ctx, {
 			type: "line",
 			data: {
-				labels: markerLabels,
+				labels: labels,
 				datasets,
 			},
 			options: {
@@ -836,6 +919,12 @@ function plotStrategyResult(data: any) {
 						ticks: { color: "#aaa", maxRotation: 45, minRotation: 20 },
 						min: prevMin,
 						max: prevMax,
+						grid: {
+							color: "#23242a", // Add vertical grid lines for readability
+							drawOnChartArea: true,
+							drawTicks: true,
+							lineWidth: 1,
+						},
 					},
 					y: {
 						display: true,
@@ -852,73 +941,14 @@ function plotStrategyResult(data: any) {
 				},
 			},
 		});
-		(chart as any).__lastLabels = markerLabels;
+		(chart as any).__lastLabels = labels;
 		setTimeout(() => {
 			ctx.width = 800;
 			ctx.height = 400;
 			chart!.resize();
+			hideChartSpinner();
 		}, 0);
-		return;
-	}
-
-	// If no next forecast, plot as usual
-	if (chart) chart.destroy();
-	chart = new Chart(ctx, {
-		type: "line",
-		data: {
-			labels: labels,
-			datasets,
-		},
-		options: {
-			responsive: false,
-			plugins: {
-				legend: customLegend,
-				tooltip: customTooltip,
-				zoom: {
-					pan: { enabled: true, mode: "x" },
-					zoom: {
-						wheel: { enabled: true },
-						pinch: { enabled: true },
-						mode: "x",
-					},
-				},
-			},
-			layout: customLayout,
-			hover: customHover,
-			scales: {
-				x: {
-					display: true,
-					title: {
-						display: true,
-						text: "Time",
-						color: "#ccc",
-						font: { weight: "bold" as const },
-					},
-					ticks: { color: "#aaa", maxRotation: 45, minRotation: 20 },
-					min: prevMin,
-					max: prevMax,
-				},
-				y: {
-					display: true,
-					title: {
-						display: true,
-						text: "Price (USD)",
-						color: "#ccc",
-						font: { weight: "bold" as const },
-					},
-					position: "right",
-					ticks: { color: "#aaa" },
-					grid: { color: "rgba(255,255,255,0.08)" },
-				},
-			},
-		},
 	});
-	(chart as any).__lastLabels = labels;
-	setTimeout(() => {
-		ctx.width = 800;
-		ctx.height = 400;
-		chart!.resize();
-	}, 0);
 }
 
 // Show result summary (date range, price stats, forecast error, next prediction)
@@ -1159,3 +1189,13 @@ toggleRawBtn.textContent = "Show Raw Data";
 
 // Update feed title on initial load
 updateFeedTitle();
+
+// Add after fullscreenBtn definition
+const resetZoomBtn = document.getElementById(
+	"reset-zoom-chart"
+) as HTMLButtonElement;
+resetZoomBtn.onclick = () => {
+	if (chart && (chart as any).resetZoom) {
+		(chart as any).resetZoom();
+	}
+};
