@@ -1,4 +1,4 @@
-import { Strategy } from "../strategy";
+import type { Strategy } from "../strategy";
 import ccxt from "ccxt";
 import { MACD, EMA } from "technicalindicators";
 // @ts-ignore

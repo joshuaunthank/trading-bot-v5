@@ -4,21 +4,31 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
-		"dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
-		"dev:frontend": "vite",
-		"dev:backend": "cd backend && npx ts-node src/index.ts",
+		"dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+		"dev:client": "vite",
+		"dev:server": "cd backend && npx ts-node src/index.ts",
 		"build": "tsc && vite build",
 		"preview": "vite preview"
 	},
 	"devDependencies": {
+		"ccxt": "*",
 		"concurrently": "^8.2.2",
+		"cors": "*",
+		"dotenv": "^16.5.0",
+		"express": "*",
+		"technicalindicators": "*",
 		"typescript": "~5.8.3",
 		"vite": "^6.3.5"
 	},
 	"dependencies": {
 		"@types/chart.js": "^2.9.41",
+		"@types/cors": "*",
+		"@types/express": "*",
+		"@types/ws": "^8.18.1",
 		"chart.js": "^4.4.9",
 		"chartjs-plugin-zoom": "^2.2.0",
-		"jstat": "^1.9.6"
+		"jstat": "^1.9.6",
+		"ts-node": "*",
+		"typescript": "*"
 	}
 }
