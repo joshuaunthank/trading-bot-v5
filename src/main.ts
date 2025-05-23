@@ -63,7 +63,7 @@ toggleRawBtn.onclick = () => {
 document.getElementById("load-strategies")!.onclick = async () => {
 	output.textContent = "Loading strategies...";
 	try {
-		const res = await fetch("http://localhost:3001/api/strategies");
+		const res = await fetch("http://localhost:3001/api/v1/strategies");
 		const strategies = await res.json();
 		strategyList.innerHTML = "";
 		for (const s of strategies) {
@@ -91,7 +91,7 @@ document.getElementById("run-form")!.onsubmit = async (e) => {
 	output.textContent = "Running strategy...";
 	try {
 		const res = await fetch(
-			`http://localhost:3001/api/strategies/${strategy}/run`,
+			`http://localhost:3001/api/v1/strategies/${strategy}/run`,
 			{
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -372,7 +372,7 @@ async function loadFeed() {
 			1000;
 		try {
 			const res = await fetch(
-				`http://localhost:3001/api/ohlcv?symbol=${encodeURIComponent(
+				`http://localhost:3001/api/v1/ohlcv?symbol=${encodeURIComponent(
 					symbol
 				)}&timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`
 			);
@@ -1149,7 +1149,7 @@ function startLiveRawFeed() {
 		);
 		try {
 			const res = await fetch(
-				`http://localhost:3001/api/strategies/${strategy}/run`,
+				`http://localhost:3001/api/v1/strategies/${strategy}/run`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
