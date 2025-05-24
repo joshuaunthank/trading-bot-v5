@@ -77,7 +77,6 @@ export class ArimaMacdLagStrategy implements Strategy {
 		if (!closedOhlcv || closedOhlcv.length === 0)
 			throw new Error("No closed candles returned from Binance");
 		// Essential debug output for alignment only
-		console.log("Last 5 closed OHLCV used:", closedOhlcv.slice(-5));
 		const ohlcvUsed = closedOhlcv;
 
 		// Prepare data
@@ -348,8 +347,6 @@ export class ArimaMacdLagStrategy implements Strategy {
 		const last5ClosedOhlcvDates = closedOhlcv
 			.slice(-5)
 			.map((c) => new Date(Number(c[0])).toISOString());
-		console.log("Last 5 aligned dates (ISO):", last5AlignedDates);
-		console.log("Last 5 closed OHLCV dates (ISO):", last5ClosedOhlcvDates);
 		if (
 			JSON.stringify(last5AlignedDates) !==
 			JSON.stringify(last5ClosedOhlcvDates)

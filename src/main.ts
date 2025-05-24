@@ -237,27 +237,7 @@ async function loadFeed() {
 	try {
 		dataObj = JSON.parse(output.textContent || "{}");
 	} catch {}
-	// Debug: print backend result keys and array lengths
-	if (dataObj && dataObj.result) {
-		console.log("[DEBUG] Backend result keys:", Object.keys(dataObj.result));
-		[
-			"dates",
-			"open",
-			"high",
-			"low",
-			"close",
-			"price",
-			"volume",
-			"forecast",
-			"hitForecast",
-			"forecastReturn",
-			"forecastSpread",
-		].forEach((key) => {
-			if (Array.isArray(dataObj.result[key])) {
-				console.log(`[DEBUG] ${key}: length =`, dataObj.result[key].length);
-			}
-		});
-	}
+
 	if (
 		dataObj &&
 		dataObj.result &&
