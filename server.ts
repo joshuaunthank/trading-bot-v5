@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 3001;
 // const uiRoutes = require("./local_modules/routes/routes-ui");
 import apiRoutes from "./local_modules/routes/routes-api";
 import uiRoutes from "./local_modules/routes/routes-ui";
+import { setupOhlcvWebSocket } from "./local_modules/websocket";
 
 dotenv.config();
 
@@ -20,8 +21,8 @@ dotenv.config();
 	app.use(express.json());
 	app.use(express.urlencoded({ extended: true }));
 
-	app.use("/api/v1", apiRoutes);
-	app.use("/", uiRoutes);
+	uiRoutes(app);
+	apiRoutes(app);
 
 	app.use(express.static(path.join(__dirname, "src")));
 	app.use(
@@ -29,7 +30,10 @@ dotenv.config();
 		express.static(path.join(__dirname, "node_modules"))
 	);
 
-	app.listen(PORT, () => {
+	const server = app.listen(PORT, () => {
 		console.log(`Server is running on http://localhost:${PORT}`);
 	});
+
+	// --- Attach OHLCV WebSocket server ---
+	setupOhlcvWebSocket(server);
 })();

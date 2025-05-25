@@ -3,6 +3,18 @@ import Chart from "chart.js/auto";
 // @ts-ignore
 import zoomPlugin from "chartjs-plugin-zoom";
 Chart.register(zoomPlugin);
+import {
+	initChart,
+	updateChartWithCandle,
+	ChartType,
+} from "./components/chart";
+import {
+	connectOhlcvWebSocket,
+	disconnectOhlcvWebSocket,
+	onOhlcvUpdate,
+	onOhlcvStatus,
+} from "./components/websocket";
+import { OhlcvCandle } from "./components/websocket";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -43,6 +55,16 @@ let liveFeedActive = false;
 let liveFeedInterval: number | null = null;
 let lastRawData: any = null;
 
+// --- Hybrid OHLCV State and WebSocket Integration ---
+let ohlcvData: {
+	dates: string[];
+	open: number[];
+	high: number[];
+	low: number[];
+	close: number[];
+	volume: number[];
+} | null = null;
+
 toggleRawBtn.onclick = () => {
 	const showing = rawScroll.style.display === "none";
 	rawScroll.style.display = showing ? "block" : "none";
@@ -80,7 +102,7 @@ document.getElementById("load-strategies")!.onclick = async () => {
 
 document.getElementById("run-form")!.onsubmit = async (e) => {
 	e.preventDefault();
-	// API keys and since are no longer sent from the UI
+
 	const symbol = (document.getElementById("symbol") as HTMLInputElement).value;
 	const timeframe = (document.getElementById("timeframe") as HTMLInputElement)
 		.value;
@@ -1170,12 +1192,207 @@ toggleRawBtn.textContent = "Show Raw Data";
 // Update feed title on initial load
 updateFeedTitle();
 
-// Add after fullscreenBtn definition
-const resetZoomBtn = document.getElementById(
-	"reset-zoom-chart"
-) as HTMLButtonElement;
-resetZoomBtn.onclick = () => {
-	if (chart && (chart as any).resetZoom) {
-		(chart as any).resetZoom();
+function getCurrentSymbol() {
+	return (
+		(document.getElementById("symbol") as HTMLInputElement)?.value || "BTC/USDT"
+	);
+}
+
+function startOhlcvWebSocket() {
+	const symbol = getCurrentSymbol();
+	const timeframe = getCurrentTimeframe();
+	connectOhlcvWebSocket(symbol, timeframe);
+}
+
+onOhlcvUpdate((candle: OhlcvCandle) => {
+	if (!ohlcvData) return;
+	const tsIso = new Date(candle.timestamp).toISOString();
+	const idx = ohlcvData.dates.findIndex((d) => d === tsIso);
+	if (idx >= 0) {
+		// Update existing candle
+		ohlcvData.open[idx] = candle.open;
+		ohlcvData.high[idx] = candle.high;
+		ohlcvData.low[idx] = candle.low;
+		ohlcvData.close[idx] = candle.close;
+		ohlcvData.volume[idx] = candle.volume;
+	} else {
+		// Append new candle
+		ohlcvData.dates.push(tsIso);
+		ohlcvData.open.push(candle.open);
+		ohlcvData.high.push(candle.high);
+		ohlcvData.low.push(candle.low);
+		ohlcvData.close.push(candle.close);
+		ohlcvData.volume.push(candle.volume);
 	}
-};
+	updateLastOhlcvRow();
+});
+
+onOhlcvStatus((status: string) => {
+	feedStatus.textContent = `Live feed: ${status}`;
+});
+
+// After loading historical OHLCV data:
+async function loadOhlcvHybrid() {
+	// Fetch historical OHLCV
+	const symbol = getCurrentSymbol();
+	const timeframe = getCurrentTimeframe();
+	const limit =
+		Number((document.getElementById("limit") as HTMLInputElement)?.value) ||
+		1000;
+	try {
+		const res = await fetch(
+			`http://localhost:3001/api/v1/ohlcv?symbol=${encodeURIComponent(
+				symbol
+			)}&timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`
+		);
+		const ohlcv = await res.json();
+		if (ohlcv && ohlcv.result && Array.isArray(ohlcv.result.dates)) {
+			ohlcvData = {
+				dates: [...ohlcv.result.dates],
+				open: [...ohlcv.result.open],
+				high: [...ohlcv.result.high],
+				low: [...ohlcv.result.low],
+				close: [...ohlcv.result.close],
+				volume: [...ohlcv.result.volume],
+			};
+			renderOhlcvTableAndChart();
+			startOhlcvWebSocket();
+		} else {
+			ohlcvData = null;
+			feedStatus.textContent = "No backend data";
+		}
+	} catch (err) {
+		ohlcvData = null;
+		feedStatus.textContent = "No backend data";
+	}
+}
+
+// --- Chart type selector (optional, can be moved to UI) ---
+let currentChartType: ChartType = "line";
+
+// --- Patch renderOhlcvTableAndChart to use unified OhlcvCandle type ---
+function renderOhlcvTableAndChart() {
+	if (!ohlcvData) return;
+	const tbody = document.querySelector("#feed-table tbody")!;
+	tbody.innerHTML = "";
+	const n = ohlcvData.dates.length;
+	for (let i = n - 1; i >= 0; --i) {
+		const tr = document.createElement("tr");
+		tr.innerHTML = `
+      <td>${
+				useUTC
+					? new Date(ohlcvData.dates[i])
+							.toISOString()
+							.replace("T", " ")
+							.replace(".000Z", " UTC")
+					: new Date(ohlcvData.dates[i]).toLocaleString()
+			}</td>
+      <td class="feed-td-open">${
+				ohlcvData.open[i] != null ? Number(ohlcvData.open[i]).toFixed(2) : "-"
+			}</td>
+      <td class="feed-td-high">${
+				ohlcvData.high[i] != null ? Number(ohlcvData.high[i]).toFixed(2) : "-"
+			}</td>
+      <td class="feed-td-low">${
+				ohlcvData.low[i] != null ? Number(ohlcvData.low[i]).toFixed(2) : "-"
+			}</td>
+      <td class="feed-td-close">${
+				ohlcvData.close[i] != null ? Number(ohlcvData.close[i]).toFixed(2) : "-"
+			}</td>
+      <td class="feed-td-volume">${
+				ohlcvData.volume[i] != null
+					? Number(ohlcvData.volume[i]).toFixed(3)
+					: "-"
+			}</td>
+      <td class="feed-td-forecast">-</td>
+      <td class="feed-td-hit">-</td>
+      <td class="feed-td-return">-</td>
+      <td class="feed-td-spread">-</td>
+    `;
+		tr.style.transition = "background 0.2s";
+		tr.onmouseover = () => (tr.style.background = "#23242a");
+		tr.onmouseout = () => (tr.style.background = "");
+		tbody.appendChild(tr);
+	}
+	feedStatus.textContent = `Last updated: ${new Date(
+		ohlcvData.dates[n - 1]
+	).toLocaleTimeString()}`;
+	// Use modular chart
+	const ctx = document.getElementById("result-chart") as HTMLCanvasElement;
+	if (!ohlcvData) return;
+	const candles: OhlcvCandle[] = ohlcvData.dates.map((d, i) => ({
+		timestamp: new Date(d).getTime(),
+		open: ohlcvData!.open[i],
+		high: ohlcvData!.high[i],
+		low: ohlcvData!.low[i],
+		close: ohlcvData!.close[i],
+		volume: ohlcvData!.volume[i],
+	}));
+	initChart(ctx, candles, currentChartType);
+}
+
+function updateLastOhlcvRow() {
+	if (!ohlcvData) return;
+	const tbody = document.querySelector("#feed-table tbody")!;
+	if (!tbody.firstChild) return;
+	const n = ohlcvData.dates.length;
+	const tr = tbody.firstChild as HTMLTableRowElement;
+	tr.innerHTML = `
+      <td>${
+				useUTC
+					? new Date(ohlcvData.dates[n - 1])
+							.toISOString()
+							.replace("T", " ")
+							.replace(".000Z", " UTC")
+					: new Date(ohlcvData.dates[n - 1]).toLocaleString()
+			}</td>
+      <td class="feed-td-open">${
+				ohlcvData.open[n - 1] != null
+					? Number(ohlcvData.open[n - 1]).toFixed(2)
+					: "-"
+			}</td>
+      <td class="feed-td-high">${
+				ohlcvData.high[n - 1] != null
+					? Number(ohlcvData.high[n - 1]).toFixed(2)
+					: "-"
+			}</td>
+      <td class="feed-td-low">${
+				ohlcvData.low[n - 1] != null
+					? Number(ohlcvData.low[n - 1]).toFixed(2)
+					: "-"
+			}</td>
+      <td class="feed-td-close">${
+				ohlcvData.close[n - 1] != null
+					? Number(ohlcvData.close[n - 1]).toFixed(2)
+					: "-"
+			}</td>
+      <td class="feed-td-volume">${
+				ohlcvData.volume[n - 1] != null
+					? Number(ohlcvData.volume[n - 1]).toFixed(3)
+					: "-"
+			}</td>
+      <td class="feed-td-forecast">-</td>
+      <td class="feed-td-hit">-</td>
+      <td class="feed-td-return">-</td>
+      <td class="feed-td-spread">-</td>
+    `;
+	tr.style.transition = "background 0.2s";
+	tr.onmouseover = () => (tr.style.background = "#23242a");
+	tr.onmouseout = () => (tr.style.background = "");
+
+	// Modular chart update
+	const candle: OhlcvCandle = {
+		timestamp: new Date(ohlcvData.dates[n - 1]).getTime(),
+		open: ohlcvData!.open[n - 1],
+		high: ohlcvData!.high[n - 1],
+		low: ohlcvData!.low[n - 1],
+		close: ohlcvData!.close[n - 1],
+		volume: ohlcvData!.volume[n - 1],
+	};
+	updateChartWithCandle(candle);
+}
+
+// --- Patch WebSocket message handler to only update last row
+// Remove legacy ohlcvWs, wsSymbol, wsTimeframe, and direct WebSocket usage
+// All live updates now handled by centralized WebSocket manager in websocket.ts
+// (No need to override connectOhlcvWebSocket)
