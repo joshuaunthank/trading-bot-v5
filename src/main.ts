@@ -1198,40 +1198,45 @@ function getCurrentSymbol() {
 	);
 }
 
-function startOhlcvWebSocket() {
-	const symbol = getCurrentSymbol();
-	const timeframe = getCurrentTimeframe();
-	connectOhlcvWebSocket(symbol, timeframe);
+// Remove all direct WebSocket code and use the centralized API
+function setupOhlcvWebSocketIntegration() {
+	let currentSymbol = getCurrentSymbol();
+	let currentTimeframe = getCurrentTimeframe();
+	connectOhlcvWebSocket(currentSymbol, currentTimeframe);
+	onOhlcvStatus((status) => {
+		if (status === "connected") feedStatus.textContent = "Live feed connected";
+		else if (status === "closed")
+			feedStatus.textContent = "Live feed disconnected";
+		else if (status === "error") feedStatus.textContent = "Live feed error";
+		else if (status === "connecting")
+			feedStatus.textContent = "Connecting to live feed...";
+	});
+	onOhlcvUpdate((msg) => {
+		if (!ohlcvData) return;
+		const idx = ohlcvData.dates.findIndex(
+			(d) => new Date(d).getTime() === msg.timestamp
+		);
+		if (idx >= 0) {
+			// Update existing candle
+			ohlcvData.open[idx] = msg.open;
+			ohlcvData.high[idx] = msg.high;
+			ohlcvData.low[idx] = msg.low;
+			ohlcvData.close[idx] = msg.close;
+			ohlcvData.volume[idx] = msg.volume;
+		} else {
+			// Append new candle
+			ohlcvData.dates.push(new Date(msg.timestamp).toISOString());
+			ohlcvData.open.push(msg.open);
+			ohlcvData.high.push(msg.high);
+			ohlcvData.low.push(msg.low);
+			ohlcvData.close.push(msg.close);
+			ohlcvData.volume.push(msg.volume);
+		}
+		updateLastOhlcvRow();
+	});
 }
 
-onOhlcvUpdate((candle: OhlcvCandle) => {
-	if (!ohlcvData) return;
-	const tsIso = new Date(candle.timestamp).toISOString();
-	const idx = ohlcvData.dates.findIndex((d) => d === tsIso);
-	if (idx >= 0) {
-		// Update existing candle
-		ohlcvData.open[idx] = candle.open;
-		ohlcvData.high[idx] = candle.high;
-		ohlcvData.low[idx] = candle.low;
-		ohlcvData.close[idx] = candle.close;
-		ohlcvData.volume[idx] = candle.volume;
-	} else {
-		// Append new candle
-		ohlcvData.dates.push(tsIso);
-		ohlcvData.open.push(candle.open);
-		ohlcvData.high.push(candle.high);
-		ohlcvData.low.push(candle.low);
-		ohlcvData.close.push(candle.close);
-		ohlcvData.volume.push(candle.volume);
-	}
-	updateLastOhlcvRow();
-});
-
-onOhlcvStatus((status: string) => {
-	feedStatus.textContent = `Live feed: ${status}`;
-});
-
-// After loading historical OHLCV data:
+// Call setupOhlcvWebSocketIntegration after loading historical data
 async function loadOhlcvHybrid() {
 	// Fetch historical OHLCV
 	const symbol = getCurrentSymbol();
@@ -1256,7 +1261,7 @@ async function loadOhlcvHybrid() {
 				volume: [...ohlcv.result.volume],
 			};
 			renderOhlcvTableAndChart();
-			startOhlcvWebSocket();
+			setupOhlcvWebSocketIntegration();
 		} else {
 			ohlcvData = null;
 			feedStatus.textContent = "No backend data";
