@@ -115,7 +115,7 @@ export function setupOhlcvWebSocket(server: http.Server) {
 					})
 				);
 			});
-			binanceWs.on("message", (data: Buffer) => {
+			binanceWs.on("message", async (data: Buffer) => {
 				try {
 					const msg = JSON.parse(data.toString());
 					if (msg.k) {
@@ -131,7 +131,11 @@ export function setupOhlcvWebSocket(server: http.Server) {
 							volume: parseFloat(k.v),
 							isFinal: !!k.x,
 						};
-						ws.send(JSON.stringify({ type: "ohlcv", ...candle }));
+
+						// Use k.c (close) as the current price
+						const currentPrice = candle.close;
+
+						ws.send(JSON.stringify({ type: "ohlcv", ...candle, currentPrice }));
 					}
 				} catch (err) {
 					ws.send(

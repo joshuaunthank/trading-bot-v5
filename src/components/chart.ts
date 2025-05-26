@@ -15,16 +15,7 @@ Chart.register(
 	OhlcElement
 );
 
-// Remove any duplicate or legacy OHLCV candle types from this file.
-// Use only the canonical OhlcvCandle type from websocket.ts for all chart logic.
-type FinancialDataPoint = {
-	x: number; // timestamp
-	o: number;
-	h: number;
-	l: number;
-	c: number;
-};
-
+// Use only OhlcvCandle from websocket.ts for all chart logic.
 export type ChartType = "line" | "candlestick" | "ohlc";
 
 let chart: Chart<any, any, any> | null = null;
@@ -100,61 +91,36 @@ export function initChart(
 		];
 		if (needsNewChart) {
 			if (chart) chart.destroy();
-			if (type === "candlestick") {
-				chart = new Chart<"candlestick", FinancialDataPoint[], number>(ctx, {
-					type: "candlestick",
-					data: { labels, datasets },
-					options: {
-						responsive: false,
-						plugins: {
-							legend: { labels: { color: "#ccc" } },
-							tooltip: { enabled: true },
+			chart = new Chart(ctx, {
+				type: type,
+				data: { labels, datasets },
+				options: {
+					responsive: false,
+					plugins: {
+						legend: { labels: { color: "#ccc" } },
+						tooltip: { enabled: true },
+						zoom: {
+							pan: { enabled: true, mode: "x" },
 							zoom: {
-								pan: { enabled: true, mode: "x" },
-								zoom: {
-									wheel: { enabled: true },
-									pinch: { enabled: true },
-									mode: "x",
-								},
+								wheel: { enabled: true },
+								pinch: { enabled: true },
+								mode: "x",
 							},
 						},
-						scales: {
-							x: { display: true, ticks: { color: "#aaa" } },
-							y: { display: true, ticks: { color: "#aaa" } },
-						},
 					},
-				});
-			} else {
-				chart = new Chart<"ohlc", FinancialDataPoint[], number>(ctx, {
-					type: "ohlc",
-					data: { labels, datasets },
-					options: {
-						responsive: false,
-						plugins: {
-							legend: { labels: { color: "#ccc" } },
-							tooltip: { enabled: true },
-							zoom: {
-								pan: { enabled: true, mode: "x" },
-								zoom: {
-									wheel: { enabled: true },
-									pinch: { enabled: true },
-									mode: "x",
-								},
-							},
-						},
-						scales: {
-							x: { display: true, ticks: { color: "#aaa" } },
-							y: { display: true, ticks: { color: "#aaa" } },
-						},
+					scales: {
+						x: { display: true, ticks: { color: "#aaa" } },
+						y: { display: true, ticks: { color: "#aaa" } },
 					},
-				});
-			}
+				},
+			});
 		} else {
 			updateChartData(candles);
 		}
 	}
 }
 
+// Update chart data with new candles (full refresh)
 export function updateChartData(candles: OhlcvCandle[]) {
 	if (!chart) return;
 	if (chartType === "line") {
@@ -170,55 +136,52 @@ export function updateChartData(candles: OhlcvCandle[]) {
 			c: c.close,
 		}));
 	}
-	chart.update("none");
+	chart.update();
 }
 
-export function updateChartWithCandle(candle: OhlcvCandle) {
+// Incrementally update the last candle with currentPrice (for live chart updates)
+export function updateChartWithCurrentPrice(currentPrice: number) {
 	if (!chart) return;
 	if (chartType === "line") {
-		const labels = chart.data.labels as string[];
-		const data = chart.data.datasets[0].data as number[];
-		const iso = new Date(candle.timestamp).toISOString();
-		if (labels[labels.length - 1] === iso) {
-			data[data.length - 1] = candle.close;
-		} else {
-			labels.push(iso);
-			data.push(candle.close);
+		const ds = chart.data.datasets[0];
+		if (ds && Array.isArray(ds.data) && ds.data.length > 0) {
+			ds.data[ds.data.length - 1] = currentPrice;
+			chart.update("none");
 		}
 	} else {
-		const ts = candle.timestamp;
-		const ds = chart.data.datasets[0].data as FinancialDataPoint[];
-		if (ds.length && ds[ds.length - 1].x === ts) {
-			ds[ds.length - 1] = {
-				x: ts,
-				o: candle.open,
-				h: candle.high,
-				l: candle.low,
-				c: candle.close,
-			};
-		} else {
-			ds.push({
-				x: ts,
-				o: candle.open,
-				h: candle.high,
-				l: candle.low,
-				c: candle.close,
-			});
-		}
-		const labels = chart.data.labels as number[];
-		if (labels[labels.length - 1] !== ts) {
-			labels.push(ts);
+		const ds = chart.data.datasets[0];
+		if (ds && Array.isArray(ds.data) && ds.data.length > 0) {
+			const last = ds.data[ds.data.length - 1];
+			if (last && typeof last === "object") {
+				last.c = currentPrice;
+				if (currentPrice > last.h) last.h = currentPrice;
+				if (currentPrice < last.l) last.l = currentPrice;
+				chart.update("none");
+			}
 		}
 	}
-	chart.update("none");
 }
 
-export function getChartInstance() {
-	return chart;
+// Incrementally update the last candle with new OhlcvCandle data
+export function updateChartWithCandle(candle: OhlcvCandle) {
+	// For incremental chart update: update the last candle's close/high/low
+	if (!chart) return;
+	if (chartType === "line") {
+		const ds = chart.data.datasets[0];
+		if (ds && Array.isArray(ds.data) && ds.data.length > 0) {
+			ds.data[ds.data.length - 1] = candle.close;
+			chart.update("none");
+		}
+	} else {
+		const ds = chart.data.datasets[0];
+		if (ds && Array.isArray(ds.data) && ds.data.length > 0) {
+			const last = ds.data[ds.data.length - 1];
+			if (last && typeof last === "object") {
+				last.c = candle.close;
+				if (candle.close > last.h) last.h = candle.close;
+				if (candle.close < last.l) last.l = candle.close;
+				chart.update("none");
+			}
+		}
+	}
 }
-
-export function setChartType(type: ChartType) {
-	chartType = type;
-}
-
-// All chart logic below uses OhlcvCandle from websocket.ts
