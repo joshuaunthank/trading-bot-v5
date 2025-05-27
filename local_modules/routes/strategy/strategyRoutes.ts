@@ -28,7 +28,6 @@ const strategyRoutes = (api: any) => {
 		const jsonPath = path.join(strategiesDir, `${name.toLowerCase()}.json`);
 		if (!fs.existsSync(jsonPath)) {
 			res.status(404).json({ error: "Strategy not found" });
-			return;
 		}
 		const json = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
 		// Simulate execution: just echo config and params for now
@@ -58,13 +57,10 @@ const strategyRoutes = (api: any) => {
 						name: json.name,
 						description: json.description,
 					});
-					return;
 				}
 				res.status(404).json({ error: "No configSchema in JSON file." });
-				return;
 			} catch (e) {
 				res.status(500).json({ error: "Failed to load config JSON." });
-				return;
 			}
 		}
 		res.status(404).json({ error: "Strategy not found" });
