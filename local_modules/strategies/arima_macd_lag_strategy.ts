@@ -23,26 +23,49 @@ export class ArimaMacdLagStrategy implements Strategy {
 		symbol?: string;
 		timeframe?: string;
 		limit?: number;
+		candles?: Array<{
+			timestamp: number;
+			open: number;
+			high: number;
+			low: number;
+			close: number;
+			volume: number;
+		}>;
 	}): Promise<any> {
 		const apiKey = params.apiKey || config.binanceApiKey;
 		const secret = params.secret || config.binanceApiSecret;
 		const symbol = params.symbol || config.defaultSymbol;
 		const timeframe = params.timeframe || config.defaultTimeframe;
 		const limit = params.limit || config.defaultLimit;
-		if (!apiKey || !secret) throw new Error("API key and secret are required");
-		const exchange = new ccxt.binance({
-			apiKey,
-			secret,
-			options: { defaultType: "margin" },
-			enableRateLimit: true,
-		});
-		await exchange.loadMarkets();
-		const ohlcv = await exchange.fetchOHLCV(
-			symbol,
-			timeframe,
-			undefined,
-			limit
-		);
+		// --- Use candles from params if provided, otherwise fetch from exchange ---
+		let ohlcv: any[];
+		let exchange: any = undefined; // <-- Declare exchange in the correct scope
+		if (
+			params.candles &&
+			Array.isArray(params.candles) &&
+			params.candles.length > 0
+		) {
+			// Convert to ccxt format: [timestamp, open, high, low, close, volume]
+			ohlcv = params.candles.map((c) => [
+				c.timestamp,
+				c.open,
+				c.high,
+				c.low,
+				c.close,
+				c.volume,
+			]);
+		} else {
+			if (!apiKey || !secret)
+				throw new Error("API key and secret are required");
+			exchange = new ccxt.binance({
+				apiKey,
+				secret,
+				options: { defaultType: "margin" },
+				enableRateLimit: true,
+			});
+			await exchange.loadMarkets();
+			ohlcv = await exchange.fetchOHLCV(symbol, timeframe, undefined, limit);
+		}
 		const now = Date.now();
 		const timeframeMs =
 			{
@@ -414,7 +437,9 @@ export class ArimaMacdLagStrategy implements Strategy {
 		const quoteAsset = symbol.split("/")[1] || "USDT";
 		let startingBalance = 0;
 		try {
-			startingBalance = await fetchMarginBalance(exchange, quoteAsset);
+			if (exchange) {
+				startingBalance = await fetchMarginBalance(exchange, quoteAsset);
+			}
 		} catch (err) {
 			console.warn("Could not fetch starting margin balance:", err);
 			startingBalance = 0;

@@ -63,3 +63,29 @@ This project is a modular, extensible, full-stack TypeScript trading bot for Bin
   - Ensure all new features follow the established modular/component pattern
   - Prioritize maintainability, extensibility, and DRY codebase
   - Address and resolve current issues with data fetching, API, and WebSocket reliability
+
+---
+
+## **Single Source of Truth & Strategy Refactor Checklist (May 2025)**
+
+**Goal:** Eliminate all direct OHLCV/data fetches from strategies and ensure all data flows through the backend (REST for historical, WebSocket for live). Strategies should only process data passed to them, not fetch it themselves.
+
+### Checklist:
+
+- [ ] Remove all direct OHLCV/data fetches from strategy files (no more fetches in strategies)
+- [ ] Refactor backend to provide all OHLCV data (historical and live) via REST/WebSocket only
+- [ ] Ensure frontend always uses backend as the single source of truth (no direct exchange fetches)
+- [ ] Refactor strategies to accept data as input (not fetch it themselves)
+- [ ] Standardize strategy interface for config and data input
+- [ ] Prepare for database-backed, fully configurable strategies (but keep file-based fallback for now)
+- [ ] Update tests and documentation to reflect new data flow
+
+**Benefits:**
+
+- Eliminates data duplication and race conditions
+- Enables overlays, live updates, and advanced features
+- Prepares for modular, database-driven, and user-configurable strategies
+
+---
+
+**Keep this checklist up to date as you progress!**

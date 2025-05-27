@@ -41,6 +41,41 @@ const apiRoutes = (app: any) => {
 		const params = req.body;
 		const strategy = strategies.find((s) => s.name === name);
 		if (!strategy) return res.status(404).json({ error: "Strategy not found" });
+
+		// --- If strategy supports candles param, fetch OHLCV from backend and pass as input ---
+		if (
+			typeof params.symbol === "string" &&
+			typeof params.timeframe === "string"
+		) {
+			try {
+				const limit = params.limit ? Number(params.limit) : 1000;
+				const resp = await fetch(
+					`http://localhost:3001/api/v1/ohlcv?symbol=${encodeURIComponent(
+						params.symbol
+					)}&timeframe=${encodeURIComponent(params.timeframe)}&limit=${limit}`
+				);
+				const ohlcvData = await resp.json();
+				if (
+					ohlcvData &&
+					ohlcvData.result &&
+					Array.isArray(ohlcvData.result.dates)
+				) {
+					const candles = ohlcvData.result.dates.map(
+						(d: string, i: number) => ({
+							timestamp: new Date(d).getTime(),
+							open: ohlcvData.result.open[i],
+							high: ohlcvData.result.high[i],
+							low: ohlcvData.result.low[i],
+							close: ohlcvData.result.close[i],
+							volume: ohlcvData.result.volume[i],
+						})
+					);
+					params.candles = candles;
+				}
+			} catch (e) {
+				// fallback: let strategy fetch if backend fails
+			}
+		}
 		Promise.resolve(strategy.run(params))
 			.then((result) => res.json(result))
 			.catch((e) => res.status(500).json({ error: e.message }));
