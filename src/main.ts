@@ -10,7 +10,6 @@ import {
 } from "./components/chart";
 import {
 	connectOhlcvWebSocket,
-	disconnectOhlcvWebSocket,
 	onOhlcvUpdate,
 	onOhlcvStatus,
 } from "./components/websocket";
@@ -130,7 +129,7 @@ document.getElementById("run-form")!.onsubmit = async (e) => {
 		if (data && data.result && data.result.forecast) {
 			plotStrategyResult(data);
 			showSummary(data);
-			await loadFeed(); // update table with new forecast/hit
+			await loadOhlcvHybrid(); // update table with new forecast/hit
 		}
 	} catch (err) {
 		output.textContent = "Error: " + err;
@@ -182,24 +181,7 @@ feedDiv.innerHTML = `
 app!.appendChild(feedDiv);
 
 // --- Auto-update feed logic ---
-let feedTimeout: number | null = null;
 const feedStatus = document.getElementById("feed-status")!;
-
-function timeframeToMs(tf: string): number {
-	const m = tf.match(/^([0-9]+)([mhd])$/i);
-	if (!m) return 60000; // default 1m
-	const n = parseInt(m[1], 10);
-	switch (m[2].toLowerCase()) {
-		case "m":
-			return n * 60 * 1000;
-		case "h":
-			return n * 60 * 60 * 1000;
-		case "d":
-			return n * 24 * 60 * 60 * 1000;
-		default:
-			return 60000;
-	}
-}
 
 function getCurrentTimeframe(): string {
 	return (
@@ -207,281 +189,82 @@ function getCurrentTimeframe(): string {
 	);
 }
 
-function clearFeedTimers() {
-	if (feedTimeout) clearTimeout(feedTimeout);
-	feedTimeout = null;
-}
+// --- Patch: Track last closed candle timestamp to detect new finalized candle ---
+let lastClosedCandleTimestamp: number | null = null;
 
-async function getBinanceServerTime(): Promise<number> {
-	try {
-		const res = await fetch("https://api.binance.com/api/v3/time");
-		const data = await res.json();
-		return data.serverTime;
-	} catch {
-		return Date.now(); // fallback to local time
-	}
-}
-
-async function scheduleFeedUpdate() {
-	clearFeedTimers();
-	const tf = getCurrentTimeframe();
-	const ms = timeframeToMs(tf);
-	const serverNow = await getBinanceServerTime();
-	// Calculate ms until next candle close using server time
-	let nextClose;
-	if (tf.endsWith("m")) {
-		const n = parseInt(tf);
-		nextClose = Math.ceil(serverNow / (n * 60 * 1000)) * (n * 60 * 1000);
-	} else if (tf.endsWith("h")) {
-		const n = parseInt(tf);
-		nextClose =
-			Math.ceil(serverNow / (n * 60 * 60 * 1000)) * (n * 60 * 60 * 1000);
-	} else if (tf.endsWith("d")) {
-		const n = parseInt(tf);
-		nextClose =
-			Math.ceil(serverNow / (n * 24 * 60 * 60 * 1000)) *
-			(n * 24 * 60 * 60 * 1000);
-	} else {
-		nextClose = serverNow + ms;
-	}
-	const msToNext = Math.max(nextClose - serverNow, 1000);
-	feedTimeout = window.setTimeout(async () => {
-		await loadFeed();
-		scheduleFeedUpdate(); // Always reschedule after each refresh
-	}, msToNext);
-}
-
-async function loadFeed() {
-	updateFeedTitle();
-	const tbody = document.querySelector("#feed-table tbody")!;
-	tbody.innerHTML = "";
-	let dataObj: any = null;
-	try {
-		dataObj = JSON.parse(output.textContent || "{}");
-	} catch {}
-
-	if (
-		dataObj &&
-		dataObj.result &&
-		Array.isArray(dataObj.result.dates) &&
-		Array.isArray(dataObj.result.price)
-	) {
-		const n = dataObj.result.dates.length;
-		const dates = dataObj.result.dates;
-		const price = dataObj.result.price;
-		const forecasts = dataObj.result.forecast || [];
-		const hits = dataObj.result.hitForecast || [];
-		const forecastReturns = dataObj.result.forecastReturn || [];
-		const forecastSpreads = dataObj.result.forecastSpread || [];
-		for (let i = n - 1; i >= 0; --i) {
-			const tr = document.createElement("tr");
-			tr.innerHTML = `
-				<td>${
-					useUTC
-						? new Date(dates[i])
-								.toISOString()
-								.replace("T", " ")
-								.replace(".000Z", " UTC")
-						: new Date(dates[i]).toLocaleString()
-				}</td>
-				<td class="feed-td-open">${
-					price[i] != null ? Number(price[i]).toFixed(2) : "-"
-				}</td>
-				<td class="feed-td-high">${
-					price[i] != null ? Number(price[i]).toFixed(2) : "-"
-				}</td>
-				<td class="feed-td-low">${
-					price[i] != null ? Number(price[i]).toFixed(2) : "-"
-				}</td>
-				<td class="feed-td-close">${
-					price[i] != null ? Number(price[i]).toFixed(2) : "-"
-				}</td>
-				<td class="feed-td-volume">-</td>
-				<td class="feed-td-forecast">$${
-					forecasts[i] != null ? Number(forecasts[i]).toFixed(2) : "-"
-				}</td>
-				<td class="feed-td-hit">${
-					hits[i] === true ? "✅" : hits[i] === false ? "❌" : "-"
-				}</td>
-				<td class="feed-td-return">${
-					forecastReturns[i] != null
-						? (forecastReturns[i] * 100).toFixed(2) + "%"
-						: "-"
-				}</td>
-				<td class="feed-td-spread">${
-					forecastSpreads[i] != null
-						? Number(forecastSpreads[i]).toFixed(2)
-						: "-"
-				}</td>
-			`;
-			tr.style.transition = "background 0.2s";
-			tr.onmouseover = () => (tr.style.background = "#23242a");
-			tr.onmouseout = () => (tr.style.background = "");
-			tbody.appendChild(tr);
-		}
-		// --- Append next candle row if nextErrorCorrectedForecast is present ---
+// --- Centralized WebSocket integration for OHLCV updates ---
+/**
+ * Sets up the WebSocket integration for OHLCV updates and handles UI refresh on new candles.
+ */
+function setupOhlcvWebSocketIntegration() {
+	let currentSymbol = getCurrentSymbol();
+	let currentTimeframe = getCurrentTimeframe();
+	connectOhlcvWebSocket(currentSymbol, currentTimeframe);
+	onOhlcvStatus((status) => {
+		if (status === "connected") feedStatus.textContent = "Live feed connected";
+		else if (status === "closed")
+			feedStatus.textContent = "Live feed disconnected";
+		else if (status === "error") feedStatus.textContent = "Live feed error";
+		else if (status === "connecting")
+			feedStatus.textContent = "Connecting to live feed...";
+	});
+	onOhlcvUpdate((msg) => {
+		// Detect if a new finalized candle has started (timestamp increases)
 		if (
-			dataObj.result.nextErrorCorrectedForecast !== undefined &&
-			dataObj.result.nextErrorCorrectedForecast !== null &&
-			!isNaN(dataObj.result.nextErrorCorrectedForecast)
+			lastClosedCandleTimestamp !== null &&
+			msg.timestamp > lastClosedCandleTimestamp
 		) {
-			const lastDate = new Date(dates[dates.length - 1]);
-			const tf =
-				(document.getElementById("timeframe") as HTMLInputElement)?.value ||
-				"4h";
-			const timeframeMs = timeframeToMs(tf);
-			const nextCandleDate = new Date(lastDate.getTime() + timeframeMs);
-			const tr = document.createElement("tr");
-			tr.innerHTML = `
-				<td>${
-					useUTC
-						? nextCandleDate
-								.toISOString()
-								.replace("T", " ")
-								.replace(".000Z", " UTC")
-						: nextCandleDate.toLocaleString()
-				}</td>
-				<td class="feed-td-open">-</td>
-				<td class="feed-td-high">-</td>
-				<td class="feed-td-low">-</td>
-				<td class="feed-td-close">-</td>
-				<td class="feed-td-volume">-</td>
-				<td class="feed-td-forecast">${Number(
-					dataObj.result.nextErrorCorrectedForecast
-				).toFixed(2)}</td>
-				<td class="feed-td-hit">-</td>
-				<td class="feed-td-return">-</td>
-				<td class="feed-td-spread">-</td>
-			`;
-			tr.style.background = "#232323";
-			tr.style.fontStyle = "italic";
-			tbody.insertBefore(tr, tbody.firstChild);
+			// New candle started, trigger full refresh
+			loadOhlcvHybrid();
 		}
-		feedStatus.textContent = `Last updated: ${new Date(
-			dates[n - 1]
-		).toLocaleTimeString()}`;
-		// Also plot chart
-		plotStrategyResult({ result: dataObj.result });
-	} else {
-		// No strategy result: fetch OHLCV from backend
-		const symbol =
-			(document.getElementById("symbol") as HTMLInputElement)?.value ||
-			"BTC/USDT";
-		const timeframe =
-			(document.getElementById("timeframe") as HTMLInputElement)?.value || "4h";
-		const limit =
-			Number((document.getElementById("limit") as HTMLInputElement)?.value) ||
-			1000;
-		try {
-			const res = await fetch(
-				`http://localhost:3001/api/v1/ohlcv?symbol=${encodeURIComponent(
-					symbol
-				)}&timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`
-			);
-			const ohlcvData = await res.json();
-			if (
-				ohlcvData &&
-				ohlcvData.result &&
-				Array.isArray(ohlcvData.result.dates)
-			) {
-				const n = ohlcvData.result.dates.length;
-				const dates = ohlcvData.result.dates;
-				const open = ohlcvData.result.open;
-				const high = ohlcvData.result.high;
-				const low = ohlcvData.result.low;
-				const close = ohlcvData.result.close;
-				const volume = ohlcvData.result.volume;
-				// Patch: fallback arrays for forecast columns
-				const forecasts: number[] = [];
-				const hits: (boolean | null)[] = [];
-				const forecastReturns: number[] = [];
-				const forecastSpreads: number[] = [];
-				for (let i = n - 1; i >= 0; --i) {
-					const tr = document.createElement("tr");
-					tr.innerHTML = `
-						<td>${
-							useUTC
-								? new Date(dates[i])
-										.toISOString()
-										.replace("T", " ")
-										.replace(".000Z", " UTC")
-								: new Date(dates[i]).toLocaleString()
-						}</td>
-						<td class="feed-td-open">${
-							open && open[i] != null ? Number(open[i]).toFixed(2) : "-"
-						}</td>
-						<td class="feed-td-high">${
-							high && high[i] != null ? Number(high[i]).toFixed(2) : "-"
-						}</td>
-						<td class="feed-td-low">${
-							low && low[i] != null ? Number(low[i]).toFixed(2) : "-"
-						}</td>
-						<td class="feed-td-close">${
-							close && close[i] != null ? Number(close[i]).toFixed(2) : "-"
-						}</td>
-						<td class="feed-td-volume">${
-							volume && volume[i] != null ? Number(volume[i]).toFixed(3) : "-"
-						}</td>
-						<td class="feed-td-forecast">$${
-							forecasts[i] != null ? Number(forecasts[i]).toFixed(2) : "-"
-						}</td>
-						<td class="feed-td-hit">${
-							hits[i] === true ? "✅" : hits[i] === false ? "❌" : "-"
-						}</td>
-						<td class="feed-td-return">${
-							forecastReturns[i] != null
-								? (forecastReturns[i] * 100).toFixed(2) + "%"
-								: "-"
-						}</td>
-						<td class="feed-td-spread">${
-							forecastSpreads[i] != null
-								? Number(forecastSpreads[i]).toFixed(2)
-								: "-"
-						}</td>
-					`;
-					tr.style.transition = "background 0.2s";
-					tr.onmouseover = () => (tr.style.background = "#23242a");
-					tr.onmouseout = () => (tr.style.background = "");
-					tbody.appendChild(tr);
-				}
-				feedStatus.textContent = `Last updated: ${new Date(
-					dates[n - 1]
-				).toLocaleTimeString()}`;
-				// Plot chart with price only
-				plotStrategyResult({ result: { dates, price: close } });
-			} else {
-				tbody.innerHTML = `<tr><td colspan='10'>No OHLCV data available from backend.</td></tr>`;
-				feedStatus.textContent = "No backend data";
-			}
-		} catch (err) {
-			tbody.innerHTML = `<tr><td colspan='10'>Failed to fetch OHLCV from backend.</td></tr>`;
-			feedStatus.textContent = "No backend data";
+		lastClosedCandleTimestamp = msg.timestamp;
+		if (!ohlcvData) return;
+		const idx = ohlcvData.dates.findIndex(
+			(d) => new Date(d).getTime() === msg.timestamp
+		);
+		if (idx >= 0) {
+			// Update existing candle
+			ohlcvData.open[idx] = msg.open;
+			ohlcvData.high[idx] = msg.high;
+			ohlcvData.low[idx] = msg.low;
+			ohlcvData.close[idx] = msg.close;
+			ohlcvData.volume[idx] = msg.volume;
+		} else {
+			// Append new candle
+			ohlcvData.dates.push(new Date(msg.timestamp).toISOString());
+			ohlcvData.open.push(msg.open);
+			ohlcvData.high.push(msg.high);
+			ohlcvData.low.push(msg.low);
+			ohlcvData.close.push(msg.close);
+			ohlcvData.volume.push(msg.volume);
 		}
-	}
+		updateLastOhlcvRow();
+	});
 }
 
-// Start update on page load
+// Consolidate DOMContentLoaded logic
 window.addEventListener("DOMContentLoaded", () => {
-	loadFeed();
-	scheduleFeedUpdate();
+	// Initial UI setup
+	updateFeedTitle();
+	loadOhlcvHybrid();
+	document.getElementById("load-strategies")!.click();
+	liveFeedActive = true;
+	startLiveRawFeed();
 });
 
-// Listen for timeframe changes and reset timer
 const timeframeInput = document.getElementById("timeframe") as HTMLInputElement;
 timeframeInput.addEventListener("change", () => {
 	updateFeedTitle();
-	loadFeed();
-	scheduleFeedUpdate();
+	loadOhlcvHybrid();
 });
 timeframeInput.addEventListener("blur", () => {
 	updateFeedTitle();
-	loadFeed();
-	scheduleFeedUpdate();
+	loadOhlcvHybrid();
 });
 
-// Stop timers on page unload
+// Remove clearFeedTimers from beforeunload
 window.addEventListener("beforeunload", () => {
-	clearFeedTimers();
+	// clearFeedTimers(); // REMOVE
 });
 
 // Auto-load strategies on page load
@@ -634,7 +417,7 @@ document.getElementById("config-form")!.onsubmit = (e) => {
 	).checked;
 	configModal.style.display = "none";
 	// Update all displays
-	loadFeed();
+	loadOhlcvHybrid();
 	try {
 		const data = JSON.parse(output.textContent || "{}");
 		plotStrategyResult(data);
@@ -1198,44 +981,6 @@ function getCurrentSymbol() {
 	);
 }
 
-// Remove all direct WebSocket code and use the centralized API
-function setupOhlcvWebSocketIntegration() {
-	let currentSymbol = getCurrentSymbol();
-	let currentTimeframe = getCurrentTimeframe();
-	connectOhlcvWebSocket(currentSymbol, currentTimeframe);
-	onOhlcvStatus((status) => {
-		if (status === "connected") feedStatus.textContent = "Live feed connected";
-		else if (status === "closed")
-			feedStatus.textContent = "Live feed disconnected";
-		else if (status === "error") feedStatus.textContent = "Live feed error";
-		else if (status === "connecting")
-			feedStatus.textContent = "Connecting to live feed...";
-	});
-	onOhlcvUpdate((msg) => {
-		if (!ohlcvData) return;
-		const idx = ohlcvData.dates.findIndex(
-			(d) => new Date(d).getTime() === msg.timestamp
-		);
-		if (idx >= 0) {
-			// Update existing candle
-			ohlcvData.open[idx] = msg.open;
-			ohlcvData.high[idx] = msg.high;
-			ohlcvData.low[idx] = msg.low;
-			ohlcvData.close[idx] = msg.close;
-			ohlcvData.volume[idx] = msg.volume;
-		} else {
-			// Append new candle
-			ohlcvData.dates.push(new Date(msg.timestamp).toISOString());
-			ohlcvData.open.push(msg.open);
-			ohlcvData.high.push(msg.high);
-			ohlcvData.low.push(msg.low);
-			ohlcvData.close.push(msg.close);
-			ohlcvData.volume.push(msg.volume);
-		}
-		updateLastOhlcvRow();
-	});
-}
-
 // Call setupOhlcvWebSocketIntegration after loading historical data
 async function loadOhlcvHybrid() {
 	// Fetch historical OHLCV
@@ -1276,6 +1021,9 @@ async function loadOhlcvHybrid() {
 let currentChartType: ChartType = "line";
 
 // --- Patch renderOhlcvTableAndChart to use unified OhlcvCandle type ---
+/**
+ * Renders the OHLCV table and chart from the current data.
+ */
 function renderOhlcvTableAndChart() {
 	if (!ohlcvData) return;
 	const tbody = document.querySelector("#feed-table tbody")!;
@@ -1336,6 +1084,9 @@ function renderOhlcvTableAndChart() {
 	initChart(ctx, candles, currentChartType);
 }
 
+/**
+ * Updates the last row of the OHLCV table and chart with the latest data.
+ */
 function updateLastOhlcvRow() {
 	if (!ohlcvData) return;
 	const tbody = document.querySelector("#feed-table tbody")!;
