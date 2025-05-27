@@ -10,6 +10,7 @@ import {
 } from "./components/chart";
 import {
 	connectOhlcvWebSocket,
+	disconnectOhlcvWebSocket, // <-- add this import
 	onOhlcvUpdate,
 	onOhlcvStatus,
 } from "./components/websocket";
@@ -50,9 +51,6 @@ const summaryDiv = document.getElementById("summary")!;
 const output = document.getElementById("output") as HTMLPreElement;
 const rawScroll = document.getElementById("raw-scroll")!;
 const toggleRawBtn = document.getElementById("toggle-raw")!;
-let liveFeedActive = false;
-let liveFeedInterval: number | null = null;
-let lastRawData: any = null;
 
 // --- Hybrid OHLCV State and WebSocket Integration ---
 let ohlcvData: {
@@ -68,19 +66,9 @@ toggleRawBtn.onclick = () => {
 	const showing = rawScroll.style.display === "none";
 	rawScroll.style.display = showing ? "block" : "none";
 	toggleRawBtn.textContent = showing ? "Hide Raw Data" : "Show Raw Data";
-	if (showing) {
-		if (!liveFeedActive) {
-			startLiveRawFeed();
-			liveFeedActive = true;
-		}
-	} else {
-		if (liveFeedActive) {
-			stopLiveRawFeed();
-			liveFeedActive = false;
-		}
-	}
 };
 
+// Load strategies on button click
 document.getElementById("load-strategies")!.onclick = async () => {
 	output.textContent = "Loading strategies...";
 	try {
@@ -136,9 +124,6 @@ document.getElementById("run-form")!.onsubmit = async (e) => {
 	}
 };
 
-// Remove the auto 'since' button and start live feed automatically
-// (Remove the button creation and insertion)
-
 // Add a live feed of recent BTC/USDT 4h candles
 const feedDiv = document.createElement("div");
 feedDiv.className = "feed-section-card"; // Add card class for consistent look
@@ -191,16 +176,33 @@ function getCurrentTimeframe(): string {
 
 // --- Patch: Track last closed candle timestamp to detect new finalized candle ---
 let lastClosedCandleTimestamp: number | null = null;
+let currentWsSymbol: string | null = null;
+let currentWsTimeframe: string | null = null;
 
-// --- Centralized WebSocket integration for OHLCV updates ---
 /**
  * Sets up the WebSocket integration for OHLCV updates and handles UI refresh on new candles.
+ * Ensures only one active WebSocket connection per symbol/timeframe.
  */
 function setupOhlcvWebSocketIntegration() {
-	let currentSymbol = getCurrentSymbol();
-	let currentTimeframe = getCurrentTimeframe();
-	connectOhlcvWebSocket(currentSymbol, currentTimeframe);
+	const symbol = getCurrentSymbol();
+	const timeframe = getCurrentTimeframe();
+
+	console.log(
+		"[main] setupOhlcvWebSocketIntegration called with",
+		symbol,
+		timeframe
+	);
+	// Only reconnect if symbol/timeframe changed
+	if (symbol === currentWsSymbol && timeframe === currentWsTimeframe) return;
+
+	disconnectOhlcvWebSocket();
+	currentWsSymbol = symbol;
+	currentWsTimeframe = timeframe;
+
+	console.log("[main] Connecting WebSocket for", symbol, timeframe);
+	connectOhlcvWebSocket(symbol, timeframe);
 	onOhlcvStatus((status) => {
+		console.log("[main] WebSocket status:", status);
 		if (status === "connected") feedStatus.textContent = "Live feed connected";
 		else if (status === "closed")
 			feedStatus.textContent = "Live feed disconnected";
@@ -209,12 +211,14 @@ function setupOhlcvWebSocketIntegration() {
 			feedStatus.textContent = "Connecting to live feed...";
 	});
 	onOhlcvUpdate((msg) => {
+		console.log("[main] WebSocket OHLCV update:", msg);
 		// Detect if a new finalized candle has started (timestamp increases)
 		if (
 			lastClosedCandleTimestamp !== null &&
 			msg.timestamp > lastClosedCandleTimestamp
 		) {
 			// New candle started, trigger full refresh
+			console.log("[main] New finalized candle detected, refreshing data");
 			loadOhlcvHybrid();
 		}
 		lastClosedCandleTimestamp = msg.timestamp;
@@ -242,25 +246,24 @@ function setupOhlcvWebSocketIntegration() {
 	});
 }
 
-// Consolidate DOMContentLoaded logic
+// Remove initial loadOhlcvHybrid and updateFeedTitle from DOMContentLoaded
 window.addEventListener("DOMContentLoaded", () => {
-	// Initial UI setup
-	updateFeedTitle();
-	loadOhlcvHybrid();
 	document.getElementById("load-strategies")!.click();
-	liveFeedActive = true;
-	startLiveRawFeed();
 });
 
+// Remove loadOhlcvHybrid and updateFeedTitle from timeframe change/blur
 const timeframeInput = document.getElementById("timeframe") as HTMLInputElement;
 timeframeInput.addEventListener("change", () => {
 	updateFeedTitle();
-	loadOhlcvHybrid();
+	// No data fetch here
 });
 timeframeInput.addEventListener("blur", () => {
 	updateFeedTitle();
-	loadOhlcvHybrid();
+	// No data fetch here
 });
+
+// Only fetch OHLCV data and set up WebSocket when running a strategy
+// (This is already handled in the run-form onsubmit handler)
 
 // Remove clearFeedTimers from beforeunload
 window.addEventListener("beforeunload", () => {
@@ -270,8 +273,6 @@ window.addEventListener("beforeunload", () => {
 // Auto-load strategies on page load
 window.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("load-strategies")!.click();
-	liveFeedActive = true;
-	startLiveRawFeed();
 });
 
 // Add a chart container with modern card and flex controls
@@ -917,56 +918,7 @@ document.getElementById("run-form")!.onsubmit = async (e) => {
 };
 
 // --- Live Raw Data Feed ---
-function startLiveRawFeed() {
-	if (liveFeedInterval) clearInterval(liveFeedInterval);
-	liveFeedInterval = window.setInterval(async () => {
-		const strategy = strategyList.value;
-		const apiKey = (document.getElementById("apiKey") as HTMLInputElement)
-			.value;
-		const secret = (document.getElementById("secret") as HTMLInputElement)
-			.value;
-		const symbol = (document.getElementById("symbol") as HTMLInputElement)
-			.value;
-		const timeframe = (document.getElementById("timeframe") as HTMLInputElement)
-			.value;
-		const limit = Number(
-			(document.getElementById("limit") as HTMLInputElement).value
-		);
-		try {
-			const res = await fetch(
-				`http://localhost:3001/api/v1/strategies/${strategy}/run`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						apiKey,
-						secret,
-						symbol,
-						timeframe,
-						limit,
-					}),
-				}
-			);
-			const data = await res.json();
-			if (JSON.stringify(data) !== JSON.stringify(lastRawData)) {
-				output.textContent = JSON.stringify(data, null, 2);
-				plotStrategyResult(data);
-				showSummary(data);
-				lastRawData = data;
-			}
-		} catch (err) {
-			output.textContent = "Error: " + err;
-		}
-	}, 10000); // update every 10 seconds
-}
-
-function stopLiveRawFeed() {
-	if (liveFeedInterval) clearInterval(liveFeedInterval);
-	liveFeedInterval = null;
-}
-
-// Stop live feed on page unload
-window.addEventListener("beforeunload", stopLiveRawFeed);
+// Removed: startLiveRawFeed and stopLiveRawFeed functions
 
 // When output is set, always hide it by default and update summary
 rawScroll.style.display = "none";
@@ -981,7 +933,41 @@ function getCurrentSymbol() {
 	);
 }
 
-// Call setupOhlcvWebSocketIntegration after loading historical data
+// --- Error Banner Helper ---
+function showOhlcvErrorBanner(message: string) {
+	let banner = document.getElementById("ohlcv-error-banner");
+	if (!banner) {
+		banner = document.createElement("div");
+		banner.id = "ohlcv-error-banner";
+		banner.style.position = "fixed";
+		banner.style.top = "0";
+		banner.style.left = "0";
+		banner.style.width = "100%";
+		banner.style.zIndex = "1000";
+		banner.style.background = "#ff2d55";
+		banner.style.color = "#fff";
+		banner.style.fontWeight = "bold";
+		banner.style.fontSize = "1.1em";
+		banner.style.padding = "1em 2em";
+		banner.style.display = "flex";
+		banner.style.justifyContent = "space-between";
+		banner.style.alignItems = "center";
+		banner.innerHTML = `
+		  <span id="ohlcv-error-message"></span>
+		  <button id="ohlcv-error-close" style="background:none;border:none;color:#fff;font-size:1.5em;cursor:pointer;">&times;</button>
+		`;
+		document.body.appendChild(banner);
+		banner
+			.querySelector("#ohlcv-error-close")!
+			.addEventListener("click", () => {
+				banner!.remove();
+			});
+	}
+	const msgSpan = banner.querySelector("#ohlcv-error-message");
+	if (msgSpan) msgSpan.textContent = message;
+	banner.style.display = "flex";
+}
+
 async function loadOhlcvHybrid() {
 	// Fetch historical OHLCV
 	const symbol = getCurrentSymbol();
@@ -989,6 +975,7 @@ async function loadOhlcvHybrid() {
 	const limit =
 		Number((document.getElementById("limit") as HTMLInputElement)?.value) ||
 		1000;
+	console.log("[main] loadOhlcvHybrid called with", symbol, timeframe, limit);
 	try {
 		const res = await fetch(
 			`http://localhost:3001/api/v1/ohlcv?symbol=${encodeURIComponent(
@@ -997,6 +984,7 @@ async function loadOhlcvHybrid() {
 		);
 		const ohlcv = await res.json();
 		if (ohlcv && ohlcv.result && Array.isArray(ohlcv.result.dates)) {
+			console.log("[main] Received OHLCV data:", ohlcv.result);
 			ohlcvData = {
 				dates: [...ohlcv.result.dates],
 				open: [...ohlcv.result.open],
@@ -1007,13 +995,24 @@ async function loadOhlcvHybrid() {
 			};
 			renderOhlcvTableAndChart();
 			setupOhlcvWebSocketIntegration();
+			// Hide error banner if present
+			const banner = document.getElementById("ohlcv-error-banner");
+			if (banner) banner.style.display = "none";
 		} else {
+			console.log("[main] No backend data received");
 			ohlcvData = null;
 			feedStatus.textContent = "No backend data";
+			showOhlcvErrorBanner(
+				"No backend OHLCV data received. Please check your backend server and try again."
+			);
 		}
 	} catch (err) {
+		console.error("[main] Error fetching OHLCV:", err);
 		ohlcvData = null;
 		feedStatus.textContent = "No backend data";
+		showOhlcvErrorBanner(
+			"Error fetching OHLCV data from backend. Please check your connection and backend logs."
+		);
 	}
 }
 
@@ -1149,6 +1148,4 @@ function updateLastOhlcvRow() {
 }
 
 // --- Patch WebSocket message handler to only update last row
-// Remove legacy ohlcvWs, wsSymbol, wsTimeframe, and direct WebSocket usage
-// All live updates now handled by centralized WebSocket manager in websocket.ts
-// (No need to override connectOhlcvWebSocket)
+// Remove legacy ohlcvWs, wsSymbol,

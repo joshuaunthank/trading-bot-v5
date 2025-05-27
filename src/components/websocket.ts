@@ -1,5 +1,5 @@
 // src/components/websocket.ts
-// Centralized OHLCV WebSocket manager for frontend
+// Minimal, robust OHLCV WebSocket manager for frontend
 
 export type OhlcvCandle = {
 	timestamp: number;
@@ -18,41 +18,35 @@ let wsSymbol: string | null = null;
 let wsTimeframe: string | null = null;
 let ohlcvListener: OhlcvListener | null = null;
 let statusListener: StatusListener | null = null;
-let debounceTimer: number | null = null;
 
 export function connectOhlcvWebSocket(symbol: string, timeframe: string) {
-	// Debounce rapid reconnects
-	if (debounceTimer) clearTimeout(debounceTimer);
-	debounceTimer = window.setTimeout(() => {
-		_connectOhlcvWebSocket(symbol, timeframe);
-	}, 200);
-}
-
-function _connectOhlcvWebSocket(symbol: string, timeframe: string) {
 	if (ws && wsSymbol === symbol && wsTimeframe === timeframe) return;
-	if (ws) {
-		ws.onclose = null;
-		ws.onerror = null;
-		ws.onmessage = null;
-		ws.close();
-		ws = null;
-	}
+	if (ws) disconnectOhlcvWebSocket();
 	wsSymbol = symbol;
 	wsTimeframe = timeframe;
+	console.log(symbol, timeframe);
+
 	const wsUrl = `ws://${
 		window.location.hostname
 	}:3001/ws/ohlcv?symbol=${encodeURIComponent(
 		symbol
 	)}&timeframe=${encodeURIComponent(timeframe)}`;
+	console.log("[frontend WS] Connecting to", wsUrl);
 	ws = new WebSocket(wsUrl);
 	if (statusListener) statusListener("connecting");
 	ws.onopen = () => {
+		console.log("[frontend WS] Connected");
 		if (statusListener) statusListener("connected");
 	};
 	ws.onclose = () => {
+		console.log("[frontend WS] Closed");
 		if (statusListener) statusListener("closed");
+		ws = null;
+		wsSymbol = null;
+		wsTimeframe = null;
 	};
-	ws.onerror = () => {
+	ws.onerror = (e) => {
+		console.error("[frontend WS] Error", e);
 		if (statusListener) statusListener("error");
 	};
 	ws.onmessage = (event) => {
@@ -61,7 +55,9 @@ function _connectOhlcvWebSocket(symbol: string, timeframe: string) {
 			if (msg.type === "ohlcv" && ohlcvListener) {
 				ohlcvListener(msg as OhlcvCandle);
 			}
-		} catch {}
+		} catch (err) {
+			console.error("[frontend WS] Malformed message", err);
+		}
 	};
 }
 
@@ -74,6 +70,7 @@ export function disconnectOhlcvWebSocket() {
 		ws = null;
 		wsSymbol = null;
 		wsTimeframe = null;
+		console.log("[frontend WS] Disconnected");
 	}
 }
 

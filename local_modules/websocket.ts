@@ -64,10 +64,16 @@ export function patchOhlcvBroadcast(
 let wss: WebSocketServer | null = null;
 
 export function setupOhlcvWebSocket(server: http.Server) {
-	if (wss) return; // Prevent double-init
+	console.log("[WS] setupOhlcvWebSocket called");
+	if (wss) {
+		console.log("[WS] WebSocketServer already initialized");
+		return; // Prevent double-init
+	}
 	wss = new WebSocketServer({ server, path: "/ws/ohlcv" });
+	console.log("[WS] WebSocketServer created at /ws/ohlcv");
 
 	wss.on("connection", (ws, req) => {
+		console.log("[WS] New client connection received");
 		let binanceWs: WsWebSocket | null = null;
 		let symbol = "BTC/USDT";
 		let timeframe = "4h";
@@ -80,11 +86,18 @@ export function setupOhlcvWebSocket(server: http.Server) {
 		if (url.searchParams.get("timeframe"))
 			timeframe = url.searchParams.get("timeframe")!;
 
+		console.log(
+			`[WS] Client connected: symbol=${symbol}, timeframe=${timeframe}`
+		);
+
 		ws.on("message", (msg) => {
 			try {
 				const data = JSON.parse(msg.toString());
 				if (data.symbol) symbol = data.symbol;
 				if (data.timeframe) timeframe = data.timeframe;
+				console.log(
+					`[WS] Client updated params: symbol=${symbol}, timeframe=${timeframe}`
+				);
 			} catch {}
 		});
 
@@ -105,9 +118,12 @@ export function setupOhlcvWebSocket(server: http.Server) {
 		const binanceInterval = tfToBinance(timeframe);
 		const binanceUrl = `wss://stream.binance.com:9443/ws/${binanceSymbol}@kline_${binanceInterval}`;
 
+		console.log(`[WS] Connecting to Binance WS: ${binanceUrl}`);
+
 		function connectBinance() {
 			binanceWs = new WsWebSocket(binanceUrl);
 			binanceWs.on("open", () => {
+				console.log(`[WS] Binance WS open for ${symbol} ${timeframe}`);
 				ws.send(
 					JSON.stringify({
 						type: "info",
@@ -117,6 +133,7 @@ export function setupOhlcvWebSocket(server: http.Server) {
 			});
 			binanceWs.on("message", async (data: Buffer) => {
 				try {
+					console.log(`[WS] Binance kline raw:`, data.toString());
 					const msg = JSON.parse(data.toString());
 					if (msg.k) {
 						const k = msg.k;
@@ -132,12 +149,13 @@ export function setupOhlcvWebSocket(server: http.Server) {
 							isFinal: !!k.x,
 						};
 
-						// Use k.c (close) as the current price
 						const currentPrice = candle.close;
-
-						ws.send(JSON.stringify({ type: "ohlcv", ...candle, currentPrice }));
+						const payload = { type: "ohlcv", ...candle, currentPrice };
+						console.log(`[WS] Sending to frontend:`, payload);
+						ws.send(JSON.stringify(payload));
 					}
 				} catch (err) {
+					console.error(`[WS] Malformed Binance kline data:`, err);
 					ws.send(
 						JSON.stringify({
 							type: "error",
@@ -147,12 +165,14 @@ export function setupOhlcvWebSocket(server: http.Server) {
 				}
 			});
 			binanceWs.on("close", () => {
+				console.log(`[WS] Binance WS closed for ${symbol} ${timeframe}`);
 				if (!closed)
 					ws.send(
 						JSON.stringify({ type: "info", message: "Binance stream closed" })
 					);
 			});
 			binanceWs.on("error", (err: any) => {
+				console.error(`[WS] Binance WS error:`, err);
 				ws.send(
 					JSON.stringify({ type: "error", message: "Binance stream error" })
 				);
@@ -163,10 +183,14 @@ export function setupOhlcvWebSocket(server: http.Server) {
 
 		ws.on("close", () => {
 			closed = true;
+			console.log(
+				`[WS] Client disconnected: symbol=${symbol}, timeframe=${timeframe}`
+			);
 			if (binanceWs) binanceWs.close();
 		});
-		ws.on("error", () => {
+		ws.on("error", (err) => {
 			closed = true;
+			console.error(`[WS] Client error:`, err);
 			if (binanceWs) binanceWs.close();
 		});
 	});
