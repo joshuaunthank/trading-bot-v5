@@ -7,6 +7,7 @@ import {
 	initChart,
 	updateChartWithCandle,
 	ChartType,
+	getChartInstance,
 } from "./components/chart";
 import {
 	connectOhlcvWebSocket,
@@ -21,6 +22,8 @@ import {
 	updateTableData,
 	updateLastOhlcvRow,
 } from "./components/table";
+import { plotStrategyResult } from "./components/plot";
+import { showSummary } from "./components/summary";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -341,16 +344,6 @@ chartDiv.innerHTML = `
 app!.insertBefore(chartDiv, feedDiv); // Insert chart above feed
 let chart: Chart | null = null;
 
-// Ensure chart canvas is sized correctly on initial render
-setTimeout(() => {
-	const canvas = document.getElementById("result-chart") as HTMLCanvasElement;
-	if (canvas) {
-		canvas.width = 800;
-		canvas.height = 400;
-		if (chart) chart.resize();
-	}
-}, 0);
-
 // Fullscreen handler
 const fullscreenBtn = document.getElementById(
 	"fullscreen-chart"
@@ -379,7 +372,8 @@ document.addEventListener("fullscreenchange", () => {
 		canvas.width = 800;
 		canvas.height = 400;
 	}
-	if (chart) chart.resize();
+	const chartInstance = getChartInstance();
+	if (chartInstance) chartInstance.resize();
 });
 
 window.addEventListener("resize", () => {
@@ -392,7 +386,8 @@ window.addEventListener("resize", () => {
 		canvas.width = 800;
 		canvas.height = 400;
 	}
-	if (chart) chart.resize();
+	const chartInstance = getChartInstance();
+	if (chartInstance) chartInstance.resize();
 });
 
 // --- Strategy config state ---

@@ -1,0 +1,97 @@
+[
+	{
+		"name": "RSI",
+		"description": "Relative Strength Index",
+		"type": "momentum",
+		"parameters": {
+			"period": 14,
+			"overbought": 70,
+			"oversold": 30
+		},
+		"modifiers": {
+			"lag": { "enabled": true, "period": 1 },
+			"normalize": { "enabled": false },
+			"rolling": { "enabled": false }
+		}
+	},
+	{
+		"name": "MACD",
+		"description": "Moving Average Convergence Divergence",
+		"type": "trend",
+		"parameters": {
+			"fast_period": 12,
+			"slow_period": 26,
+			"signal_period": 9
+		},
+		"modifiers": {
+			"lag": { "enabled": true, "period": 1 },
+			"diff": { "enabled": true },
+			"normalize": { "enabled": false }
+		}
+	},
+	{
+		"name": "Bollinger Bands",
+		"description": "Volatility indicator that consists of a middle band and two outer bands",
+		"type": "volatility",
+		"parameters": {
+			"period": 20,
+			"deviation": 2
+		},
+		"modifiers": {
+			"lag": { "enabled": false },
+			"rolling": { "enabled": false }
+		}
+	},
+	{
+		"name": "EMA",
+		"description": "Exponential Moving Average",
+		"type": "trend",
+		"parameters": {
+			"fast_period": 10,
+			"slow_period": 30
+		},
+		"modifiers": {
+			"lag": { "enabled": true, "period": 1 },
+			"rolling": { "enabled": true, "window": 5 }
+		}
+	},
+	{
+		"name": "ARIMA",
+		"description": "AutoRegressive Integrated Moving Average for time series forecasting",
+		"type": "forecasting",
+		"parameters": {
+			"order": [4, 1, 0]
+		},
+		"modifiers": {
+			"lag": { "enabled": false },
+			"normalize": { "enabled": true }
+		}
+	},
+	{
+		"name": "Adaptive MACD",
+		"description": "MACD with adaptive parameters based on market conditions",
+		"type": "adaptive",
+		"parameters": {
+			"fast_period": 12,
+			"slow_period": 26,
+			"signal_period": 9
+		},
+		"modifiers": {
+			"lag": { "enabled": true, "period": 1 },
+			"diff": { "enabled": true },
+			"normalize": { "enabled": false }
+		}
+	},
+	{
+		"name": "Error Correction Regression",
+		"description": "Regression model to correct errors in predictions",
+		"type": "regression",
+		"parameters": {
+			"use_error_correction": true
+		},
+		"modifiers": {
+			"lag": { "enabled": true, "period": 1 },
+			"normalize": { "enabled": true }
+		}
+	}
+]

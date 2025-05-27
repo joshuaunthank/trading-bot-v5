@@ -104,6 +104,7 @@ button:focus-visible {
 	display: flex;
 	align-items: center;
 	gap: 0.7em;
+	max-width: 100%;
 }
 .section-label {
 	font-weight: 600;
