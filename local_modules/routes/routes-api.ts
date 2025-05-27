@@ -1,6 +1,7 @@
 import express from "express";
 import { subscribeOhlcv, getCachedOhlcv } from "../websocket";
-import strategyRoutes from "./strategy/strategyRoutes";
+import strategyRoutes from "./strategy/routes-strategy";
+import indicatorRoutes from "./strategy/routes-indicators";
 
 const apiRoutes = (app: any) => {
 	const api = express.Router();
@@ -82,6 +83,7 @@ const apiRoutes = (app: any) => {
 
 	// Initialize strategy routes (side effect)
 	strategyRoutes(api);
+	indicatorRoutes(api);
 
 	// Load strategies and attach API routes
 	app.use("/api/v1", api);

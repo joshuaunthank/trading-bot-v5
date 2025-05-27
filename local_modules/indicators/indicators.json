@@ -1,0 +1,181 @@
+[
+	{
+		"id": "rsi_14",
+		"name": "RSI",
+		"description": "Relative Strength Index",
+		"type": "momentum",
+		"source": "close",
+		"output_fields": ["rsi"],
+		"applies_to": ["price"],
+		"dependencies": [],
+		"parameters": {
+			"period": 14,
+			"overbought": 70,
+			"oversold": 30
+		},
+		"modifiers": {
+			"lag": { "enabled": true, "period": 1 },
+			"normalize": { "enabled": false },
+			"rolling": { "enabled": false }
+		},
+		"entry_signal": "rsi < oversold",
+		"exit_signal": "rsi > overbought",
+		"signal_logic": "rsi < 30 and macd_histogram > 0",
+		"library": "ta",
+		"function": "RSIIndicator",
+		"enabled": true,
+		"tags": ["momentum", "entry", "overbought/oversold"]
+	},
+	{
+		"id": "macd_12_26_9",
+		"name": "MACD",
+		"description": "Moving Average Convergence Divergence",
+		"type": "trend",
+		"source": "close",
+		"output_fields": ["macd", "macd_signal", "macd_histogram"],
+		"applies_to": ["price"],
+		"dependencies": [],
+		"parameters": {
+			"fast_period": 12,
+			"slow_period": 26,
+			"signal_period": 9
+		},
+		"modifiers": {
+			"lag": { "enabled": true, "period": 1 },
+			"diff": { "enabled": true },
+			"normalize": { "enabled": false }
+		},
+		"entry_signal": "macd > macd_signal",
+		"exit_signal": "macd < macd_signal",
+		"signal_logic": "macd_histogram > 0",
+		"library": "ta",
+		"function": "MACDIndicator",
+		"enabled": true,
+		"tags": ["trend", "crossover"]
+	},
+	{
+		"id": "bb_20_2",
+		"name": "Bollinger Bands",
+		"description": "Volatility indicator that consists of a middle band and two outer bands",
+		"type": "volatility",
+		"source": "close",
+		"output_fields": ["bb_upper", "bb_middle", "bb_lower"],
+		"applies_to": ["price"],
+		"dependencies": [],
+		"parameters": {
+			"period": 20,
+			"deviation": 2
+		},
+		"modifiers": {
+			"lag": { "enabled": false },
+			"rolling": { "enabled": false }
+		},
+		"entry_signal": "close < bb_lower",
+		"exit_signal": "close > bb_upper",
+		"signal_logic": "",
+		"library": "ta",
+		"function": "BollingerBands",
+		"enabled": true,
+		"tags": ["volatility", "bands"]
+	},
+	{
+		"id": "ema_10_30",
+		"name": "EMA",
+		"description": "Exponential Moving Average",
+		"type": "trend",
+		"source": "close",
+		"output_fields": ["ema_fast", "ema_slow"],
+		"applies_to": ["price"],
+		"dependencies": [],
+		"parameters": {
+			"fast_period": 10,
+			"slow_period": 30
+		},
+		"modifiers": {
+			"lag": { "enabled": true, "period": 1 },
+			"rolling": { "enabled": true, "window": 5 }
+		},
+		"entry_signal": "ema_fast > ema_slow",
+		"exit_signal": "ema_fast < ema_slow",
+		"signal_logic": "",
+		"library": "ta",
+		"function": "EMAIndicator",
+		"enabled": true,
+		"tags": ["trend", "moving average"]
+	},
+	{
+		"id": "arima_4_1_0",
+		"name": "ARIMA",
+		"description": "AutoRegressive Integrated Moving Average for time series forecasting",
+		"type": "forecasting",
+		"source": "close",
+		"output_fields": ["arima_forecast"],
+		"applies_to": ["price"],
+		"dependencies": [],
+		"parameters": {
+			"order": [4, 1, 0]
+		},
+		"modifiers": {
+			"lag": { "enabled": false },
+			"normalize": { "enabled": true }
+		},
+		"entry_signal": "",
+		"exit_signal": "",
+		"signal_logic": "",
+		"library": "statsmodels",
+		"function": "ARIMA",
+		"enabled": true,
+		"tags": ["forecasting", "arima"]
+	},
+	{
+		"id": "adaptive_macd_12_26_9",
+		"name": "Adaptive MACD",
+		"description": "MACD with adaptive parameters based on market conditions",
+		"type": "adaptive",
+		"source": "close",
+		"output_fields": ["macd", "macd_signal", "macd_histogram"],
+		"applies_to": ["price"],
+		"dependencies": [],
+		"parameters": {
+			"fast_period": 12,
+			"slow_period": 26,
+			"signal_period": 9
+		},
+		"modifiers": {
+			"lag": { "enabled": true, "period": 1 },
+			"diff": { "enabled": true },
+			"normalize": { "enabled": false }
+		},
+		"entry_signal": "macd > macd_signal and adaptive_condition",
+		"exit_signal": "macd < macd_signal",
+		"signal_logic": "adaptive_condition == true",
+		"library": "custom",
+		"function": "AdaptiveMACD",
+		"enabled": true,
+		"tags": ["adaptive", "macd"]
+	},
+	{
+		"id": "ecr_default",
+		"name": "Error Correction Regression",
+		"description": "Regression model to correct errors in predictions",
+		"type": "regression",
+		"source": "close",
+		"output_fields": ["ecr_correction"],
+		"applies_to": ["forecast", "price"],
+		"dependencies": [],
+		"parameters": {
+			"use_error_correction": true
+		},
+		"modifiers": {
+			"lag": { "enabled": true, "period": 1 },
+			"normalize": { "enabled": true }
+		},
+		"entry_signal": "",
+		"exit_signal": "",
+		"signal_logic": "",
+		"library": "custom",
+		"function": "ErrorCorrectionRegression",
+		"enabled": true,
+		"tags": ["regression", "correction"]
+	}
+]
