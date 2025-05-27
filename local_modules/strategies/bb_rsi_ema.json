@@ -1,0 +1,90 @@
+{
+	"name": "BB_RSI_EMA",
+	"description": "Bollinger Bands, RSI, and EMA crossover strategy with full parameterization.",
+	"configSchema": {
+		"symbol": {
+			"type": "string",
+			"default": "BTC/USDT",
+			"description": "Trading pair symbol"
+		},
+		"timeframe": {
+			"type": "string",
+			"default": "4h",
+			"description": "Candle timeframe"
+		},
+		"limit": {
+			"type": "number",
+			"default": 1000,
+			"min": 50,
+			"max": 1000,
+			"description": "Number of candles to fetch"
+		},
+		"bbPeriod": {
+			"type": "number",
+			"default": 20,
+			"min": 5,
+			"max": 100,
+			"description": "Bollinger Bands period"
+		},
+		"bbStdDev": {
+			"type": "number",
+			"default": 2,
+			"min": 1,
+			"max": 5,
+			"description": "Bollinger Bands standard deviation multiplier"
+		},
+		"rsiPeriod": {
+			"type": "number",
+			"default": 14,
+			"min": 2,
+			"max": 50,
+			"description": "RSI period"
+		},
+		"rsiOverbought": {
+			"type": "number",
+			"default": 70,
+			"min": 50,
+			"max": 100,
+			"description": "RSI overbought threshold"
+		},
+		"rsiOversold": {
+			"type": "number",
+			"default": 30,
+			"min": 0,
+			"max": 50,
+			"description": "RSI oversold threshold"
+		},
+		"emaFast": {
+			"type": "number",
+			"default": 10,
+			"min": 1,
+			"max": 50,
+			"description": "Fast EMA period"
+		},
+		"emaSlow": {
+			"type": "number",
+			"default": 30,
+			"min": 1,
+			"max": 100,
+			"description": "Slow EMA period"
+		},
+		"startingBalance": {
+			"type": "number",
+			"default": 1000,
+			"min": 1,
+			"description": "Starting balance for simulation"
+		},
+		"positionSize": {
+			"type": "number",
+			"default": 1,
+			"min": 0.01,
+			"max": 1,
+			"description": "Position size as fraction of balance"
+		},
+		"allowShort": {
+			"type": "boolean",
+			"default": false,
+			"description": "Allow short trades"
+		}
+	}
+}
