@@ -26,9 +26,11 @@ export default function IndicatorConfigForm({
 		useState<StrategyIndicator[]>(initialIndicators);
 
 	useEffect(() => {
-		fetch("/api/v1/indicators")
+		const baseUrl = `http://${window.location.hostname}:3001/api/v1`;
+		fetch(`${baseUrl}/indicators`)
 			.then((res) => res.json())
-			.then(setAvailableIndicators);
+			.then(setAvailableIndicators)
+			.catch(console.error);
 	}, []);
 
 	const addIndicator = (id: string) => {

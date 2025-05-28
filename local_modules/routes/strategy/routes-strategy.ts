@@ -9,16 +9,25 @@ const strategyRoutes = (api: any) => {
 	// List all JSON strategies
 	strategies.get("/strategies", (req, res) => {
 		const files = fs.readdirSync(strategiesDir);
-		const jsonStrategies = files.filter((f) => f.endsWith(".json"));
-		const strategiesList = jsonStrategies.map((f) => {
-			const json = JSON.parse(
-				fs.readFileSync(path.join(strategiesDir, f), "utf8")
-			);
-			return {
-				name: json.name || f.replace(/\.json$/, ""),
-				description: json.description || "",
-			};
-		});
+		const jsonFiles = files.filter((f) => f.endsWith(".json"));
+		const strategiesList = jsonFiles.reduce((list, f) => {
+			const filePath = path.join(strategiesDir, f);
+			try {
+				const content = fs.readFileSync(filePath, "utf8");
+				if (!content.trim()) {
+					console.warn(`Skipping empty JSON file: ${f}`);
+					return list;
+				}
+				const json = JSON.parse(content);
+				list.push({
+					name: json.name || f.replace(/\.json$/, ""),
+					description: json.description || "",
+				});
+			} catch (err) {
+				console.error(`Skipping invalid JSON file ${f}:`, err);
+			}
+			return list;
+		}, [] as Array<{ name: string; description: string }>);
 		res.json(strategiesList);
 		return;
 	});
@@ -95,7 +104,7 @@ const strategyRoutes = (api: any) => {
 		}
 	});
 
-	strategies.post("/strategies/:name/delete", async (req, res) => {
+	strategies.delete("/strategies/:name/delete", async (req, res) => {
 		const { name } = req.params;
 		const jsonPath = path.join(strategiesDir, `${name.toLowerCase()}.json`);
 		if (!fs.existsSync(jsonPath)) {

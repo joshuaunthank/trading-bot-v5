@@ -19,7 +19,27 @@ export async function subscribeOhlcv(
 ) {
 	const cacheKey = `${symbol}_${timeframe}`;
 	if (ohlcvCache[cacheKey]) return; // Already subscribed
-	ohlcvCache[cacheKey] = [];
+	// Eagerly fetch historical candles first
+	try {
+		const initial = await exchange.fetchOHLCV(
+			symbol,
+			timeframe,
+			undefined,
+			limit
+		);
+		if (Array.isArray(initial) && initial.length > 0) {
+			ohlcvCache[cacheKey] = initial;
+		} else {
+			ohlcvCache[cacheKey] = [];
+		}
+	} catch (err) {
+		console.error(
+			`[ohlcv] Failed to fetch initial OHLCV for ${symbol} ${timeframe}:`,
+			err
+		);
+		ohlcvCache[cacheKey] = [];
+	}
+	// Now start websocket subscription for live updates
 	(async () => {
 		while (true) {
 			try {
@@ -137,22 +157,35 @@ export function setupOhlcvWebSocket(server: http.Server) {
 					const msg = JSON.parse(data.toString());
 					if (msg.k) {
 						const k = msg.k;
-						const candle = {
-							symbol,
-							timeframe,
-							timestamp: k.t,
-							open: parseFloat(k.o),
-							high: parseFloat(k.h),
-							low: parseFloat(k.l),
-							close: parseFloat(k.c),
-							volume: parseFloat(k.v),
-							isFinal: !!k.x,
-						};
-
-						const currentPrice = candle.close;
-						const payload = { type: "ohlcv", ...candle, currentPrice };
-						console.log(`[WS] Sending to frontend:`, payload);
-						ws.send(JSON.stringify(payload));
+						const candleArr = [
+							k.t,
+							parseFloat(k.o),
+							parseFloat(k.h),
+							parseFloat(k.l),
+							parseFloat(k.c),
+							parseFloat(k.v),
+						];
+						// Only broadcast finalized candles that are in the cache (REST and WS always agree)
+						if (k.x) {
+							const cacheKey = `${symbol}_${timeframe}`;
+							const arr = ohlcvCache[cacheKey] || [];
+							const found = arr.find((row) => row[0] === k.t);
+							if (found) {
+								const candle = {
+									symbol,
+									timeframe,
+									timestamp: k.t,
+									open: parseFloat(k.o),
+									high: parseFloat(k.h),
+									low: parseFloat(k.l),
+									close: parseFloat(k.c),
+									volume: parseFloat(k.v),
+									isFinal: true,
+								};
+								ws.send(JSON.stringify({ type: "ohlcv", ...candle }));
+							}
+						}
+						// Optionally: for in-progress candles, you could send updates here if needed
 					}
 				} catch (err) {
 					console.error(`[WS] Malformed Binance kline data:`, err);

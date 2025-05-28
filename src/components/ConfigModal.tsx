@@ -17,8 +17,9 @@ async function fetchStrategyConfigSchema(name: string): Promise<{
 	name: string;
 	description: string;
 }> {
+	const baseUrl = `http://${window.location.hostname}:3001/api/v1`;
 	const res = await fetch(
-		`/api/v1/strategies/${encodeURIComponent(name)}/config`
+		`${baseUrl}/strategies/${encodeURIComponent(name)}/config`
 	);
 	if (!res.ok) throw new Error("Failed to fetch strategy config schema");
 	return await res.json();

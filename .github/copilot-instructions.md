@@ -16,12 +16,13 @@ This project is a modular, extensible, full-stack TypeScript trading bot for Bin
 ## Current State (May 2025)
 
 - **Frontend**
-  - Modularized UI: chart, table, config modal, summary, and UI helpers
+  - Fully modularized React/TSX UI: chart, table, config modal, summary, and helpers
   - Chart.js (with chartjs-chart-financial) for advanced charting (line, candlestick, OHLC)
-  - Table rendering and incremental update logic centralized in `src/components/table.ts`
-  - WebSocket logic centralized in `src/components/websocket.ts` (connect/disconnect, listeners, debounce, status)
+  - Table rendering and incremental update logic in `TableView.tsx`
+  - WebSocket logic centralized in `useOhlcvWebSocket.tsx` React hook
   - Hybrid data model: REST for historical candles, WebSocket for live (open) candle
   - Robust error handling, modern CSS, and responsive design
+  - All config and state managed in React context or top-level App state
 - **Backend**
   - Express server with CORS, modular route structure
   - `/api/v1/ohlcv` returns only finalized (closed) candles, using Binance server time for accuracy
@@ -43,9 +44,10 @@ This project is a modular, extensible, full-stack TypeScript trading bot for Bin
   - Add user authentication and secure credential management
   - Enhance modularity and separation of concerns for all UI components
 - **Backend**
-  - Refactor to support database-backed strategies and configurations (move away from file-based strategies)
-  - Implement a robust database schema for strategies, configs, runs, trades, signals, and results
-  - Update API endpoints for full CRUD on strategies/configs, and ensure data continuity for all bot operations
+  - Refactor to support JSON file-based strategies and configurations (use `.json` files in `strategies/` as our primary store)
+  - Implement a robust file schema for strategies, configs, runs, trades, signals, and results
+  - Update API endpoints for full CRUD on strategies/configs using file IO, and ensure data continuity for all bot operations
+  - Ensure JSON files-based strategies and configurations can be later converted to a database schema if needed
   - Add endpoints for starting, pausing, resuming, and stopping strategies dynamically
   - Improve and modularize data streaming (WebSocket/REST) for reliability and scalability
   - Add support for additional exchanges via CCXT
@@ -72,19 +74,19 @@ This project is a modular, extensible, full-stack TypeScript trading bot for Bin
 
 ### Checklist:
 
-- [ ] Remove all direct OHLCV/data fetches from strategy files (no more fetches in strategies)
-- [ ] Refactor backend to provide all OHLCV data (historical and live) via REST/WebSocket only
-- [ ] Ensure frontend always uses backend as the single source of truth (no direct exchange fetches)
-- [ ] Refactor strategies to accept data as input (not fetch it themselves)
-- [ ] Standardize strategy interface for config and data input
-- [ ] Prepare for database-backed, fully configurable strategies (but keep file-based fallback for now)
-- [ ] Update tests and documentation to reflect new data flow
+- [x] Remove all direct OHLCV/data fetches from strategy files (no more fetches in strategies)
+- [x] Refactor backend to provide all OHLCV data (historical and live) via REST/WebSocket only
+- [x] Ensure frontend always uses backend as the single source of truth (no direct exchange fetches)
+- [x] Refactor strategies to accept data as input (not fetch it themselves)
+- [x] Standardize strategy interface for config and data input
+- [ ] Implement JSON file-based strategy store as a fallback (read/write `.json` in `strategies/`)
+- [ ] Update tests and documentation to reflect new JSON-based data flow
 
 **Benefits:**
 
 - Eliminates data duplication and race conditions
 - Enables overlays, live updates, and advanced features
-- Prepares for modular, database-driven, and user-configurable strategies
+- Prepares for modular, user-configurable strategies via JSON files
 
 ---
 

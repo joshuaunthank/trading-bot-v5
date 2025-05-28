@@ -5,6 +5,7 @@ import SummaryView from "./components/SummaryView";
 import ConfigModal from "./components/ConfigModal";
 import ChartSpinner from "./components/ChartSpinner";
 import IndicatorConfigForm from "./components/IndicatorConfigForm";
+import StrategyConfigSelector from "./components/StrategyConfigSelector";
 import { useOhlcvWebSocket } from "./components/useOhlcvWebSocket";
 
 const DEFAULT_SYMBOL = "BTC/USDT";
@@ -18,6 +19,8 @@ export default function App() {
 	const [ohlcvData, setOhlcvData] = useState<any[]>([]);
 	const { status, candle } = useOhlcvWebSocket(symbol, timeframe);
 	const [isLoading, setIsLoading] = useState(false);
+
+	console.log("configModalOpen", configModalOpen, "strategyName", strategyName);
 
 	// Update ohlcvData with new live candle
 	React.useEffect(() => {
@@ -45,17 +48,11 @@ export default function App() {
 	return (
 		<div style={{ maxWidth: 1200, margin: "0 auto", padding: 24 }}>
 			<h1>Trading Bot Dashboard</h1>
-			{/* Example: Strategy config button */}
-			<button onClick={() => openConfig("arima_macd_lag_strategy")}>
-				Configure Strategy
-			</button>
-			<ConfigModal
-				strategyName={strategyName}
-				open={configModalOpen}
-				onClose={() => setConfigModalOpen(false)}
+			{/* Strategy selection and configuration */}
+			<StrategyConfigSelector
 				onSave={(config) => {
-					// Save config logic here
-					setConfigModalOpen(false);
+					console.log("Saved strategy config:", config);
+					// TODO: apply strategy config to App state or backend
 				}}
 			/>
 			<div style={{ display: "flex", gap: 32, marginTop: 32 }}>
