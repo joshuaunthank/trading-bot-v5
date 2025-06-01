@@ -81,6 +81,16 @@ const apiRoutes = (app: any) => {
 		}
 	});
 
+	app.get("/api/schemas/:type", (req, res) => {
+		const type = req.params.type;
+		try {
+			const schema = require(`../schemas/${type}.schema.json`);
+			res.json(schema);
+		} catch {
+			res.status(404).json({ error: "Schema not found" });
+		}
+	});
+
 	// Initialize strategy routes (side effect)
 	strategyRoutes(api);
 	indicatorRoutes(api);

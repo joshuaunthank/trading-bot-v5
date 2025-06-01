@@ -1,0 +1,12 @@
+{
+	"type": "object",
+	"properties": {
+		"position_size_type": { "type": "string" },
+		"risk_per_trade": { "type": "number" },
+		"stop_loss_percent": { "type": "number" },
+		"take_profit_percent": { "type": "number" },
+		"trailing_stop": { "type": "boolean" },
+		"max_drawdown_percent": { "type": "number" }
+	},
+	"required": ["position_size_type", "risk_per_trade"]
+}

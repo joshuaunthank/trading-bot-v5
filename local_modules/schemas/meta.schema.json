@@ -1,0 +1,15 @@
+{
+	"type": "object",
+	"properties": {
+		"name": { "type": "string" },
+		"symbol": { "type": "string" },
+		"timeframe": { "type": "string" },
+		"description": { "type": "string" },
+		"tags": {
+			"type": "array",
+			"items": { "type": "string" }
+		},
+		"enabled": { "type": "boolean" }
+	},
+	"required": ["name", "symbol", "timeframe"]
+}

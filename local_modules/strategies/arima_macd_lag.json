@@ -1,95 +1,79 @@
 {
-	"name": "ARIMA_MACD_LAG",
-	"description": "ARIMA+MACD with lag/error correction and model comparison.",
-	"configSchema": {
-		"symbol": {
-			"type": "string",
-			"default": "BTC/USDT",
-			"description": "Trading pair symbol"
-		},
-		"timeframe": {
-			"type": "string",
-			"default": "4h",
-			"description": "Candle timeframe"
-		},
-		"limit": {
-			"type": "number",
-			"default": 1000,
-			"min": 50,
-			"max": 1000,
-			"description": "Number of candles to fetch"
-		},
-		"macdFast": {
-			"type": "number",
-			"default": 12,
-			"min": 1,
-			"max": 50,
-			"description": "MACD fast EMA period"
-		},
-		"macdSlow": {
-			"type": "number",
-			"default": 26,
-			"min": 1,
-			"max": 100,
-			"description": "MACD slow EMA period"
-		},
-		"macdSignal": {
-			"type": "number",
-			"default": 9,
-			"min": 1,
-			"max": 50,
-			"description": "MACD signal EMA period"
-		},
-		"ema5Window": {
-			"type": "number",
-			"default": 5,
-			"min": 1,
-			"max": 50,
-			"description": "EMA 5 period"
-		},
-		"ema10Window": {
-			"type": "number",
-			"default": 10,
-			"min": 1,
-			"max": 50,
-			"description": "EMA 10 period"
-		},
-		"ema30Window": {
-			"type": "number",
-			"default": 30,
-			"min": 1,
-			"max": 100,
-			"description": "EMA 30 period"
-		},
-		"arOrder": {
-			"type": "number",
-			"default": 4,
-			"min": 1,
-			"max": 10,
-			"description": "AR lag order for ARIMA"
-		},
-		"useErrorCorrection": {
-			"type": "boolean",
-			"default": true,
-			"description": "Enable error correction regression"
-		},
-		"startingBalance": {
-			"type": "number",
-			"default": 1000,
-			"min": 1,
-			"description": "Starting balance for simulation"
-		},
-		"positionSize": {
-			"type": "number",
-			"default": 1,
-			"min": 0.01,
-			"max": 1,
-			"description": "Position size as fraction of balance"
-		},
-		"allowShort": {
-			"type": "boolean",
-			"default": false,
-			"description": "Allow short trades"
+	"id": "arima_macd_lag",
+	"name": "Arima MacD Lag Strategy",
+	"description": "Uses MACD + RSI to forecast returns and place trades.",
+	"symbol": "BTC/USDT",
+	"timeframe": "1h",
+	"enabled": true,
+	"tags": ["trend", "forecasting"],
+
+	"indicators": [
+		{
+			"id": "rsi_14",
+			"name": "RSI",
+			"type": "momentum",
+			"source": "close",
+			"parameters": { "period": 14 },
+			"modifiers": {
+				"lag": { "enabled": true, "period": 1 },
+				"normalize": { "enabled": false }
+			},
+			"output_fields": ["rsi"],
+			"enabled": true
 		}
-	}
+	],
+
+	"models": [
+		{
+			"id": "linear_regression_1",
+			"type": "strategy",
+			"subtype": "linear_regression",
+			"input_fields": ["rsi", "macd_histogram"],
+			"output_field": "forecast_return",
+			"parameters": {},
+			"modifiers": { "normalize": { "enabled": true } },
+			"dependencies": ["rsi_14", "macd_12_26_9"],
+			"enabled": true
+		}
+	],
+
+	"signals": [
+		{
+			"id": "long_entry",
+			"type": "entry",
+			"side": "long",
+			"expression": "forecast_return > 0.01 && rsi < 30"
+		},
+		{
+			"id": "long_exit",
+			"type": "exit",
+			"side": "long",
+			"expression": "forecast_return < 0 || rsi > 70"
+		},
+		{
+			"id": "short_entry",
+			"type": "entry",
+			"side": "short",
+			"expression": "forecast_return < -0.01 && rsi > 70"
+		},
+		{
+			"id": "short_exit",
+			"type": "exit",
+			"side": "short",
+			"expression": "forecast_return > 0 || rsi < 30"
+		}
+	],
+
+	"risk": {
+		"position_size_type": "percent_equity",
+		"risk_per_trade": 2,
+		"stop_loss_percent": 1.5,
+		"take_profit_percent": 3.0,
+		"trailing_stop": true,
+		"max_drawdown_percent": 10
+	},
+
+	"version": "1.0.0",
+	"created_at": "2025-05-27T20:00:00Z",
+	"last_updated": "2025-05-27T20:15:00Z"
 }

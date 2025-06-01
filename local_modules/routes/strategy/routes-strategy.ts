@@ -32,6 +32,67 @@ const strategyRoutes = (api: any) => {
 		return;
 	});
 
+	// Create a new JSON strategy
+	strategies.post("/strategies", (req, res) => {
+		const { name, description, configSchema } = req.body;
+		if (!name || !configSchema) {
+			res.status(400).json({ error: "Missing required name or configSchema" });
+			return;
+		}
+		const fileName = `${name.toLowerCase().replace(/\s+/g, "_")}.json`;
+		const jsonPath = path.join(strategiesDir, fileName);
+		if (fs.existsSync(jsonPath)) {
+			res.status(409).json({ error: "Strategy already exists" });
+			return;
+		}
+		const newStrategy = { name, description: description || "", configSchema };
+		try {
+			fs.writeFileSync(jsonPath, JSON.stringify(newStrategy, null, 2));
+			res
+				.status(201)
+				.json({ message: "Strategy created", strategy: newStrategy });
+			return;
+		} catch (err) {
+			console.error("Error creating strategy:", err);
+			res.status(500).json({ error: "Failed to create strategy" });
+			return;
+		}
+	});
+
+	// Get full strategy JSON
+	strategies.get("/strategies/:name", (req, res) => {
+		const { name } = req.params;
+		const jsonPath = path.join(strategiesDir, `${name.toLowerCase()}.json`);
+		if (!fs.existsSync(jsonPath)) {
+			res.status(404).json({ error: "Strategy not found" });
+			return;
+		}
+		try {
+			const s = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+			// Map stored JSON to full Strategy shape
+			const config = s.configSchema || {};
+			const fullStrategy = {
+				id: s.name.toLowerCase(),
+				name: s.name,
+				symbol: config.symbol || "BTC/USDT",
+				timeframe: config.timeframe || "1h",
+				description: s.description || "",
+				enabled: config.enabled ?? true,
+				tags: config.tags || [],
+				indicators: config.indicators || [],
+				models: config.models || [],
+				signals: config.signals || [],
+				riskConfig: config.riskConfig || {},
+			};
+			res.json({ strategy: fullStrategy });
+			return;
+		} catch (err) {
+			console.error(`Failed to load strategy ${name}:`, err);
+			res.status(500).json({ error: "Failed to load strategy" });
+			return;
+		}
+	});
+
 	// Run a JSON strategy (simulate DB-driven execution)
 	strategies.post("/strategies/:name/run", async (req, res) => {
 		const { name } = req.params;
@@ -81,6 +142,7 @@ const strategyRoutes = (api: any) => {
 		return;
 	});
 
+	// Save or update existing strategy
 	strategies.post("/strategies/:name/save", async (req, res) => {
 		const { name } = req.params;
 		const jsonPath = path.join(strategiesDir, `${name.toLowerCase()}.json`);
@@ -104,6 +166,7 @@ const strategyRoutes = (api: any) => {
 		}
 	});
 
+	// Delete a strategy
 	strategies.delete("/strategies/:name/delete", async (req, res) => {
 		const { name } = req.params;
 		const jsonPath = path.join(strategiesDir, `${name.toLowerCase()}.json`);
@@ -122,7 +185,7 @@ const strategyRoutes = (api: any) => {
 		}
 	});
 
-	// Update strategy config schema
+	// Update strategy config schema (if needed)
 	strategies.put("/strategies/:name/config", async (req, res) => {
 		const { name } = req.params;
 		const jsonPath = path.join(strategiesDir, `${name.toLowerCase()}.json`);

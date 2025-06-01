@@ -1,0 +1,11 @@
+{
+	"type": "object",
+	"properties": {
+		"id": { "type": "string" },
+		"type": { "type": "string", "enum": ["entry", "exit"] },
+		"side": { "type": "string", "enum": ["long", "short"] },
+		"expression": { "type": "string" },
+		"description": { "type": "string" }
+	},
+	"required": ["id", "type", "side", "expression"]
+}
