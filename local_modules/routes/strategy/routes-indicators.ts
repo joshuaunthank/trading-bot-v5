@@ -1,7 +1,7 @@
 import { log } from "console";
-import express from "express";
-import fs from "fs";
-import path from "path";
+import * as express from "express";
+import * as fs from "fs";
+import * as path from "path";
 
 const indicatorRoutes = (api: any) => {
 	const indicators = express.Router();

@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3001;
 // const uiRoutes = require("./local_modules/routes/routes-ui");
 import apiRoutes from "./local_modules/routes/routes-api";
 import uiRoutes from "./local_modules/routes/routes-ui";
-import { setupOhlcvWebSocket } from "./local_modules/websocket";
+import { setupMainWebSocket } from "./local_modules/utils/websocket-main";
 
 dotenv.config();
 
@@ -34,6 +34,6 @@ dotenv.config();
 		console.log(`Server is running on http://localhost:${PORT}`);
 	});
 
-	// --- Attach OHLCV WebSocket server ---
-	setupOhlcvWebSocket(server);
+	// --- Attach WebSocket servers ---
+	setupMainWebSocket(server); // CCXT Pro WebSocket - no RSV1 errors
 })();

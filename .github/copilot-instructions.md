@@ -30,8 +30,33 @@ This project is a modular, extensible, full-stack TypeScript trading bot for Bin
   - Strategy runner endpoint for modular strategies
   - All sensitive config in `.env`
 - **Code Quality**
+
   - TypeScript throughout, with strong types for OHLCV, strategies, and WebSocket messages
   - DRY, maintainable, and extensible codebase
+
+## Current Implementation Challenges (June 2025)
+
+- **Strategy File Format**: Standardize JSON strategy files and ensure they follow the schema
+- **WebSocket Connectivity**: Improve reconnection logic and error handling
+- **Builder UI Completion**: Finish implementing all step components and validation
+- **Strategy Visualization**: Implement chart overlays and table views for strategy results
+- **File-based Storage**: Improve file operations with error handling and atomic writes
+
+## Immediate Development Priorities
+
+1. **Fix Strategy Files**: Ensure all JSON files in `local_modules/strategies/` are valid
+2. **Complete WebSocket Integration**: Ensure data flows properly from backend to frontend
+3. **Finish Builder UI**: Complete all step components in the strategy builder
+4. **Add Visualization**: Implement chart overlays for strategy indicators/forecasts
+5. **Improve Error Handling**: Add robust error handling throughout the application
+
+## Technical Debt to Address
+
+- TypeScript errors in various files need to be fixed
+- TailwindCSS configuration needs to be updated
+- Strategy file validation needs to be implemented
+- WebSocket reconnection logic needs improvement
+- Error handling for file operations is minimal
 
 ## Future Plans
 

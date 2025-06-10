@@ -1,0 +1,68 @@
+{
+	"id": "test1",
+	"name": "Test Strategy 1",
+	"description": "A simple test strategy with basic indicators",
+	"symbol": "BTC/USDT",
+	"timeframe": "1h",
+	"enabled": true,
+	"tags": ["test", "basic"],
+
+	"indicators": [
+		{
+			"id": "rsi_14",
+			"name": "RSI",
+			"type": "momentum",
+			"source": "close",
+			"parameters": { "period": 14 },
+			"output_fields": ["rsi"],
+			"enabled": true
+		},
+		{
+			"id": "sma_20",
+			"name": "SMA 20",
+			"type": "trend",
+			"source": "close",
+			"parameters": { "period": 20 },
+			"output_fields": ["sma"],
+			"enabled": true
+		}
+	],
+
+	"models": [
+		{
+			"id": "simple_model_1",
+			"type": "strategy",
+			"subtype": "linear",
+			"input_fields": ["rsi", "sma"],
+			"output_field": "forecast",
+			"parameters": { "window": 5 },
+			"enabled": true
+		}
+	],
+
+	"signals": [
+		{
+			"id": "entry_long_signal",
+			"type": "entry",
+			"side": "long",
+			"expression": "forecast > 0.5",
+			"description": "Enter long when forecast is positive"
+		},
+		{
+			"id": "exit_long_signal",
+			"type": "exit",
+			"side": "long",
+			"expression": "forecast < 0",
+			"description": "Exit long when forecast turns negative"
+		}
+	],
+
+	"risk": {
+		"position_size_type": "percent_equity",
+		"risk_per_trade": 2,
+		"stop_loss_percent": 1.5,
+		"take_profit_percent": 3.0,
+		"trailing_stop": true,
+		"max_drawdown_percent": 10
+	}
+}

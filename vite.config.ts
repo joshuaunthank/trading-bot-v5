@@ -13,8 +13,10 @@ export default defineConfig({
 			},
 			// Proxy WebSocket connections to the backend WS server
 			"/ws": {
-				target: "ws://localhost:3001",
+				target: "http://localhost:3001",
+				changeOrigin: true,
 				ws: true,
+				rewrite: (path) => path,
 			},
 		},
 	},
