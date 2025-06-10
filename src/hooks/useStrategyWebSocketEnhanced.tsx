@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import useWebSocketWithReconnect from "./useWebSocketWithReconnect";
+import { useRobustWebSocket } from "./useRobustWebSocket";
 import {
 	StrategyIndicatorData,
 	StrategySignal,
@@ -156,16 +156,6 @@ export function useStrategyWebSocketEnhanced(strategyId: string | null) {
 		}
 	}, []);
 
-	// Handle WebSocket connection open
-	const handleOpen = useCallback(() => {
-		setState((prev) => ({
-			...prev,
-			strategyId: strategyId || "",
-			isConnected: true,
-			error: null,
-		}));
-	}, [strategyId]);
-
 	// Handle WebSocket connection error
 	const handleError = useCallback((error: any) => {
 		console.error("Strategy WebSocket error:", error);
@@ -177,27 +167,39 @@ export function useStrategyWebSocketEnhanced(strategyId: string | null) {
 
 	// Initialize WebSocket with reconnection (only if we have a valid URL)
 	const webSocketResult = wsUrl
-		? useWebSocketWithReconnect(wsUrl, {
+		? useRobustWebSocket({
+				url: wsUrl,
 				onMessage: handleMessage,
-				onOpen: handleOpen,
 				onError: handleError,
-				onClose: () => {
+				onStatusChange: (status) => {
 					setState((prev) => ({
 						...prev,
-						isConnected: false,
+						isConnected: status === "connected",
 					}));
 				},
-				reconnectInterval: 3000,
 				maxReconnectAttempts: 10,
+				reconnectInterval: 3000,
+				enableFallback: true,
+				fallbackPollInterval: 5000,
 		  })
 		: {
-				connectionStatus: "closed",
+				status: "disconnected",
 				disconnect: () => {},
 				connect: () => {},
-				readyState: WebSocket.CLOSED,
+				send: () => false,
+				lastError: null,
+				reconnectAttempts: 0,
+				isUsingFallback: false,
 		  };
 
-	const { connectionStatus, disconnect, connect, readyState } = webSocketResult;
+	const {
+		status,
+		disconnect,
+		connect,
+		lastError,
+		reconnectAttempts,
+		isUsingFallback,
+	} = webSocketResult;
 
 	// Reset data when strategy changes
 	useEffect(() => {
@@ -218,12 +220,13 @@ export function useStrategyWebSocketEnhanced(strategyId: string | null) {
 	}, [strategyId, disconnect]);
 
 	// Update connected state when WebSocket state changes
+	// Update connection status based on WebSocket status
 	useEffect(() => {
 		setState((prev) => ({
 			...prev,
-			isConnected: readyState === WebSocket.OPEN,
+			isConnected: status === "connected",
 		}));
-	}, [readyState]);
+	}, [status]);
 
 	// Function to clear data
 	const clearData = useCallback(() => {
@@ -237,7 +240,7 @@ export function useStrategyWebSocketEnhanced(strategyId: string | null) {
 	return {
 		...state,
 		clearData,
-		connectionStatus,
+		connectionStatus: status,
 		reconnect: connect,
 	};
 }

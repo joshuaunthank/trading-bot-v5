@@ -57,19 +57,31 @@ export function useOhlcvWebSocket(
 						close: Number(restData.close[lastIndex]),
 						volume: Number(restData.volume[lastIndex]),
 					};
+					console.log("[OHLCV WS] Processed REST candle:", candle);
 					setLatestCandle(candle);
 				}
-			} else if (data.type === "ohlcv" && data.data) {
-				// WebSocket live data
-				const candle: OHLCVCandle = {
-					timestamp: data.data.timestamp || Date.now(),
-					open: Number(data.data.open),
-					high: Number(data.data.high),
-					low: Number(data.data.low),
-					close: Number(data.data.close),
-					volume: Number(data.data.volume),
-				};
-				setLatestCandle(candle);
+			} else if (
+				data.type === "ohlcv" &&
+				data.data &&
+				Array.isArray(data.data)
+			) {
+				// WebSocket live data - data.data is an array of candles
+				const candleArray = data.data;
+				console.log("[OHLCV WS] Received WebSocket candle array:", candleArray);
+				if (candleArray.length > 0) {
+					// Get the latest (most recent) candle
+					const latestCandleData = candleArray[candleArray.length - 1];
+					const candle: OHLCVCandle = {
+						timestamp: latestCandleData.timestamp || Date.now(),
+						open: Number(latestCandleData.open),
+						high: Number(latestCandleData.high),
+						low: Number(latestCandleData.low),
+						close: Number(latestCandleData.close),
+						volume: Number(latestCandleData.volume),
+					};
+					console.log("[OHLCV WS] Processed WebSocket candle:", candle);
+					setLatestCandle(candle);
+				}
 			} else {
 				console.warn("[OHLCV WS] Unknown message format:", data);
 			}

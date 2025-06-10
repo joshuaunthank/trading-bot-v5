@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useRobustWebSocket } from "../hooks/useRobustWebSocket";
 
-const WebSocketTest: React.FC = () => {
+const ConnectionStatus: React.FC = () => {
 	const [messages, setMessages] = useState<string[]>([]);
 	const [isManuallyDisconnected, setIsManuallyDisconnected] = useState(false);
 
@@ -209,4 +209,4 @@ const WebSocketTest: React.FC = () => {
 	);
 };
 
-export default WebSocketTest;
+export default ConnectionStatus;

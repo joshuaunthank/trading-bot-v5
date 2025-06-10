@@ -1,5 +1,5 @@
 import * as express from "express";
-import { subscribeOhlcv, getCachedOhlcv } from "../utils/websocket";
+import { getOHLCVData } from "../utils/websocket-main";
 import strategyRoutes from "./strategy/routes-strategy";
 import indicatorRoutes from "./strategy/routes-indicators";
 import performanceRoutes from "./strategy/routes-performance";
@@ -17,12 +17,13 @@ const apiRoutes = (app: any) => {
 			const timeframe =
 				typeof req.query.timeframe === "string" ? req.query.timeframe : "4h";
 			const limit = req.query.limit ? Number(req.query.limit) : 1000;
-			await Promise.resolve(subscribeOhlcv(symbol, timeframe, limit));
-			let ohlcv = getCachedOhlcv(symbol, timeframe, limit);
-			if (!ohlcv || !ohlcv.length) {
+
+			// Fetch OHLCV data directly using CCXT
+			const ohlcvData = await getOHLCVData(symbol, timeframe, limit);
+
+			if (!ohlcvData || !ohlcvData.length) {
 				res.status(202).json({
-					error:
-						"WebSocket not yet connected or no data. Please retry in a few seconds.",
+					error: "No OHLCV data available. Please try again.",
 				});
 				return;
 			}
@@ -31,7 +32,7 @@ const apiRoutes = (app: any) => {
 			let serverTime = Date.now();
 			try {
 				const resp = await fetch("https://api.binance.com/api/v3/time");
-				const data = await resp.json();
+				const data = (await resp.json()) as { serverTime?: number };
 				if (data && data.serverTime) serverTime = Number(data.serverTime);
 			} catch (e) {
 				// fallback to local time
@@ -55,25 +56,36 @@ const apiRoutes = (app: any) => {
 						return 0;
 				}
 			})();
-			let finalizedOhlcv = ohlcv;
-			if (ohlcv.length > 1 && msPerCandle > 0) {
-				const lastOpen = ohlcv[ohlcv.length - 1][0];
-				if (serverTime < lastOpen + msPerCandle) {
+
+			let finalizedOhlcv = ohlcvData;
+			if (ohlcvData.length > 1 && msPerCandle > 0) {
+				const lastCandle = ohlcvData[ohlcvData.length - 1];
+				if (serverTime < lastCandle.timestamp + msPerCandle) {
 					// Last candle is still open, drop it
-					finalizedOhlcv = ohlcv.slice(0, -1);
+					finalizedOhlcv = ohlcvData.slice(0, -1);
 				}
 			}
 
 			const result = {
-				dates: finalizedOhlcv.map((row) =>
-					new Date(Number(row[0])).toISOString()
+				// Array format for chart compatibility
+				dates: finalizedOhlcv.map((candle) =>
+					new Date(candle.timestamp).toISOString()
 				),
-				open: finalizedOhlcv.map((row) => row[1]),
-				high: finalizedOhlcv.map((row) => row[2]),
-				low: finalizedOhlcv.map((row) => row[3]),
-				close: finalizedOhlcv.map((row) => row[4]),
-				volume: finalizedOhlcv.map((row) => row[5]),
-				price: finalizedOhlcv.map((row) => row[4]), // for chart compatibility
+				open: finalizedOhlcv.map((candle) => candle.open),
+				high: finalizedOhlcv.map((candle) => candle.high),
+				low: finalizedOhlcv.map((candle) => candle.low),
+				close: finalizedOhlcv.map((candle) => candle.close),
+				volume: finalizedOhlcv.map((candle) => candle.volume),
+				price: finalizedOhlcv.map((candle) => candle.close), // for chart compatibility
+				// Object format for table compatibility
+				ohlcv: finalizedOhlcv.map((candle) => ({
+					timestamp: candle.timestamp,
+					open: candle.open,
+					high: candle.high,
+					low: candle.low,
+					close: candle.close,
+					volume: candle.volume,
+				})),
 			};
 			res.json({ result });
 		} catch (err) {

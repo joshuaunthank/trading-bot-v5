@@ -5,7 +5,7 @@ import SummaryView from "../components/SummaryView";
 import ConfigModal from "../components/ConfigModal";
 import ChartSpinner from "../components/ChartSpinner";
 import StrategyRunner from "../components/StrategyRunner";
-import WebSocketTest from "../components/WebSocketTest";
+import ConnectionStatus from "../components/ConnectionStatus";
 import { useStrategyWebSocket } from "../hooks/useStrategyWebSocket";
 
 interface OHLCVData {
@@ -373,8 +373,8 @@ const Dashboard: React.FC = () => {
 			{/* Strategy Runner */}
 			<StrategyRunner onStrategySelect={handleStrategySelect} />
 
-			{/* WebSocket Test Component */}
-			<WebSocketTest />
+			{/* Real-Time Connection Monitor */}
+			<ConnectionStatus />
 
 			{/* Strategy signals section */}
 			{activeStrategy && (

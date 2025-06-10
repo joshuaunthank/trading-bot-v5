@@ -6,7 +6,6 @@ import ConfigModal from "../components/ConfigModal";
 import ChartSpinner from "../components/ChartSpinner";
 import StrategyRunner from "../components/StrategyRunner";
 import TradingPanel from "../components/trading/TradingPanel";
-import WebSocketTest from "../components/WebSocketTest";
 import { useStrategyWebSocketEnhanced } from "../hooks/useStrategyWebSocketEnhanced";
 import useOhlcvWebSocket from "../hooks/useOhlcvWebSocket";
 import { AuthProvider } from "../context/AuthContext";
@@ -167,9 +166,9 @@ const EnhancedDashboard: React.FC = () => {
 	const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 	const [symbol, setSymbol] = useState("BTC/USDT");
 	const [timeframe, setTimeframe] = useState("1h");
-	const [activeTab, setActiveTab] = useState<
-		"chart" | "trading" | "strategy" | "test"
-	>("test"); // Start with test tab for debugging
+	const [activeTab, setActiveTab] = useState<"chart" | "trading" | "strategy">(
+		"chart"
+	); // Start with chart tab
 
 	console.log(
 		`[EnhancedDashboard] Initializing with symbol: ${symbol}, timeframe: ${timeframe}`
@@ -365,9 +364,44 @@ const EnhancedDashboard: React.FC = () => {
 				const data = await response.json();
 				console.log("[EnhancedDashboard] Received OHLCV data:", data);
 
-				// Ensure we have a valid array
-				const resultData = data.result || data || [];
-				const ohlcvArray = Array.isArray(resultData) ? resultData : [];
+				// Use the ohlcv field if available (object format), otherwise transform from array format
+				let ohlcvArray: OHLCVData[] = [];
+
+				if (
+					data.result &&
+					data.result.ohlcv &&
+					Array.isArray(data.result.ohlcv)
+				) {
+					// Use the pre-formatted object array
+					ohlcvArray = data.result.ohlcv;
+				} else if (
+					data.result &&
+					data.result.dates &&
+					Array.isArray(data.result.dates)
+				) {
+					// Transform from array-based format to object-based format
+					const { dates, open, high, low, close, volume } = data.result;
+
+					ohlcvArray = dates.map((dateStr: string, index: number) => ({
+						timestamp: new Date(dateStr).getTime(),
+						open: open[index] || 0,
+						high: high[index] || 0,
+						low: low[index] || 0,
+						close: close[index] || 0,
+						volume: volume[index] || 0,
+					}));
+				} else if (Array.isArray(data.result)) {
+					// Handle case where data is already in object format
+					ohlcvArray = data.result;
+				} else if (Array.isArray(data)) {
+					// Handle case where data is directly an array
+					ohlcvArray = data;
+				}
+
+				console.log(
+					"[EnhancedDashboard] Transformed OHLCV data:",
+					ohlcvArray.slice(0, 3)
+				);
 				setOhlcvData(ohlcvArray);
 				setError(null);
 			} catch (err) {
@@ -518,16 +552,6 @@ const EnhancedDashboard: React.FC = () => {
 				>
 					Strategy
 				</button>
-				<button
-					className={`px-4 py-2 font-medium ${
-						activeTab === "test"
-							? "text-blue-500 border-b-2 border-blue-500"
-							: "text-gray-400 hover:text-gray-300"
-					}`}
-					onClick={() => setActiveTab("test")}
-				>
-					WebSocket Test
-				</button>
 			</div>
 
 			{/* Tab content */}
@@ -604,12 +628,6 @@ const EnhancedDashboard: React.FC = () => {
 						</div>
 					)}
 				</>
-			)}
-
-			{activeTab === "test" && (
-				<div className="space-y-6">
-					<WebSocketTest />
-				</div>
 			)}
 
 			{/* Config modal */}

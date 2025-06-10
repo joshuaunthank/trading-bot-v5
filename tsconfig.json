@@ -9,6 +9,6 @@
 		"forceConsistentCasingInFileNames": true,
 		"jsx": "react-jsx"
 	},
-	"include": ["src/**/*.*"],
-	"exclude": ["node_modules", "dist", "local_modules"]
+	"include": ["src/**/*.*", "server.ts", "local_modules/**/*.*"],
+	"exclude": ["node_modules", "dist"]
 }
