@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>CCXT Pro WebSocket Test</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				max-width: 1200px;
+				margin: 0 auto;
+				padding: 20px;
+			}
+			.controls {
+				margin-bottom: 20px;
+				padding: 15px;
+				background: #f5f5f5;
+				border-radius: 5px;
+			}
+			.status {
+				padding: 10px;
+				margin: 10px 0;
+				border-radius: 5px;
+			}
+			.status.connected {
+				background: #d4edda;
+				border: 1px solid #c3e6cb;
+			}
+			.status.disconnected {
+				background: #f8d7da;
+				border: 1px solid #f5c6cb;
+			}
+			.status.connecting {
+				background: #fff3cd;
+				border: 1px solid #ffeeba;
+			}
+			.log {
+				height: 400px;
+				overflow-y: auto;
+				border: 1px solid #ccc;
+				padding: 10px;
+				background: #f9f9f9;
+				font-family: monospace;
+				font-size: 12px;
+			}
+			.log-entry {
+				margin: 5px 0;
+				padding: 5px;
+				border-radius: 3px;
+			}
+			.log-entry.info {
+				background: #d1ecf1;
+			}
+			.log-entry.error {
+				background: #f8d7da;
+			}
+			.log-entry.data {
+				background: #d4edda;
+			}
+			button {
+				margin: 5px;
+				padding: 8px 16px;
+				border: none;
+				border-radius: 4px;
+				cursor: pointer;
+			}
+			button.connect {
+				background: #28a745;
+				color: white;
+			}
+			button.disconnect {
+				background: #dc3545;
+				color: white;
+			}
+			button.clear {
+				background: #6c757d;
+				color: white;
+			}
+			button:disabled {
+				opacity: 0.6;
+				cursor: not-allowed;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>CCXT Pro WebSocket Test</h1>
+		<p>
+			This page tests the CCXT Pro WebSocket implementation that should not have
+			RSV1 frame errors.
+		</p>
+
+		<div class="controls">
+			<label>
+				Symbol:
+				<select id="symbol">
+					<option value="BTC/USDT">BTC/USDT</option>
+					<option value="ETH/USDT">ETH/USDT</option>
+					<option value="LTC/USDT">LTC/USDT</option>
+				</select>
+			</label>
+
+			<label>
+				Timeframe:
+				<select id="timeframe">
+					<option value="1m">1m</option>
+					<option value="5m">5m</option>
+					<option value="15m">15m</option>
+					<option value="1h" selected>1h</option>
+					<option value="4h">4h</option>
+					<option value="1d">1d</option>
+				</select>
+			</label>
+
+			<button id="connectBtn" class="connect">Connect</button>
+			<button id="disconnectBtn" class="disconnect" disabled>Disconnect</button>
+			<button id="clearBtn" class="clear">Clear Log</button>
+		</div>
+
+		<div id="status" class="status disconnected">Status: Disconnected</div>
+
+		<div class="log" id="log"></div>
+
+		<script>
+			let ws = null;
+			let reconnectAttempts = 0;
+			const maxReconnectAttempts = 5;
+
+			const symbolSelect = document.getElementById("symbol");
+			const timeframeSelect = document.getElementById("timeframe");
+			const connectBtn = document.getElementById("connectBtn");
+			const disconnectBtn = document.getElementById("disconnectBtn");
+			const clearBtn = document.getElementById("clearBtn");
+			const statusDiv = document.getElementById("status");
+			const logDiv = document.getElementById("log");
+
+			function log(message, type = "info") {
+				const timestamp = new Date().toLocaleTimeString();
+				const entry = document.createElement("div");
+				entry.className = `log-entry ${type}`;
+				entry.textContent = `[${timestamp}] ${message}`;
+				logDiv.appendChild(entry);
+				logDiv.scrollTop = logDiv.scrollHeight;
+
+				// Keep only last 100 entries
+				while (logDiv.children.length > 100) {
+					logDiv.removeChild(logDiv.firstChild);
+				}
+			}
+
+			function updateStatus(status, className) {
+				statusDiv.textContent = `Status: ${status}`;
+				statusDiv.className = `status ${className}`;
+			}
+
+			function connect() {
+				if (ws && ws.readyState === WebSocket.OPEN) {
+					log("Already connected", "info");
+					return;
+				}
+
+				const symbol = symbolSelect.value;
+				const timeframe = timeframeSelect.value;
+				const url = `ws://localhost:3001/ws/ohlcv-ccxt-pro?symbol=${encodeURIComponent(
+					symbol
+				)}&timeframe=${encodeURIComponent(timeframe)}`;
+
+				log(`Connecting to CCXT Pro WebSocket: ${url}`, "info");
+				updateStatus("Connecting...", "connecting");
+
+				connectBtn.disabled = true;
+
+				ws = new WebSocket(url);
+
+				ws.onopen = () => {
+					log("CCXT Pro WebSocket connected successfully!", "info");
+					updateStatus("Connected", "connected");
+					connectBtn.disabled = true;
+					disconnectBtn.disabled = false;
+					reconnectAttempts = 0;
+				};
+
+				ws.onmessage = (event) => {
+					try {
+						const data = JSON.parse(event.data);
+
+						if (data.type === "connection") {
+							log(`Connection confirmed: ${data.message}`, "info");
+						} else if (data.type === "ohlcv") {
+							log(
+								`OHLCV data received: ${data.data.length} candles for ${data.symbol} ${data.timeframe}`,
+								"data"
+							);
+							// Log the latest candle
+							if (data.data.length > 0) {
+								const latest = data.data[data.data.length - 1];
+								log(
+									`Latest candle: Open=${latest.open}, High=${latest.high}, Low=${latest.low}, Close=${latest.close}, Volume=${latest.volume}`,
+									"data"
+								);
+							}
+						} else if (data.type === "error") {
+							log(`Error from server: ${data.message}`, "error");
+						} else {
+							log(`Received: ${JSON.stringify(data)}`, "info");
+						}
+					} catch (e) {
+						log(`Received raw message: ${event.data}`, "info");
+					}
+				};
+
+				ws.onclose = (event) => {
+					log(
+						`CCXT Pro WebSocket closed: code=${event.code}, reason=${event.reason}`,
+						"error"
+					);
+					updateStatus("Disconnected", "disconnected");
+					connectBtn.disabled = false;
+					disconnectBtn.disabled = true;
+
+					// Auto-reconnect logic
+					if (reconnectAttempts < maxReconnectAttempts && event.code !== 1000) {
+						reconnectAttempts++;
+						const delay = Math.min(
+							1000 * Math.pow(2, reconnectAttempts),
+							30000
+						);
+						log(
+							`Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`,
+							"info"
+						);
+						setTimeout(() => {
+							if (!ws || ws.readyState === WebSocket.CLOSED) {
+								connect();
+							}
+						}, delay);
+					}
+				};
+
+				ws.onerror = (event) => {
+					log(`CCXT Pro WebSocket error: ${event}`, "error");
+					updateStatus("Error", "disconnected");
+				};
+			}
+
+			function disconnect() {
+				if (ws) {
+					log("Disconnecting CCXT Pro WebSocket...", "info");
+					ws.close(1000, "User initiated disconnect");
+					ws = null;
+					reconnectAttempts = maxReconnectAttempts; // Prevent auto-reconnect
+				}
+			}
+
+			function clearLog() {
+				logDiv.innerHTML = "";
+				log("Log cleared", "info");
+			}
+
+			connectBtn.addEventListener("click", connect);
+			disconnectBtn.addEventListener("click", disconnect);
+			clearBtn.addEventListener("click", clearLog);
+
+			// Auto-connect on page load
+			window.addEventListener("load", () => {
+				log("Page loaded - CCXT Pro WebSocket Test ready", "info");
+				// Uncomment the next line to auto-connect
+				// connect();
+			});
+		</script>
+	</body>
+</html>
