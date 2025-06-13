@@ -152,26 +152,133 @@ This project is a modular, extensible, full-stack TypeScript trading bot for Bin
 
 ---
 
-## **Next Development Phase: Feature Development**
+## 🎯 **TRADING BOT SYSTEM DEVELOPMENT PLAN** (June 13, 2025)
 
-**Status**: Infrastructure is now stable. Ready to focus on advanced features!
+### **Current Stable Foundation** ✅
 
-### Phase 1: Core Strategy Features
+Infrastructure is complete and operational:
 
-1. **Complete Strategy Builder UI** - Finish all step components and validation
-2. **Chart Overlays** - Add strategy indicators and forecast visualization
-3. **Trading Functions** - Implement actual order placement using CCXT
+- **WebSocket Infrastructure**: CCXT Pro providing stable live data streams
+- **REST API**: Historical OHLCV data endpoints functional
+- **Frontend**: React dashboard with real-time charts and tables
+- **TypeScript**: All compilation errors resolved
+- **Strategy System**: JSON-based strategy storage with validation
 
-### Phase 2: Advanced Trading Features
+### **System Architecture Overview**
 
-1. **Backtesting System** - Historical strategy performance testing
-2. **Risk Management** - Position sizing, stop-loss automation
-3. **Multi-Exchange Support** - Expand beyond Binance using CCXT
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Frontend UI   │◄──►│  Express Server  │◄──►│ CCXT/Binance   │
+│                 │    │                  │    │                 │
+│ • Dashboard     │    │ • REST API       │    │ • Live Data     │
+│ • Charts        │    │ • WebSocket      │    │ • Trading       │
+│ • Strategy UI   │    │ • Strategy Store │    │ • Orders        │
+│ • Trading Panel │    │ • Auth System    │    │ • Positions     │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
 
-### Phase 3: Production & Scale
+### **Phase 1: Core Trading Features** 🚀
 
-1. **Database Integration** - Move from JSON files to proper database
-2. **User Authentication** - Secure credential management
-3. **Deployment Pipeline** - Production deployment with monitoring
+_Build upon stable foundation to add essential trading capabilities_
 
-**Keep this updated as development progresses!**
+1. **Strategy Execution Engine**
+
+   - Real strategy indicator calculations (RSI, MACD, EMA)
+   - Signal generation based on strategy logic
+   - Live strategy data streaming to frontend
+
+2. **Trading Implementation**
+
+   - Order placement through CCXT
+   - Position monitoring and management
+   - Basic risk management (stop-loss, take-profit)
+
+3. **Strategy Builder UI Completion**
+   - Finish step components with proper validation
+   - Visual strategy editor improvements
+   - Strategy testing and preview
+
+### **Phase 2: Advanced Analytics** 📊
+
+_Add sophisticated analysis and visualization_
+
+1. **Chart Overlays & Visualization**
+
+   - Strategy indicators overlaid on price charts
+   - Entry/exit signals visualization
+   - Real-time performance metrics
+
+2. **Backtesting System**
+
+   - Historical strategy performance testing
+   - Risk/return analytics
+   - Strategy comparison tools
+
+3. **Performance Dashboard**
+   - Portfolio tracking
+   - P&L visualization
+   - Risk metrics and alerts
+
+### **Phase 3: Production Features** 🏭
+
+_Scale and deploy for real trading_
+
+1. **Multi-Strategy Management**
+
+   - Concurrent strategy execution
+   - Portfolio allocation
+   - Strategy versioning
+
+2. **User Management & Security**
+
+   - Secure API key handling
+   - User authentication system
+   - Role-based permissions
+
+3. **Production Deployment**
+   - Database integration
+   - Monitoring and alerting
+   - CI/CD pipeline
+
+### **Key Development Principles**
+
+#### **1. Single Source of Truth**
+
+- Backend handles ALL data fetching (REST + WebSocket)
+- Strategies receive data as input, never fetch directly
+- Frontend always uses backend APIs
+
+#### **2. Modular Architecture**
+
+- Each component has clear responsibilities
+- Strategies are JSON-configurable
+- UI components are reusable and composable
+
+#### **3. Progressive Enhancement**
+
+- Build features incrementally
+- Maintain backward compatibility
+- Test each phase thoroughly before moving forward
+
+### **Current Focus Areas**
+
+Based on stable foundation, immediate priorities are:
+
+1. **Complete Strategy Data Flow**
+
+   - Ensure strategies can receive live OHLCV data
+   - Implement indicator calculations
+   - Stream results back to frontend
+
+2. **Enhance Trading Panel**
+
+   - Connect to real trading functions
+   - Add position monitoring
+   - Implement basic order management
+
+3. **Strategy Execution Engine**
+   - Real indicator calculations
+   - Signal generation
+   - Live data integration
+
+**This plan builds upon the stable foundation while avoiding complexity that caused previous issues. Each phase delivers working features before moving to the next level.**
