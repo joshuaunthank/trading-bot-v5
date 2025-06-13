@@ -5,13 +5,8 @@ import SummaryView from "../components/SummaryView";
 import ConfigModal from "../components/ConfigModal";
 import ChartSpinner from "../components/ChartSpinner";
 import StrategyRunner from "../components/StrategyRunner";
-import TradingPanel from "../components/trading/TradingPanel";
 import { useStrategyWebSocketEnhanced } from "../hooks/useStrategyWebSocketEnhanced";
 import useOhlcvWebSocket from "../hooks/useOhlcvWebSocket";
-import { AuthProvider } from "../context/AuthContext";
-import LoginForm from "../components/auth/LoginForm";
-import RegisterForm from "../components/auth/RegisterForm";
-import { useAuth } from "../context/AuthContext";
 
 console.log("[EnhancedDashboard] Module loaded");
 
@@ -98,66 +93,6 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 	);
 };
 
-const AuthSection = () => {
-	const { isAuthenticated, logout, user } = useAuth();
-	const [showLogin, setShowLogin] = useState(true);
-
-	if (isAuthenticated && user) {
-		return (
-			<div className="bg-gray-800 p-4 rounded-lg shadow-lg mb-6">
-				<div className="flex justify-between items-center">
-					<div>
-						<h3 className="font-medium">Logged in as: {user.username}</h3>
-						<p className="text-sm text-gray-400">
-							API Key: {user.apiKey ? "✓ Configured" : "✗ Not configured"}
-						</p>
-					</div>
-					<button
-						onClick={logout}
-						className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-sm"
-					>
-						Logout
-					</button>
-				</div>
-			</div>
-		);
-	}
-
-	return (
-		<div className="bg-gray-800 rounded-lg shadow-lg p-4 mb-6">
-			<div className="flex justify-between items-center mb-4">
-				<h2 className="text-xl font-semibold">Authentication</h2>
-				<div className="flex space-x-4">
-					<button
-						className={`px-3 py-1 rounded-md text-sm ${
-							showLogin ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300"
-						}`}
-						onClick={() => setShowLogin(true)}
-					>
-						Login
-					</button>
-					<button
-						className={`px-3 py-1 rounded-md text-sm ${
-							!showLogin
-								? "bg-blue-600 text-white"
-								: "bg-gray-700 text-gray-300"
-						}`}
-						onClick={() => setShowLogin(false)}
-					>
-						Register
-					</button>
-				</div>
-			</div>
-
-			{showLogin ? (
-				<LoginForm onSuccess={() => console.log("Login successful")} />
-			) : (
-				<RegisterForm onSuccess={() => setShowLogin(true)} />
-			)}
-		</div>
-	);
-};
-
 const EnhancedDashboard: React.FC = () => {
 	const [ohlcvData, setOhlcvData] = useState<OHLCVData[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -166,7 +101,7 @@ const EnhancedDashboard: React.FC = () => {
 	const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 	const [symbol, setSymbol] = useState("BTC/USDT");
 	const [timeframe, setTimeframe] = useState("1h");
-	const [activeTab, setActiveTab] = useState<"chart" | "trading" | "strategy">(
+	const [activeTab, setActiveTab] = useState<"chart" | "strategy">(
 		"chart"
 	); // Start with chart tab
 
@@ -515,8 +450,6 @@ const EnhancedDashboard: React.FC = () => {
 				</div>
 			)}
 
-			<AuthSection />
-
 			<SummaryView data={summaryData} isLoading={loading} />
 
 			{/* Tab selector */}
@@ -530,16 +463,6 @@ const EnhancedDashboard: React.FC = () => {
 					onClick={() => setActiveTab("chart")}
 				>
 					Chart & Data
-				</button>
-				<button
-					className={`px-4 py-2 font-medium ${
-						activeTab === "trading"
-							? "text-blue-500 border-b-2 border-blue-500"
-							: "text-gray-400 hover:text-gray-300"
-					}`}
-					onClick={() => setActiveTab("trading")}
-				>
-					Trading
 				</button>
 				<button
 					className={`px-4 py-2 font-medium ${
@@ -574,8 +497,6 @@ const EnhancedDashboard: React.FC = () => {
 					/>
 				</div>
 			)}
-
-			{activeTab === "trading" && <TradingPanel symbol={symbol} />}
 
 			{activeTab === "strategy" && (
 				<>
@@ -642,13 +563,4 @@ const EnhancedDashboard: React.FC = () => {
 	);
 };
 
-const EnhancedDashboardWithAuth: React.FC = () => {
-	console.log("[EnhancedDashboardWithAuth] Component rendering");
-	return (
-		<AuthProvider>
-			<EnhancedDashboard />
-		</AuthProvider>
-	);
-};
-
-export default EnhancedDashboardWithAuth;
+export default EnhancedDashboard;
