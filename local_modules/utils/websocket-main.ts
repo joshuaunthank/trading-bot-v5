@@ -41,15 +41,36 @@ export async function getOHLCVData(
 		const ex = getExchange();
 		await ex.loadMarkets();
 
+		// Fetch recent OHLCV data - CCXT returns in chronological order (oldest first)
 		const ohlcv = await ex.fetchOHLCV(symbol, timeframe, undefined, limit);
-		return ohlcv.map(([timestamp, open, high, low, close, volume]: any[]) => ({
-			timestamp,
-			open,
-			high,
-			low,
-			close,
-			volume,
-		}));
+
+		const result = ohlcv
+			.map(([timestamp, open, high, low, close, volume]: any[]) => ({
+				timestamp,
+				open,
+				high,
+				low,
+				close,
+				volume,
+			}))
+			// Sort by timestamp descending (newest first) for frontend display
+			.sort((a, b) => b.timestamp - a.timestamp);
+
+		console.log(
+			`[CCXT] Fetched ${result.length} candles for ${symbol} ${timeframe}`
+		);
+		if (result.length > 0) {
+			console.log(
+				`[CCXT] Latest candle: ${new Date(result[0].timestamp).toISOString()}`
+			);
+			console.log(
+				`[CCXT] Oldest candle: ${new Date(
+					result[result.length - 1].timestamp
+				).toISOString()}`
+			);
+		}
+
+		return result;
 	} catch (error) {
 		console.error("[CCXT Pro] Error fetching OHLCV data:", error);
 		throw error;

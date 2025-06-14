@@ -21,6 +21,22 @@ const apiRoutes = (app: any) => {
 			// Fetch OHLCV data directly using CCXT
 			const ohlcvData = await getOHLCVData(symbol, timeframe, limit);
 
+			console.log(`[OHLCV Data] Received ${ohlcvData?.length || 0} candles`);
+			if (ohlcvData && ohlcvData.length > 0) {
+				const first = ohlcvData[0];
+				const last = ohlcvData[ohlcvData.length - 1];
+				console.log(
+					`[OHLCV Data] First candle: ${new Date(
+						first.timestamp
+					).toISOString()} (${first.timestamp})`
+				);
+				console.log(
+					`[OHLCV Data] Last candle: ${new Date(
+						last.timestamp
+					).toISOString()} (${last.timestamp})`
+				);
+			}
+
 			if (!ohlcvData || !ohlcvData.length) {
 				res.status(202).json({
 					error: "No OHLCV data available. Please try again.",
@@ -33,8 +49,28 @@ const apiRoutes = (app: any) => {
 			try {
 				const resp = await fetch("https://api.binance.com/api/v3/time");
 				const data = (await resp.json()) as { serverTime?: number };
-				if (data && data.serverTime) serverTime = Number(data.serverTime);
+
+				console.log(
+					`[System time] Local system time: ${serverTime} (${new Date(
+						serverTime
+					).toISOString()})`
+				);
+				console.log(
+					`[Binance time] Binance server time: ${data.serverTime} (${new Date(
+						data.serverTime || 0
+					).toISOString()})`
+				);
+
+				if (data && data.serverTime) {
+					serverTime = Number(data.serverTime);
+					console.log(`[Time sync] Using Binance time: ${serverTime}`);
+				} else {
+					console.log(`[Time sync] Falling back to system time: ${serverTime}`);
+				}
 			} catch (e) {
+				console.log(
+					`[Time sync] Error fetching Binance time, using system time: ${e}`
+				);
 				// fallback to local time
 			}
 
@@ -60,10 +96,35 @@ const apiRoutes = (app: any) => {
 			let finalizedOhlcv = ohlcvData;
 			if (ohlcvData.length > 1 && msPerCandle > 0) {
 				const lastCandle = ohlcvData[ohlcvData.length - 1];
+				console.log(
+					`[Time check] Server time: ${serverTime}, Last candle: ${
+						lastCandle.timestamp
+					}, Candle end: ${lastCandle.timestamp + msPerCandle}`
+				);
+
 				if (serverTime < lastCandle.timestamp + msPerCandle) {
 					// Last candle is still open, drop it
+					console.log(`[Finalization] Dropping last candle as it's still open`);
 					finalizedOhlcv = ohlcvData.slice(0, -1);
+				} else {
+					console.log(`[Finalization] All candles are finalized`);
 				}
+			}
+
+			console.log(
+				`[Final data] Returning ${finalizedOhlcv.length} finalized candles`
+			);
+			if (finalizedOhlcv.length > 0) {
+				console.log(
+					`[Final data] First (newest): ${new Date(
+						finalizedOhlcv[0].timestamp
+					).toISOString()}`
+				);
+				console.log(
+					`[Final data] Last (oldest): ${new Date(
+						finalizedOhlcv[finalizedOhlcv.length - 1].timestamp
+					).toISOString()}`
+				);
 			}
 
 			const result = {

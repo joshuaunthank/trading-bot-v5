@@ -101,9 +101,7 @@ const EnhancedDashboard: React.FC = () => {
 	const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 	const [symbol, setSymbol] = useState("BTC/USDT");
 	const [timeframe, setTimeframe] = useState("1h");
-	const [activeTab, setActiveTab] = useState<"chart" | "strategy">(
-		"chart"
-	); // Start with chart tab
+	const [activeTab, setActiveTab] = useState<"chart" | "strategy">("chart"); // Start with chart tab
 
 	console.log(
 		`[EnhancedDashboard] Initializing with symbol: ${symbol}, timeframe: ${timeframe}`
@@ -145,13 +143,19 @@ const EnhancedDashboard: React.FC = () => {
 				);
 
 				if (existingIndex >= 0) {
-					// Update existing candle
+					// Update existing candle (live candle updating)
 					const newData = [...prevData];
 					newData[existingIndex] = latestCandle;
 					return newData;
 				} else {
-					// Add new candle at the beginning
-					return [latestCandle, ...prevData];
+					// Add new candle at the beginning (live candle should be newest/top)
+					const newData = [latestCandle, ...prevData];
+
+					// Ensure data is sorted by timestamp descending (newest first)
+					newData.sort((a, b) => b.timestamp - a.timestamp);
+
+					// Keep only the most recent candles (limit to prevent memory issues)
+					return newData.slice(0, 1000);
 				}
 			});
 		}
