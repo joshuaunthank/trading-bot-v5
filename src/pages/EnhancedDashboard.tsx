@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import ChartView from "../components/ChartView";
 import TableView from "../components/TableView";
 import SummaryView from "../components/SummaryView";
@@ -143,13 +143,24 @@ const EnhancedDashboard: React.FC = () => {
 				);
 
 				if (existingIndex >= 0) {
-					// Update existing candle (live candle updating)
-					const newData = [...prevData];
-					newData[existingIndex] = latestCandle;
-					return newData;
+					// Update existing candle (live candle updating) - optimized for Chart.js
+					// Only update if price actually changed to prevent unnecessary redraws
+					const existingCandle = prevData[existingIndex];
+					if (
+						existingCandle.close !== latestCandle.close ||
+						existingCandle.high !== latestCandle.high ||
+						existingCandle.low !== latestCandle.low ||
+						existingCandle.volume !== latestCandle.volume
+					) {
+						const newData = [...prevData];
+						newData[existingIndex] = { ...latestCandle };
+						return newData;
+					}
+					// No change, return same reference to prevent re-render
+					return prevData;
 				} else {
 					// Add new candle at the beginning (live candle should be newest/top)
-					const newData = [latestCandle, ...prevData];
+					const newData = [{ ...latestCandle }, ...prevData];
 
 					// Ensure data is sorted by timestamp descending (newest first)
 					newData.sort((a, b) => b.timestamp - a.timestamp);
@@ -355,45 +366,47 @@ const EnhancedDashboard: React.FC = () => {
 		fetchOHLCVData();
 	}, [symbol, timeframe]);
 
-	// Handle timeframe change
-	const handleTimeframeChange = (newTimeframe: string) => {
+	// Handle timeframe change with memoization to prevent unnecessary chart redraws
+	const handleTimeframeChange = useCallback((newTimeframe: string) => {
 		setTimeframe(newTimeframe);
-	};
+	}, []);
 
 	// Handle strategy selection
-	const handleStrategySelect = (strategyId: string) => {
+	const handleStrategySelect = useCallback((strategyId: string) => {
 		setActiveStrategy(strategyId);
 		setActiveTab("strategy");
-	};
+	}, []);
 
 	// Handle strategy config save
-	const handleSaveConfig = (config: any) => {
+	const handleSaveConfig = useCallback((config: any) => {
 		// Save config to API
 		console.log("Saving config:", config);
 		setIsConfigModalOpen(false);
-	};
+	}, []);
 
-	// Prepare indicator overlays for chart
-	const chartIndicators = indicators.map((indicator, index) => {
-		// Generate a color based on index
-		const colors = [
-			"rgba(255, 99, 132, 1)",
-			"rgba(54, 162, 235, 1)",
-			"rgba(255, 206, 86, 1)",
-			"rgba(75, 192, 192, 1)",
-			"rgba(153, 102, 255, 1)",
-			"rgba(255, 159, 64, 1)",
-		];
-		const color = colors[index % colors.length];
+	// Prepare indicator overlays for chart with memoization
+	const chartIndicators = useMemo(() => {
+		return indicators.map((indicator, index) => {
+			// Generate a color based on index
+			const colors = [
+				"rgba(255, 99, 132, 1)",
+				"rgba(54, 162, 235, 1)",
+				"rgba(255, 206, 86, 1)",
+				"rgba(75, 192, 192, 1)",
+				"rgba(153, 102, 255, 1)",
+				"rgba(255, 159, 64, 1)",
+			];
+			const color = colors[index % colors.length];
 
-		return {
-			name: indicator.id,
-			data: Array.isArray(indicator.values)
-				? indicator.values
-				: Array(ohlcvData.length).fill(indicator.current_value),
-			color,
-		};
-	});
+			return {
+				name: indicator.id,
+				data: Array.isArray(indicator.values)
+					? indicator.values
+					: Array(ohlcvData.length).fill(indicator.current_value),
+				color,
+			};
+		});
+	}, [indicators, ohlcvData.length]);
 
 	// Summary data
 	const summaryData = calculateSummaryData();

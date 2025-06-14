@@ -54,7 +54,10 @@ export async function getOHLCVData(
 				volume,
 			}))
 			// Sort by timestamp descending (newest first) for frontend display
-			.sort((a, b) => b.timestamp - a.timestamp);
+			.sort(
+				(a: { timestamp: number }, b: { timestamp: number }) =>
+					b.timestamp - a.timestamp
+			);
 
 		console.log(
 			`[CCXT] Fetched ${result.length} candles for ${symbol} ${timeframe}`
