@@ -40,9 +40,11 @@ const ChartView: React.FC<ChartViewProps> = ({
 	const chartRef = useRef<HTMLCanvasElement>(null);
 	const chartInstance = useRef<Chart | null>(null);
 	const [chartType, setChartType] = useState<"line">("line");
+	const [isZoomed, setIsZoomed] = useState(false);
 	const timeframes = ["1m", "5m", "15m", "1h", "4h", "1d"];
 	const previousDataLength = useRef<number>(0);
 	const lastKnownPrice = useRef<number | null>(null);
+	const zoomState = useRef<any>(null); // Store zoom state
 
 	// Destroy chart on component unmount
 	useEffect(() => {
@@ -53,6 +55,122 @@ const ChartView: React.FC<ChartViewProps> = ({
 			}
 		};
 	}, []);
+
+	// Helper functions to preserve zoom state
+	const saveZoomState = () => {
+		if (chartInstance.current && chartInstance.current.scales) {
+			const scales = chartInstance.current.scales;
+			const xScale = scales.x;
+			const yScale = scales.y;
+
+			// Check if chart is actually zoomed or panned
+			const hasZoom =
+				xScale &&
+				xScale.min !== undefined &&
+				xScale.max !== undefined &&
+				typeof xScale.options?.min === "number" &&
+				typeof xScale.options?.max === "number" &&
+				(xScale.min > xScale.options.min || xScale.max < xScale.options.max);
+
+			if (hasZoom) {
+				const newZoomState = {
+					x: {
+						min: xScale.min,
+						max: xScale.max,
+					},
+					y: yScale
+						? {
+								min: yScale.min,
+								max: yScale.max,
+						  }
+						: null,
+				};
+
+				// Only update if the zoom state actually changed
+				if (
+					!zoomState.current ||
+					zoomState.current.x.min !== newZoomState.x.min ||
+					zoomState.current.x.max !== newZoomState.x.max
+				) {
+					zoomState.current = newZoomState;
+					setIsZoomed(true);
+					console.log("Saved zoom state:", zoomState.current);
+				}
+			} else {
+				// No zoom detected, but keep existing zoom state if user just reset
+				if (zoomState.current) {
+					console.log("Chart not zoomed but zoom state exists, keeping it");
+				}
+				setIsZoomed(false);
+			}
+		}
+	};
+
+	const restoreZoomState = () => {
+		if (chartInstance.current && zoomState.current) {
+			console.log("Attempting to restore zoom state:", zoomState.current);
+
+			// Use multiple attempts with different delays to ensure chart is ready
+			const attemptRestore = (attempt = 0) => {
+				if (attempt > 5) {
+					console.warn("Failed to restore zoom state after multiple attempts");
+					return;
+				}
+
+				setTimeout(() => {
+					if (
+						chartInstance.current &&
+						zoomState.current &&
+						chartInstance.current.scales
+					) {
+						try {
+							const chart = chartInstance.current;
+
+							// Method 1: Direct scale manipulation (most reliable)
+							const xScale = chart.scales.x;
+							if (xScale && zoomState.current.x) {
+								xScale.options.min = zoomState.current.x.min;
+								xScale.options.max = zoomState.current.x.max;
+								chart.update("none");
+								console.log(
+									"Successfully restored zoom state via direct scale manipulation"
+								);
+								setIsZoomed(true);
+								return;
+							}
+
+							// Method 2: Use zoomScale plugin method
+							chart.zoomScale(
+								"x",
+								{
+									min: zoomState.current.x.min,
+									max: zoomState.current.x.max,
+								},
+								"none"
+							);
+							console.log("Restored zoom state using zoomScale()");
+							setIsZoomed(true);
+						} catch (error) {
+							console.warn(
+								`Zoom restore attempt ${attempt + 1} failed:`,
+								error
+							);
+							// Try again with longer delay
+							attemptRestore(attempt + 1);
+						}
+					} else {
+						// Chart not ready, try again
+						console.log(
+							`Chart not ready for zoom restore, attempt ${attempt + 1}`
+						);
+						attemptRestore(attempt + 1);
+					}
+				}, 10 + attempt * 20); // Shorter initial delay, increasing for each attempt
+			};
+
+			attemptRestore();
+		}
+	};
 
 	// Helper function to create initial chart
 	const createChart = (validData: OHLCVData[]) => {
@@ -193,11 +311,39 @@ const ChartView: React.FC<ChartViewProps> = ({
 								},
 								mode: "x",
 								scaleMode: "x",
+								onZoom: function ({ chart }) {
+									// Update zoom state when zoom occurs
+									const scales = chart.scales;
+									const xScale = scales.x;
+									const hasZoom =
+										xScale &&
+										xScale.min !== undefined &&
+										xScale.max !== undefined &&
+										typeof xScale.options?.min === "number" &&
+										typeof xScale.options?.max === "number" &&
+										(xScale.min > xScale.options.min ||
+											xScale.max < xScale.options.max);
+									setIsZoomed(!!hasZoom);
+								},
 							},
 							pan: {
 								enabled: true,
 								mode: "x",
 								scaleMode: "x",
+								onPan: function ({ chart }) {
+									// Update zoom state when pan occurs
+									const scales = chart.scales;
+									const xScale = scales.x;
+									const hasZoom =
+										xScale &&
+										xScale.min !== undefined &&
+										xScale.max !== undefined &&
+										typeof xScale.options?.min === "number" &&
+										typeof xScale.options?.max === "number" &&
+										(xScale.min > xScale.options.min ||
+											xScale.max < xScale.options.max);
+									setIsZoomed(!!hasZoom);
+								},
 							},
 							limits: {
 								x: { min: "original", max: "original" },
@@ -237,6 +383,7 @@ const ChartView: React.FC<ChartViewProps> = ({
 			lastKnownPrice.current = latestCandle.close;
 
 			// Update without animation for smooth live updates
+			// Use 'none' mode to avoid triggering zoom reset
 			chart.update("none");
 		} else if (validData.length > previousDataLength.current) {
 			// New candle added - add new data point
@@ -261,11 +408,45 @@ const ChartView: React.FC<ChartViewProps> = ({
 			previousDataLength.current = validData.length;
 			lastKnownPrice.current = latestCandle.close;
 
-			// Update with minimal animation
-			chart.update("active");
-		} else {
-			// Data structure changed significantly, recreate chart
+			// Update with minimal animation, use 'none' to preserve zoom
+			chart.update("none");
+		} else if (validData.length < previousDataLength.current) {
+			// Data array got smaller - this might happen on timeframe switches
+			// Full recreation is needed, zoom should be handled by caller
+			console.log("Data array decreased, full chart recreation needed");
+			saveZoomState();
 			createChart(validData);
+			restoreZoomState();
+		} else {
+			// Data structure changed significantly but same length
+			// Replace all data while preserving zoom
+			console.log("Data structure changed, replacing chart data");
+
+			// Update the dataset data directly
+			chart.data.datasets[0].data = validData.map((candle) => ({
+				x: candle.timestamp,
+				y: candle.close,
+			})) as any;
+
+			// Update indicators
+			indicators.forEach((indicator, index) => {
+				if (chart.data.datasets[index + 1]) {
+					chart.data.datasets[index + 1].data = indicator.data.map(
+						(value, i) => ({
+							x: validData[i]?.timestamp || 0,
+							y: value,
+						})
+					) as any;
+				}
+			});
+
+			previousDataLength.current = validData.length;
+			if (validData.length > 0) {
+				lastKnownPrice.current = validData[validData.length - 1].close;
+			}
+
+			// Update without animation to preserve zoom
+			chart.update("none");
 		}
 	};
 
@@ -290,20 +471,60 @@ const ChartView: React.FC<ChartViewProps> = ({
 			return;
 		}
 
-		// Decide whether to create new chart or update existing one
-		if (
+		// Check if chart exists and is for the same symbol/timeframe
+		const currentSymbol =
+			chartInstance.current?.data.datasets[0]?.label?.split(" ")[0];
+		const currentTimeframe = chartInstance.current?.canvas?.dataset?.timeframe;
+		const needsNewChart =
 			!chartInstance.current ||
-			symbol !== chartInstance.current.data.datasets[0]?.label?.split(" ")[0] ||
-			timeframe !== chartInstance.current.canvas?.dataset?.timeframe
-		) {
-			// Create new chart for symbol/timeframe changes
+			symbol !== currentSymbol ||
+			timeframe !== currentTimeframe;
+
+		if (needsNewChart) {
+			// Save zoom state before recreating chart for timeframe changes
+			const wasTimeframeChange =
+				chartInstance.current &&
+				timeframe !== currentTimeframe &&
+				symbol === currentSymbol;
+
+			if (wasTimeframeChange) {
+				saveZoomState(); // Preserve zoom when only timeframe changes
+				console.log("Saving zoom state for timeframe change");
+			} else {
+				zoomState.current = null; // Clear zoom state for symbol changes
+				console.log("Clearing zoom state for symbol change");
+			}
+
 			createChart(validData);
 			if (chartInstance.current?.canvas) {
 				chartInstance.current.canvas.dataset.timeframe = timeframe;
 			}
+
+			// Restore zoom state if it was a timeframe change
+			if (wasTimeframeChange) {
+				console.log("Restoring zoom state after timeframe change");
+				restoreZoomState();
+			}
 		} else {
-			// Update existing chart
+			// Chart exists for same symbol/timeframe - just update data
+			console.log("Updating existing chart with new data");
+
+			// Save current zoom state before any updates
+			if (chartInstance.current && (isZoomed || zoomState.current)) {
+				saveZoomState();
+			}
+
 			updateChart(validData);
+
+			// Restore zoom state after update if we had one
+			if (zoomState.current) {
+				// Use a short timeout to ensure chart update is complete
+				setTimeout(() => {
+					if (zoomState.current) {
+						restoreZoomState();
+					}
+				}, 10);
+			}
 		}
 	}, [data, symbol, timeframe, chartType, indicators, loading]);
 
@@ -322,13 +543,30 @@ const ChartView: React.FC<ChartViewProps> = ({
 						onClick={() => {
 							if (chartInstance.current) {
 								chartInstance.current.resetZoom();
+								zoomState.current = null; // Clear saved zoom state
+								setIsZoomed(false);
 							}
 						}}
-						className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded-md transition-colors"
+						className={`text-sm px-3 py-1 rounded-md transition-colors ${
+							isZoomed || zoomState.current
+								? "bg-orange-600 hover:bg-orange-700 text-white"
+								: "bg-gray-600 hover:bg-gray-700 text-gray-300"
+						}`}
 						disabled={loading}
+						title={
+							isZoomed || zoomState.current
+								? "Reset zoom and pan"
+								: "No zoom applied"
+						}
 					>
-						Reset Zoom
+						{isZoomed || zoomState.current ? "🔍 Reset Zoom" : "Reset Zoom"}
 					</button>
+					{/* Zoom status indicator */}
+					{(isZoomed || zoomState.current) && (
+						<span className="text-xs text-orange-300 self-center">
+							📍 Zoomed
+						</span>
+					)}
 					{onTimeframeChange && (
 						<select
 							className="bg-gray-700 border border-gray-600 text-white rounded-md px-2 py-1"
