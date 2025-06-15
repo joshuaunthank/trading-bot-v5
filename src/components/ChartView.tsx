@@ -246,6 +246,7 @@ const ChartView: React.FC<ChartViewProps> = ({
 						},
 						y: {
 							type: "linear",
+							position: "right", // Move Y-axis to right side
 							grid: {
 								color: "rgba(255, 255, 255, 0.1)",
 							},
