@@ -1,5 +1,5 @@
 import React from "react";
-import { useStrategyWebSocket } from "../../hooks/useStrategyWebSocket";
+import { useStrategyWebSocketEnhanced } from "../../hooks/useStrategyWebSocketEnhanced";
 
 interface StrategyDataViewerProps {
 	strategyId: string | null;
@@ -9,7 +9,7 @@ const StrategyDataViewer: React.FC<StrategyDataViewerProps> = ({
 	strategyId,
 }) => {
 	const { indicators, signals, isConnected, error } =
-		useStrategyWebSocket(strategyId);
+		useStrategyWebSocketEnhanced(strategyId);
 
 	if (!strategyId) {
 		return (

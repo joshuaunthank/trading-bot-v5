@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import StrategyLibrary from "./components/StrategyLibrary";
 import StrategyBuilder from "./components/builder/StrategyBuilder";
-import Dashboard from "./pages/Dashboard";
 import EnhancedDashboard from "./pages/EnhancedDashboard";
 import { StrategyProvider } from "./context/StrategyContext";
 
@@ -24,9 +23,6 @@ export default function App() {
 								<Link to="/" className="hover:text-blue-400">
 									Dashboard
 								</Link>
-								<Link to="/classic" className="hover:text-blue-400">
-									Classic View
-								</Link>
 								<Link to="/library" className="hover:text-blue-400">
 									Strategy Library
 								</Link>
@@ -46,7 +42,6 @@ export default function App() {
 					<main className="container mx-auto p-4">
 						<Routes>
 							<Route path="/" element={<EnhancedDashboard />} />
-							<Route path="/classic" element={<Dashboard />} />
 							<Route path="/library" element={<StrategyLibrary />} />
 							<Route path="/builder" element={<StrategyBuilder />} />
 							<Route path="/builder/:id" element={<StrategyBuilder />} />

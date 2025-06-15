@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Chart, registerables } from "chart.js";
+import zoomPlugin from "chartjs-plugin-zoom";
 import "chartjs-adapter-date-fns";
 import ChartSpinner from "./ChartSpinner";
 
 // Register Chart.js components
-Chart.register(...registerables);
+Chart.register(...registerables, zoomPlugin);
 
 interface OHLCVData {
 	timestamp: number;
@@ -68,25 +69,31 @@ const ChartView: React.FC<ChartViewProps> = ({
 			chartInstance.current = new Chart(ctx, {
 				type: "line",
 				data: {
-					labels: validData.map((candle) =>
-						new Date(candle.timestamp).toLocaleTimeString()
-					),
 					datasets: [
 						{
 							label: `${symbol} (Close)`,
-							data: validData.map((candle) => candle.close),
+							data: validData.map((candle) => ({
+								x: candle.timestamp,
+								y: candle.close,
+							})),
 							borderColor: "rgba(75, 192, 192, 1)",
-							borderWidth: 1,
+							backgroundColor: "rgba(75, 192, 192, 0.1)",
+							borderWidth: 2,
 							pointRadius: 0,
+							pointHoverRadius: 4,
 							tension: 0.1,
 						},
 						// Add indicator datasets
 						...indicators.map((indicator) => ({
 							label: indicator.name,
-							data: indicator.data,
+							data: indicator.data.map((value, index) => ({
+								x: validData[index]?.timestamp || 0,
+								y: value,
+							})),
 							borderColor: indicator.color,
 							borderWidth: 1,
 							pointRadius: 0,
+							pointHoverRadius: 3,
 							tension: 0.1,
 							fill: false,
 						})),
@@ -98,11 +105,34 @@ const ChartView: React.FC<ChartViewProps> = ({
 					animation: {
 						duration: 0, // Disable animation for performance
 					},
+					interaction: {
+						mode: "index",
+						intersect: false,
+					},
 					scales: {
+						x: {
+							type: "time",
+							time: {
+								displayFormats: {
+									minute: "HH:mm",
+									hour: "HH:mm",
+									day: "MMM dd",
+								},
+							},
+							grid: {
+								color: "rgba(255, 255, 255, 0.1)",
+							},
+							ticks: {
+								color: "rgb(255, 255, 255)",
+							},
+						},
 						y: {
 							type: "linear",
 							grid: {
 								color: "rgba(255, 255, 255, 0.1)",
+							},
+							ticks: {
+								color: "rgb(255, 255, 255)",
 							},
 						},
 					},
@@ -112,6 +142,65 @@ const ChartView: React.FC<ChartViewProps> = ({
 							position: "top",
 							labels: {
 								color: "rgb(255, 255, 255)",
+							},
+						},
+						tooltip: {
+							mode: "index",
+							intersect: false,
+							backgroundColor: "rgba(0, 0, 0, 0.8)",
+							titleColor: "rgb(255, 255, 255)",
+							bodyColor: "rgb(255, 255, 255)",
+							borderColor: "rgba(75, 192, 192, 1)",
+							borderWidth: 1,
+							cornerRadius: 6,
+							displayColors: true,
+							callbacks: {
+								title: function (tooltipItems) {
+									if (tooltipItems.length > 0) {
+										const timestamp =
+											validData[tooltipItems[0].dataIndex]?.timestamp;
+										if (timestamp) {
+											return new Date(timestamp).toLocaleString();
+										}
+									}
+									return "";
+								},
+								label: function (context) {
+									const dataIndex = context.dataIndex;
+									const candleData = validData[dataIndex];
+									if (candleData && context.dataset.label?.includes("Close")) {
+										return [
+											`Open: $${candleData.open.toFixed(4)}`,
+											`High: $${candleData.high.toFixed(4)}`,
+											`Low: $${candleData.low.toFixed(4)}`,
+											`Close: $${candleData.close.toFixed(4)}`,
+											`Volume: ${candleData.volume.toLocaleString()}`,
+										];
+									}
+									return `${context.dataset.label}: ${context.parsed.y.toFixed(
+										4
+									)}`;
+								},
+							},
+						},
+						zoom: {
+							zoom: {
+								wheel: {
+									enabled: true,
+								},
+								pinch: {
+									enabled: true,
+								},
+								mode: "x",
+								scaleMode: "x",
+							},
+							pan: {
+								enabled: true,
+								mode: "x",
+								scaleMode: "x",
+							},
+							limits: {
+								x: { min: "original", max: "original" },
 							},
 						},
 					},
@@ -141,17 +230,20 @@ const ChartView: React.FC<ChartViewProps> = ({
 
 		if (isSameCandleUpdate) {
 			// Update only the last data point (live WebSocket update)
-			chart.data.datasets[0].data[chart.data.datasets[0].data.length - 1] =
-				latestCandle.close;
+			const lastIndex = chart.data.datasets[0].data.length - 1;
+			if (lastIndex >= 0) {
+				(chart.data.datasets[0].data[lastIndex] as any).y = latestCandle.close;
+			}
 			lastKnownPrice.current = latestCandle.close;
 
 			// Update without animation for smooth live updates
 			chart.update("none");
 		} else if (validData.length > previousDataLength.current) {
 			// New candle added - add new data point
-			const newLabel = new Date(latestCandle.timestamp).toLocaleTimeString();
-			chart.data.labels?.push(newLabel);
-			chart.data.datasets[0].data.push(latestCandle.close);
+			chart.data.datasets[0].data.push({
+				x: latestCandle.timestamp,
+				y: latestCandle.close,
+			} as any);
 
 			// Update indicators if they exist
 			indicators.forEach((indicator, index) => {
@@ -159,9 +251,10 @@ const ChartView: React.FC<ChartViewProps> = ({
 					chart.data.datasets[index + 1] &&
 					indicator.data[validData.length - 1] !== undefined
 				) {
-					chart.data.datasets[index + 1].data.push(
-						indicator.data[validData.length - 1]
-					);
+					chart.data.datasets[index + 1].data.push({
+						x: latestCandle.timestamp,
+						y: indicator.data[validData.length - 1],
+					} as any);
 				}
 			});
 
@@ -215,7 +308,7 @@ const ChartView: React.FC<ChartViewProps> = ({
 	}, [data, symbol, timeframe, chartType, indicators, loading]);
 
 	return (
-		<div className="bg-gray-800 rounded-lg shadow-lg p-4 h-[500px]">
+		<div className="bg-gray-800 rounded-lg shadow-lg p-4 h-[700px]">
 			<div className="flex justify-between items-center mb-4">
 				<div className="flex items-center space-x-2">
 					<h3 className="text-lg font-semibold">
@@ -224,6 +317,18 @@ const ChartView: React.FC<ChartViewProps> = ({
 					{loading && <ChartSpinner />}
 				</div>
 				<div className="flex space-x-4">
+					{/* Zoom Reset Button */}
+					<button
+						onClick={() => {
+							if (chartInstance.current) {
+								chartInstance.current.resetZoom();
+							}
+						}}
+						className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded-md transition-colors"
+						disabled={loading}
+					>
+						Reset Zoom
+					</button>
 					{onTimeframeChange && (
 						<select
 							className="bg-gray-700 border border-gray-600 text-white rounded-md px-2 py-1"
@@ -240,7 +345,7 @@ const ChartView: React.FC<ChartViewProps> = ({
 				</div>
 			</div>
 
-			<div className="">
+			<div style={{ height: "30vh" }}>
 				{loading ? (
 					<div className="flex h-full justify-center items-center">
 						<ChartSpinner size="large" />
