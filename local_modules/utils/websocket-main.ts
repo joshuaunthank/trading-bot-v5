@@ -88,6 +88,7 @@ const activeSubscriptions = new Map<
 		clients: Set<WsWebSocket>;
 		isRunning: boolean;
 		controller?: AbortController;
+		lastCandles?: any[]; // Store last sent candles for comparison
 	}
 >();
 
@@ -214,6 +215,7 @@ function createCCXTProSubscription(
 		clients,
 		isRunning: true,
 		controller,
+		lastCandles: [], // Initialize empty array for tracking
 	};
 
 	activeSubscriptions.set(subscriptionKey, subscription);
@@ -254,14 +256,52 @@ async function startWatchLoop(
 				`[Main WS] Received OHLCV data for ${subscriptionKey}, ${ohlcv.length} candles`
 			);
 
-			// Broadcast to all clients
+			// Get subscription to check for changes
 			const subscription = activeSubscriptions.get(subscriptionKey);
-			if (subscription && subscription.clients.size > 0) {
+			if (!subscription || subscription.clients.size === 0) {
+				continue;
+			}
+
+			// Check if this is first time or if data actually changed
+			const lastCandles = subscription.lastCandles || [];
+			const isFirstUpdate = lastCandles.length === 0;
+
+			// For efficiency, only send full data on first update, then send only recent candles
+			let dataToSend = ohlcv;
+			let updateType = "full";
+
+			if (!isFirstUpdate) {
+				// Only send the last few candles (current + recent) for live updates
+				dataToSend = ohlcv.slice(-3); // Last 3 candles should be sufficient for live updates
+				updateType = "incremental";
+
+				// Check if the latest candle actually changed
+				const latestCandle = ohlcv[ohlcv.length - 1];
+				const lastKnownCandle = lastCandles[lastCandles.length - 1];
+
+				if (
+					latestCandle &&
+					lastKnownCandle &&
+					latestCandle[0] === lastKnownCandle[0] && // Same timestamp
+					latestCandle[4] === lastKnownCandle[4]
+				) {
+					// Same close price
+					// No meaningful change, skip this update
+					continue;
+				}
+			}
+
+			// Store current candles for next comparison
+			subscription.lastCandles = [...ohlcv];
+
+			// Broadcast to all clients immediately - no throttling for financial data
+			if (subscription.clients.size > 0) {
 				const message = {
 					type: "ohlcv",
 					symbol,
 					timeframe,
-					data: ohlcv.map(
+					updateType, // "full" or "incremental"
+					data: dataToSend.map(
 						([timestamp, open, high, low, close, volume]: any[]) => ({
 							timestamp,
 							open,
@@ -285,7 +325,7 @@ async function startWatchLoop(
 				});
 
 				console.log(
-					`[Main WS] Broadcasted OHLCV data to ${subscription.clients.size} clients`
+					`[Main WS] Broadcasted ${updateType} OHLCV data (${dataToSend.length} candles) to ${subscription.clients.size} clients`
 				);
 			}
 		} catch (error) {
