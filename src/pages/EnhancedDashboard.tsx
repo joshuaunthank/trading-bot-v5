@@ -103,9 +103,12 @@ const EnhancedDashboard: React.FC = () => {
 	const [timeframe, setTimeframe] = useState("1h");
 	const [activeTab, setActiveTab] = useState<"chart" | "strategy">("chart"); // Start with chart tab
 
-	console.log(
-		`[EnhancedDashboard] Initializing with symbol: ${symbol}, timeframe: ${timeframe}`
-	);
+	// Log initialization only once when symbol/timeframe changes
+	useEffect(() => {
+		console.log(
+			`[EnhancedDashboard] Initializing with symbol: ${symbol}, timeframe: ${timeframe}`
+		);
+	}, [symbol, timeframe]);
 
 	// Strategy data from WebSocket with enhanced connection
 	const {
@@ -119,13 +122,17 @@ const EnhancedDashboard: React.FC = () => {
 	// OHLCV WebSocket with enhanced connection
 	const {
 		latestCandle,
+		fullDataset,
 		connectionStatus: ohlcvConnectionStatus,
 		reconnect: reconnectOhlcvWs,
 	} = useOhlcvWebSocket(symbol, timeframe);
 
-	console.log(
-		`[EnhancedDashboard] OHLCV connection status: ${ohlcvConnectionStatus}`
-	);
+	// Log connection status changes only
+	useEffect(() => {
+		console.log(
+			`[EnhancedDashboard] OHLCV connection status: ${ohlcvConnectionStatus}`
+		);
+	}, [ohlcvConnectionStatus]);
 
 	// Convert WebSocket data to the format our components expect
 	const [indicators, setIndicators] = useState<DashboardStrategyIndicator[]>(
@@ -133,28 +140,27 @@ const EnhancedDashboard: React.FC = () => {
 	);
 	const [signals, setSignals] = useState<DashboardStrategySignal[]>([]);
 
-	// Update OHLCV data when we receive a new candle
+	// Update OHLCV data when we receive fullDataset (for full updates) or latestCandle (for incremental updates)
 	useEffect(() => {
-		if (latestCandle) {
-			console.log("[EnhancedDashboard] Processing latestCandle:", latestCandle);
+		// Prioritize fullDataset for full updates
+		if (fullDataset && fullDataset.length > 0) {
+			console.log(
+				`[EnhancedDashboard] Using WebSocket fullDataset: ${fullDataset.length} candles`
+			);
+			setOhlcvData(fullDataset);
+		} else if (latestCandle) {
+			console.log(
+				"[EnhancedDashboard] Processing incremental update:",
+				latestCandle
+			);
 			setOhlcvData((prevData) => {
-				console.log(
-					"[EnhancedDashboard] Current prevData length:",
-					prevData.length
-				);
-
 				// Check if this candle already exists in our data
 				const existingIndex = prevData.findIndex(
 					(candle) => candle.timestamp === latestCandle.timestamp
 				);
 
 				if (existingIndex >= 0) {
-					console.log(
-						"[EnhancedDashboard] Updating existing candle at index:",
-						existingIndex
-					);
 					// Update existing candle (live candle updating) - optimized for Chart.js
-					// Only update if price actually changed to prevent unnecessary redraws
 					const existingCandle = prevData[existingIndex];
 					if (
 						existingCandle.close !== latestCandle.close ||
@@ -162,28 +168,25 @@ const EnhancedDashboard: React.FC = () => {
 						existingCandle.low !== latestCandle.low ||
 						existingCandle.volume !== latestCandle.volume
 					) {
-						console.log("[EnhancedDashboard] Price changed, updating candle");
+						console.log("[EnhancedDashboard] Updating existing candle");
 						const newData = [...prevData];
 						newData[existingIndex] = { ...latestCandle };
 						return newData;
 					}
-					console.log("[EnhancedDashboard] No price change, keeping same data");
 					// No change, return same reference to prevent re-render
 					return prevData;
 				} else {
 					console.log("[EnhancedDashboard] Adding new candle to data");
-					// Add new candle in chronological order (newest at end for chart compatibility)
+					// Add new candle in chronological order
 					const newData = [...prevData, { ...latestCandle }];
-
 					// Sort chronologically (oldest first, newest last) for Chart.js compatibility
 					newData.sort((a, b) => a.timestamp - b.timestamp);
-
 					// Keep only the most recent candles (limit to prevent memory issues)
 					return newData.slice(-1000); // Keep last 1000 candles
 				}
 			});
 		}
-	}, [latestCandle]);
+	}, [latestCandle, fullDataset]);
 
 	// Process WebSocket data
 	useEffect(() => {
@@ -312,78 +315,91 @@ const EnhancedDashboard: React.FC = () => {
 		};
 	};
 
-	// Fetch OHLCV data
+	// Initialize data from REST API fallback only when WebSocket is not connected
 	useEffect(() => {
-		const fetchOHLCVData = async () => {
-			try {
-				setLoading(true);
-				const response = await fetch(
-					`/api/v1/ohlcv?symbol=${symbol}&timeframe=${timeframe}`
-				);
-
-				if (!response.ok) {
-					throw new Error(`Failed to fetch OHLCV data: ${response.statusText}`);
-				}
-
-				const data = await response.json();
-				console.log("[EnhancedDashboard] Received OHLCV data:", data);
-
-				// Use the ohlcv field if available (object format), otherwise transform from array format
-				let ohlcvArray: OHLCVData[] = [];
-
-				if (
-					data.result &&
-					data.result.ohlcv &&
-					Array.isArray(data.result.ohlcv)
-				) {
-					// Use the pre-formatted object array
-					ohlcvArray = data.result.ohlcv;
-				} else if (
-					data.result &&
-					data.result.dates &&
-					Array.isArray(data.result.dates)
-				) {
-					// Transform from array-based format to object-based format
-					const { dates, open, high, low, close, volume } = data.result;
-
-					ohlcvArray = dates.map((dateStr: string, index: number) => ({
-						timestamp: new Date(dateStr).getTime(),
-						open: open[index] || 0,
-						high: high[index] || 0,
-						low: low[index] || 0,
-						close: close[index] || 0,
-						volume: volume[index] || 0,
-					}));
-				} else if (Array.isArray(data.result)) {
-					// Handle case where data is already in object format
-					ohlcvArray = data.result;
-				} else if (Array.isArray(data)) {
-					// Handle case where data is directly an array
-					ohlcvArray = data;
-				}
-
+		const initializeOHLCVData = async () => {
+			// Only use REST API if WebSocket is not connected and we have no fullDataset
+			if (
+				ohlcvConnectionStatus !== "connected" &&
+				(!fullDataset || fullDataset.length === 0)
+			) {
 				console.log(
-					"[EnhancedDashboard] Transformed OHLCV data:",
-					ohlcvArray.slice(0, 3)
+					"[EnhancedDashboard] WebSocket not connected, fetching from REST API"
 				);
-				setOhlcvData(ohlcvArray);
-				setError(null);
-			} catch (err) {
-				setError(
-					err instanceof Error ? err.message : "An unknown error occurred"
-				);
-			} finally {
-				setLoading(false);
+				try {
+					setLoading(true);
+					const response = await fetch(
+						`/api/v1/ohlcv?symbol=${symbol}&timeframe=${timeframe}`
+					);
+
+					if (!response.ok) {
+						throw new Error(
+							`Failed to fetch OHLCV data: ${response.statusText}`
+						);
+					}
+
+					const data = await response.json();
+					console.log("[EnhancedDashboard] Received REST OHLCV data:", data);
+
+					// Transform REST data to our format
+					let ohlcvArray: OHLCVData[] = [];
+
+					if (
+						data.result &&
+						data.result.ohlcv &&
+						Array.isArray(data.result.ohlcv)
+					) {
+						ohlcvArray = data.result.ohlcv;
+					} else if (
+						data.result &&
+						data.result.dates &&
+						Array.isArray(data.result.dates)
+					) {
+						const { dates, open, high, low, close, volume } = data.result;
+						ohlcvArray = dates.map((dateStr: string, index: number) => ({
+							timestamp: new Date(dateStr).getTime(),
+							open: open[index] || 0,
+							high: high[index] || 0,
+							low: low[index] || 0,
+							close: close[index] || 0,
+							volume: volume[index] || 0,
+						}));
+					} else if (Array.isArray(data.result)) {
+						ohlcvArray = data.result;
+					} else if (Array.isArray(data)) {
+						ohlcvArray = data;
+					}
+
+					console.log(
+						"[EnhancedDashboard] Transformed REST OHLCV data:",
+						ohlcvArray.slice(0, 3)
+					);
+					setOhlcvData(ohlcvArray);
+					setError(null);
+				} catch (err) {
+					setError(
+						err instanceof Error ? err.message : "An unknown error occurred"
+					);
+				} finally {
+					setLoading(false);
+				}
 			}
 		};
 
-		fetchOHLCVData();
-	}, [symbol, timeframe]);
+		initializeOHLCVData();
+	}, [symbol, timeframe, fullDataset, ohlcvConnectionStatus]);
 
 	// Handle timeframe change with memoization to prevent unnecessary chart redraws
-	const handleTimeframeChange = useCallback((newTimeframe: string) => {
-		setTimeframe(newTimeframe);
-	}, []);
+	const handleTimeframeChange = useCallback(
+		(newTimeframe: string) => {
+			console.log(
+				`[EnhancedDashboard] Changing timeframe from ${timeframe} to ${newTimeframe}`
+			);
+			setLoading(true); // Set loading state to show spinner during timeframe change
+			setTimeframe(newTimeframe);
+		},
+		[timeframe]
+	);
 
 	// Handle strategy selection
 	const handleStrategySelect = useCallback((strategyId: string) => {

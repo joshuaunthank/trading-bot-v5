@@ -18,6 +18,7 @@ interface OHLCVWebSocketOptions {
 
 interface OHLCVWebSocketResult {
 	latestCandle: OHLCVCandle | null;
+	fullDataset: OHLCVCandle[];
 	isConnected: boolean;
 	connectionStatus: string;
 	reconnect: () => void;
@@ -28,8 +29,8 @@ interface OHLCVWebSocketResult {
 }
 
 /**
- * OHLCV WebSocket hook with RSV1 error handling and REST fallback
- * Automatically falls back to REST API polling when WebSocket fails with RSV1 errors
+ * OHLCV WebSocket hook with incremental update support
+ * Handles both full and incremental updates from the WebSocket
  */
 export function useOhlcvWebSocket(
 	symbol: string,
@@ -37,11 +38,27 @@ export function useOhlcvWebSocket(
 	options: OHLCVWebSocketOptions = {}
 ): OHLCVWebSocketResult {
 	const [latestCandle, setLatestCandle] = useState<OHLCVCandle | null>(null);
+	const [fullDataset, setFullDataset] = useState<OHLCVCandle[]>([]);
+
+	// Clear data when symbol or timeframe changes to prevent stale data
+	useEffect(() => {
+		console.log(
+			`[OHLCV WS] Symbol/timeframe changed to ${symbol}/${timeframe}, clearing stale data`
+		);
+		setLatestCandle(null);
+		setFullDataset([]);
+	}, [symbol, timeframe]);
 
 	// Memoized callbacks to prevent dependency loops
 	const handleMessage = useCallback((data: any) => {
 		try {
 			console.log("[OHLCV WS] Received data:", data);
+
+			// Handle connection confirmation messages
+			if (data.type === "connection" && data.status === "connected") {
+				console.log("[OHLCV WS] Connection confirmed:", data.message);
+				return; // Don't process as candle data
+			}
 
 			// Handle both WebSocket and REST data formats
 			if (data.type === "ohlcv_rest" && data.data) {
@@ -69,20 +86,37 @@ export function useOhlcvWebSocket(
 				const candleArray = data.data;
 				console.log("[OHLCV WS] Received WebSocket candle array:", candleArray);
 				console.log("[OHLCV WS] Update type:", data.updateType);
+
 				if (candleArray.length > 0) {
-					// Get the latest (most recent) candle
-					const latestCandleData = candleArray[candleArray.length - 1];
-					const candle: OHLCVCandle = {
-						timestamp: latestCandleData.timestamp || Date.now(),
-						open: Number(latestCandleData.open),
-						high: Number(latestCandleData.high),
-						low: Number(latestCandleData.low),
-						close: Number(latestCandleData.close),
-						volume: Number(latestCandleData.volume),
-					};
-					console.log("[OHLCV WS] Processed WebSocket candle:", candle);
-					console.log("[OHLCV WS] Setting latestCandle state");
-					setLatestCandle(candle);
+					// Handle full vs incremental updates
+					if (data.updateType === "full") {
+						// Full update - replace entire dataset
+						console.log("[OHLCV WS] Processing full update");
+						const formattedCandles = candleArray.map((candleData: any) => ({
+							timestamp: candleData.timestamp || Date.now(),
+							open: Number(candleData.open),
+							high: Number(candleData.high),
+							low: Number(candleData.low),
+							close: Number(candleData.close),
+							volume: Number(candleData.volume),
+						}));
+						setFullDataset(formattedCandles);
+						setLatestCandle(formattedCandles[0]); // Newest first
+					} else {
+						// Incremental update - update only the latest candle
+						console.log("[OHLCV WS] Processing incremental update");
+						const latestCandleData = candleArray[0];
+						const candle: OHLCVCandle = {
+							timestamp: latestCandleData.timestamp || Date.now(),
+							open: Number(latestCandleData.open),
+							high: Number(latestCandleData.high),
+							low: Number(latestCandleData.low),
+							close: Number(latestCandleData.close),
+							volume: Number(latestCandleData.volume),
+						};
+						console.log("[OHLCV WS] Processed incremental candle:", candle);
+						setLatestCandle(candle);
+					}
 				}
 			} else {
 				console.warn("[OHLCV WS] Unknown message format:", data);
@@ -130,6 +164,7 @@ export function useOhlcvWebSocket(
 
 	return {
 		latestCandle,
+		fullDataset,
 		isConnected: status === "connected",
 		connectionStatus: status,
 		reconnect: connect,

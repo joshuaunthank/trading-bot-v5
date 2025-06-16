@@ -88,6 +88,7 @@ const activeSubscriptions = new Map<
 		clients: Set<WsWebSocket>;
 		isRunning: boolean;
 		controller?: AbortController;
+		lastSentCandle?: { timestamp: number; close: number; volume: number }; // Track last sent candle for incremental updates
 	}
 >();
 
@@ -214,6 +215,7 @@ function createCCXTProSubscription(
 		clients,
 		isRunning: true,
 		controller,
+		lastSentCandle: undefined, // Track last sent candle
 	};
 
 	activeSubscriptions.set(subscriptionKey, subscription);
@@ -260,11 +262,68 @@ async function startWatchLoop(
 				continue;
 			}
 
-			// CCXT Pro watchOHLCV returns incremental updates, but we need full array for frontend
-			// Get the full OHLCV cache from the exchange
+			// Convert raw CCXT data to our format for comparison
+			const formattedCurrentData = ohlcv.map(
+				([timestamp, open, high, low, close, volume]: any[]) => ({
+					timestamp,
+					open,
+					high,
+					low,
+					close,
+					volume,
+				})
+			);
+
+			// Check if this is a meaningful update by comparing with last sent candle
+			let shouldSendUpdate = true;
+			let updateType: "full" | "incremental" = "incremental";
+
+			if (formattedCurrentData.length > 0) {
+				// Get the latest candle (CCXT returns chronological order, so last element is newest)
+				const latestCandle =
+					formattedCurrentData[formattedCurrentData.length - 1];
+
+				// Check if we should send incremental or full update
+				if (!subscription.lastSentCandle) {
+					// First connection - send full dataset
+					updateType = "full";
+					console.log(`[Main WS] First connection, sending full dataset`);
+				} else {
+					// Compare with last sent candle to see if there's a meaningful change
+					const lastSent = subscription.lastSentCandle;
+					const priceChanged =
+						Math.abs(latestCandle.close - lastSent.close) > 0.01;
+					const volumeChanged =
+						Math.abs(latestCandle.volume - lastSent.volume) > 0.001;
+					const timestampChanged =
+						latestCandle.timestamp !== lastSent.timestamp;
+
+					if (timestampChanged) {
+						// New candle - send full update to show the new candle
+						updateType = "full";
+						console.log(`[Main WS] New candle detected, sending full update`);
+					} else if (priceChanged || volumeChanged) {
+						// Same candle, but price/volume changed - send incremental
+						updateType = "incremental";
+						console.log(
+							`[Main WS] Price/volume changed on current candle, sending incremental update`
+						);
+					} else {
+						shouldSendUpdate = false;
+						console.log(`[Main WS] No significant changes, skipping update`);
+					}
+				}
+			}
+
+			if (!shouldSendUpdate) {
+				continue; // Skip this iteration
+			}
+
+			// Get the appropriate dataset to send
 			let fullOhlcv = ohlcv;
-			if (ohlcv.length < 50) {
-				// If we got just a few candles, get more from cache
+
+			if (updateType === "full") {
+				// Send full dataset on first connection
 				try {
 					// Try to get more data from exchange cache or fetch fresh data
 					const cachedOhlcv =
@@ -275,7 +334,7 @@ async function startWatchLoop(
 							`[Main WS] Using cached OHLCV data: ${fullOhlcv.length} candles`
 						);
 					} else {
-						// Fallback: fetch fresh data
+						// Fallback: fetch fresh data (limit to 100 for performance)
 						console.log(
 							`[Main WS] Fetching fresh OHLCV data for complete dataset`
 						);
@@ -289,47 +348,66 @@ async function startWatchLoop(
 					);
 					fullOhlcv = ohlcv;
 				}
+			} else {
+				// For incremental updates, just use the latest few candles
+				fullOhlcv = ohlcv.slice(-3); // Only send the latest 3 candles for efficiency
 			}
 
-			// Send complete OHLCV data array (was working perfectly before)
+			// Send data to clients
 			const dataToSend = fullOhlcv;
-			const updateType = "full";
 
 			// Debug logging to check data length
 			console.log(
-				`[Main WS] Sending OHLCV array length: ${dataToSend.length} candles`
+				`[Main WS] Sending ${updateType} OHLCV array length: ${dataToSend.length} candles`
 			);
 
 			// Broadcast to all clients immediately - no throttling for financial data
 			if (subscription.clients.size > 0) {
+				// Convert CCXT format to our object format and ensure proper ordering
+				const formattedData = dataToSend
+					.map(([timestamp, open, high, low, close, volume]: any[]) => ({
+						timestamp,
+						open,
+						high,
+						low,
+						close,
+						volume,
+					}))
+					// Sort by timestamp descending (newest first) for consistency with REST API
+					.sort(
+						(a: { timestamp: number }, b: { timestamp: number }) =>
+							b.timestamp - a.timestamp
+					);
+
+				// Track the latest candle for next update comparison
+				if (formattedData.length > 0) {
+					const latestCandle = formattedData[0];
+					subscription.lastSentCandle = {
+						timestamp: latestCandle.timestamp,
+						close: latestCandle.close,
+						volume: latestCandle.volume,
+					};
+				}
+
 				const message = {
 					type: "ohlcv",
 					symbol,
 					timeframe,
 					updateType, // "full" or "incremental"
-					data: dataToSend.map(
-						([timestamp, open, high, low, close, volume]: any[]) => ({
-							timestamp,
-							open,
-							high,
-							low,
-							close,
-							volume,
-						})
-					),
+					data: formattedData,
 					timestamp: Date.now(),
 				};
 
 				// Debug logging for live data
-				if (dataToSend.length > 0) {
-					const latestCandle = dataToSend[dataToSend.length - 1];
+				if (formattedData.length > 0) {
+					const latestCandle = formattedData[0]; // Now it's properly formatted
 					console.log(
 						`[Main WS] Sending ${updateType} update - ${
-							dataToSend.length
+							formattedData.length
 						} candles, Latest: ${new Date(
-							latestCandle[0]
-						).toISOString()}, Close: ${latestCandle[4]}, Volume: ${
-							latestCandle[5]
+							latestCandle.timestamp
+						).toISOString()}, Close: ${latestCandle.close}, Volume: ${
+							latestCandle.volume
 						}`
 					);
 				}
@@ -345,7 +423,7 @@ async function startWatchLoop(
 				});
 
 				console.log(
-					`[Main WS] Broadcasted ${updateType} OHLCV data (${dataToSend.length} candles) to ${subscription.clients.size} clients`
+					`[Main WS] Broadcasted ${updateType} OHLCV data (${formattedData.length} candles) to ${subscription.clients.size} clients`
 				);
 			}
 		} catch (error) {
