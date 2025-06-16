@@ -68,6 +68,7 @@ export function useOhlcvWebSocket(
 				// WebSocket live data - data.data is an array of candles
 				const candleArray = data.data;
 				console.log("[OHLCV WS] Received WebSocket candle array:", candleArray);
+				console.log("[OHLCV WS] Update type:", data.updateType);
 				if (candleArray.length > 0) {
 					// Get the latest (most recent) candle
 					const latestCandleData = candleArray[candleArray.length - 1];
@@ -80,6 +81,7 @@ export function useOhlcvWebSocket(
 						volume: Number(latestCandleData.volume),
 					};
 					console.log("[OHLCV WS] Processed WebSocket candle:", candle);
+					console.log("[OHLCV WS] Setting latestCandle state");
 					setLatestCandle(candle);
 				}
 			} else {

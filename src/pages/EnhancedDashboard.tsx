@@ -136,13 +136,23 @@ const EnhancedDashboard: React.FC = () => {
 	// Update OHLCV data when we receive a new candle
 	useEffect(() => {
 		if (latestCandle) {
+			console.log("[EnhancedDashboard] Processing latestCandle:", latestCandle);
 			setOhlcvData((prevData) => {
+				console.log(
+					"[EnhancedDashboard] Current prevData length:",
+					prevData.length
+				);
+
 				// Check if this candle already exists in our data
 				const existingIndex = prevData.findIndex(
 					(candle) => candle.timestamp === latestCandle.timestamp
 				);
 
 				if (existingIndex >= 0) {
+					console.log(
+						"[EnhancedDashboard] Updating existing candle at index:",
+						existingIndex
+					);
 					// Update existing candle (live candle updating) - optimized for Chart.js
 					// Only update if price actually changed to prevent unnecessary redraws
 					const existingCandle = prevData[existingIndex];
@@ -152,21 +162,24 @@ const EnhancedDashboard: React.FC = () => {
 						existingCandle.low !== latestCandle.low ||
 						existingCandle.volume !== latestCandle.volume
 					) {
+						console.log("[EnhancedDashboard] Price changed, updating candle");
 						const newData = [...prevData];
 						newData[existingIndex] = { ...latestCandle };
 						return newData;
 					}
+					console.log("[EnhancedDashboard] No price change, keeping same data");
 					// No change, return same reference to prevent re-render
 					return prevData;
 				} else {
-					// Add new candle at the beginning (live candle should be newest/top)
-					const newData = [{ ...latestCandle }, ...prevData];
+					console.log("[EnhancedDashboard] Adding new candle to data");
+					// Add new candle in chronological order (newest at end for chart compatibility)
+					const newData = [...prevData, { ...latestCandle }];
 
-					// Ensure data is sorted by timestamp descending (newest first)
-					newData.sort((a, b) => b.timestamp - a.timestamp);
+					// Sort chronologically (oldest first, newest last) for Chart.js compatibility
+					newData.sort((a, b) => a.timestamp - b.timestamp);
 
 					// Keep only the most recent candles (limit to prevent memory issues)
-					return newData.slice(0, 1000);
+					return newData.slice(-1000); // Keep last 1000 candles
 				}
 			});
 		}
@@ -223,12 +236,13 @@ const EnhancedDashboard: React.FC = () => {
 	const calculateSummaryData = () => {
 		if (!Array.isArray(ohlcvData) || ohlcvData.length === 0) return {};
 
-		const latestCandle = ohlcvData[0];
+		// Data is now in chronological order (oldest first, newest last)
+		const latestCandle = ohlcvData[ohlcvData.length - 1];
 		const previous24hCandle =
 			ohlcvData.find(
 				(candle) =>
 					candle.timestamp <= latestCandle.timestamp - 24 * 60 * 60 * 1000
-			) || ohlcvData[ohlcvData.length - 1];
+			) || ohlcvData[0]; // Use oldest candle as fallback
 
 		const priceChange24h = latestCandle.close - previous24hCandle.close;
 		const priceChangePercent24h =

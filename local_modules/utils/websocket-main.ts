@@ -88,7 +88,6 @@ const activeSubscriptions = new Map<
 		clients: Set<WsWebSocket>;
 		isRunning: boolean;
 		controller?: AbortController;
-		lastCandles?: any[]; // Store last sent candles for comparison
 	}
 >();
 
@@ -215,7 +214,6 @@ function createCCXTProSubscription(
 		clients,
 		isRunning: true,
 		controller,
-		lastCandles: [], // Initialize empty array for tracking
 	};
 
 	activeSubscriptions.set(subscriptionKey, subscription);
@@ -262,37 +260,45 @@ async function startWatchLoop(
 				continue;
 			}
 
-			// Check if this is first time or if data actually changed
-			const lastCandles = subscription.lastCandles || [];
-			const isFirstUpdate = lastCandles.length === 0;
-
-			// For efficiency, only send full data on first update, then send only recent candles
-			let dataToSend = ohlcv;
-			let updateType = "full";
-
-			if (!isFirstUpdate) {
-				// Only send the last few candles (current + recent) for live updates
-				dataToSend = ohlcv.slice(-3); // Last 3 candles should be sufficient for live updates
-				updateType = "incremental";
-
-				// Check if the latest candle actually changed
-				const latestCandle = ohlcv[ohlcv.length - 1];
-				const lastKnownCandle = lastCandles[lastCandles.length - 1];
-
-				if (
-					latestCandle &&
-					lastKnownCandle &&
-					latestCandle[0] === lastKnownCandle[0] && // Same timestamp
-					latestCandle[4] === lastKnownCandle[4]
-				) {
-					// Same close price
-					// No meaningful change, skip this update
-					continue;
+			// CCXT Pro watchOHLCV returns incremental updates, but we need full array for frontend
+			// Get the full OHLCV cache from the exchange
+			let fullOhlcv = ohlcv;
+			if (ohlcv.length < 50) {
+				// If we got just a few candles, get more from cache
+				try {
+					// Try to get more data from exchange cache or fetch fresh data
+					const cachedOhlcv =
+						ex.ohlcvs && ex.ohlcvs[symbol] && ex.ohlcvs[symbol][timeframe];
+					if (cachedOhlcv && cachedOhlcv.length > ohlcv.length) {
+						fullOhlcv = cachedOhlcv;
+						console.log(
+							`[Main WS] Using cached OHLCV data: ${fullOhlcv.length} candles`
+						);
+					} else {
+						// Fallback: fetch fresh data
+						console.log(
+							`[Main WS] Fetching fresh OHLCV data for complete dataset`
+						);
+						fullOhlcv = await ex.fetchOHLCV(symbol, timeframe, undefined, 100);
+					}
+				} catch (error) {
+					console.log(
+						`[Main WS] Could not get full OHLCV data, using incremental: ${
+							error instanceof Error ? error.message : String(error)
+						}`
+					);
+					fullOhlcv = ohlcv;
 				}
 			}
 
-			// Store current candles for next comparison
-			subscription.lastCandles = [...ohlcv];
+			// Send complete OHLCV data array (was working perfectly before)
+			const dataToSend = fullOhlcv;
+			const updateType = "full";
+
+			// Debug logging to check data length
+			console.log(
+				`[Main WS] Sending OHLCV array length: ${dataToSend.length} candles`
+			);
 
 			// Broadcast to all clients immediately - no throttling for financial data
 			if (subscription.clients.size > 0) {
@@ -313,6 +319,20 @@ async function startWatchLoop(
 					),
 					timestamp: Date.now(),
 				};
+
+				// Debug logging for live data
+				if (dataToSend.length > 0) {
+					const latestCandle = dataToSend[dataToSend.length - 1];
+					console.log(
+						`[Main WS] Sending ${updateType} update - ${
+							dataToSend.length
+						} candles, Latest: ${new Date(
+							latestCandle[0]
+						).toISOString()}, Close: ${latestCandle[4]}, Volume: ${
+							latestCandle[5]
+						}`
+					);
+				}
 
 				subscription.clients.forEach((ws) => {
 					try {
