@@ -748,7 +748,7 @@ const ChartView: React.FC<ChartViewProps> = ({
 				</div>
 			</div>
 
-			<div style={{ height: "30vh" }}>
+			<div className="relative h-[600px]">
 				{loading ? (
 					<div className="flex h-full justify-center items-center">
 						<ChartSpinner size="large" />

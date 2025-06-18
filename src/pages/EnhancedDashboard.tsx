@@ -45,12 +45,13 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 }) => {
 	const getStatusColor = () => {
 		switch (status) {
+			case "connected":
 			case "open":
 				return "bg-green-400";
 			case "connecting":
-				return "bg-yellow-400";
 			case "reconnecting":
 				return "bg-yellow-400";
+			case "disconnected":
 			case "closed":
 			case "closing":
 			default:
@@ -60,6 +61,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 
 	const getStatusText = () => {
 		switch (status) {
+			case "connected":
 			case "open":
 				return "Connected";
 			case "connecting":
@@ -68,6 +70,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 				return "Reconnecting";
 			case "closing":
 				return "Closing";
+			case "disconnected":
 			case "closed":
 			default:
 				return "Disconnected";
@@ -82,14 +85,17 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 			<span className="text-xs">
 				{type}: {getStatusText()}
 			</span>
-			{(status === "closed" || status === "closing") && onReconnect && (
-				<button
-					onClick={onReconnect}
-					className="text-xs text-blue-400 hover:text-blue-300 ml-1"
-				>
-					Reconnect
-				</button>
-			)}
+			{(status === "disconnected" ||
+				status === "closed" ||
+				status === "closing") &&
+				onReconnect && (
+					<button
+						onClick={onReconnect}
+						className="text-xs text-blue-400 hover:text-blue-300 ml-1"
+					>
+						Reconnect
+					</button>
+				)}
 		</div>
 	);
 };
@@ -170,9 +176,16 @@ const EnhancedDashboard: React.FC = () => {
 
 	// Handle WebSocket connection status for loading state
 	useEffect(() => {
-		if (ohlcvConnectionStatus === "open" && fullDataset?.length === 0) {
+		if (
+			(ohlcvConnectionStatus === "connected" ||
+				ohlcvConnectionStatus === "open") &&
+			fullDataset?.length === 0
+		) {
 			setLoading(true); // Connected but waiting for data
-		} else if (ohlcvConnectionStatus === "closed") {
+		} else if (
+			ohlcvConnectionStatus === "disconnected" ||
+			ohlcvConnectionStatus === "closed"
+		) {
 			setError("WebSocket connection lost. Reconnecting...");
 		} else if (ohlcvConnectionStatus === "connecting") {
 			setLoading(true);

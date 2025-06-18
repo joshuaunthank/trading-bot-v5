@@ -7,56 +7,80 @@
 This project is a modular, extensible, full-stack TypeScript trading bot for Binance margin trading, built on the CCXT framework. It features a modern, maintainable frontend and a robust backend, with a focus on:
 
 - Modular strategies and models (ARIMA, MACD, EMA, error correction, etc.)
-- Real-time and historical OHLCV data integration
-- WebSocket-based live price streaming using CCXT Pro
-- REST API for finalized historical candles
+- Real-time OHLCV data integration via WebSocket-only architecture
+- WebSocket-based live price streaming using CCXT Pro (1000 candles + real-time updates)
 - User-friendly, configurable UI (Chart.js, table, config modal, summary)
 - Secure handling of API keys via `.env`
 
-## ✅ **Current State (June 10, 2025) - STABLE & OPERATIONAL**
+## 🎉 **Current State (June 18, 2025) - PRODUCTION READY** ✅
+
+### **Major Milestone: WebSocket-Only Architecture Complete** 🚀
+
+**Successfully implemented single source of truth for OHLCV data with exceptional results:**
+
+- ✅ **1000 candles on initial load** (vs previous 100)
+- ✅ **Real-time incremental updates** with sub-second precision
+- ✅ **Stable CCXT Pro WebSocket** with robust connection management
+- ✅ **No REST API fallback complexity** - clean, unified data flow
+- ✅ **Production tested and confirmed working** - live tested June 18, 2025
 
 ### **Frontend** ✅
 
 - Fully modularized React/TSX UI: chart, table, config modal, summary, and helpers
 - Chart.js (with chartjs-chart-financial + date adapters) for advanced charting
-- Table rendering with real-time updates - **NaN display issues FIXED**
-- WebSocket logic centralized in `useOhlcvWebSocket.tsx` React hook - **CONNECTION ISSUES FIXED**
-- Hybrid data model: REST for historical candles, WebSocket for live updates - **FULLY FUNCTIONAL**
+- **WebSocket-only data flow** - eliminated REST/WebSocket hybrid complexity
+- WebSocket logic centralized in `useOhlcvWebSocket.tsx` React hook
+- **Fixed connection status display** - now shows "Connected" properly
+- **Fixed Tailwind CSS loading** - proper spinner sizes and styling
 - Robust error handling, modern CSS, and responsive design
 - All config and state managed in React context or top-level App state
 - **Production-ready UI** - all debug artifacts removed
 
 ### **Backend** ✅
 
-- Express server with CORS, modular route structure - **TYPESCRIPT ERRORS FIXED**
-- `/api/v1/ohlcv` returns finalized candles with proper data formatting
-- `/ws/ohlcv` WebSocket streams live updates using **CCXT Pro** - **RSV1 ERRORS FIXED**
+- Express server with CORS, modular route structure
+- **WebSocket-only OHLCV data** - `/ws/ohlcv` streams 1000 candles + live updates
+- **Removed REST OHLCV endpoint** - eliminated `/api/v1/ohlcv` redundancy
 - Strategy runner endpoint for modular strategies
 - All sensitive config in `.env`
-- **Stable WebSocket implementation** - no more connection loops
+- **Stable WebSocket implementation** using CCXT Pro
 
 ### **Code Quality** ✅
 
 - TypeScript throughout, with strong types - **ALL COMPILATION ERRORS FIXED**
 - DRY, maintainable, and extensible codebase - **MAJOR CLEANUP COMPLETED**
-- **12+ redundant files removed**, consolidated implementations
+- **Single source of truth architecture** - eliminated data inconsistency
 - Proper error handling and user feedback
 
-## Current Implementation Challenges (June 2025)
+## Current Implementation Status (June 18, 2025)
 
-- ~~**Strategy File Format**: Standardize JSON strategy files and ensure they follow the schema~~ ✅ **COMPLETED**
-- ~~**WebSocket Connectivity**: Improve reconnection logic and error handling~~ ✅ **COMPLETED**
-- **Builder UI Completion**: Finish implementing all step components and validation
-- **Strategy Visualization**: Implement chart overlays and table views for strategy results
-- **File-based Storage**: Improve file operations with error handling and atomic writes
+- ✅ **WebSocket-Only Architecture**: Single source of truth for OHLCV data **COMPLETED**
+- ✅ **Strategy File Format**: Standardize JSON strategy files and ensure they follow the schema **COMPLETED**
+- ✅ **WebSocket Connectivity**: Improve reconnection logic and error handling **COMPLETED**
+- ✅ **Connection Status Display**: Fixed status mapping and UI indicators **COMPLETED**
+- ✅ **Tailwind CSS Integration**: Fixed spinner sizes and styling **COMPLETED**
+- 🔄 **Builder UI Completion**: Finish implementing all step components and validation
+- 🔄 **Strategy Visualization**: Implement chart overlays and table views for strategy results
+- 🔄 **File-based Storage**: Improve file operations with error handling and atomic writes
 
-## Immediate Development Priorities
+## Next Development Priorities (Post WebSocket-Only Implementation)
 
-1. ~~**Fix Strategy Files**: Ensure all JSON files in `local_modules/strategies/` are valid~~ ✅ **COMPLETED**
-2. ~~**Complete WebSocket Integration**: Ensure data flows properly from backend to frontend~~ ✅ **COMPLETED**
-3. **Finish Builder UI**: Complete all step components in the strategy builder
-4. **Add Visualization**: Implement chart overlays for strategy indicators/forecasts
-5. **Improve Error Handling**: Add robust error handling throughout the application
+1. **Strategy Execution Engine** 🎯
+
+   - Real indicator calculations (RSI, MACD, EMA)
+   - Signal generation based on strategy logic
+   - Live strategy data streaming to frontend
+
+2. **Trading Implementation** 💰
+
+   - Order placement through CCXT
+   - Position monitoring and management
+   - Basic risk management (stop-loss, take-profit)
+
+3. **Strategy Builder UI Completion** 🛠️
+   - Complete all step components in the strategy builder
+   - Add visualization and chart overlays for strategy indicators/forecasts
+   - Improve error handling throughout the application
 
 ## Technical Debt to Address
 
@@ -242,11 +266,12 @@ _Scale and deploy for real trading_
 
 ### **Key Development Principles**
 
-#### **1. Single Source of Truth**
+#### **1. Single Source of Truth - WebSocket Only** ✅ **IMPLEMENTED**
 
-- Backend handles ALL data fetching (REST + WebSocket)
+- Backend handles ALL data fetching via WebSocket (1000 candles + live updates)
 - Strategies receive data as input, never fetch directly
-- Frontend always uses backend APIs
+- Frontend uses only WebSocket for OHLCV data - no REST fallback
+- Eliminated data consistency issues and chart reloading problems
 
 #### **2. Modular Architecture**
 
@@ -256,29 +281,29 @@ _Scale and deploy for real trading_
 
 #### **3. Progressive Enhancement**
 
-- Build features incrementally
+- Build features incrementally on stable WebSocket foundation
 - Maintain backward compatibility
 - Test each phase thoroughly before moving forward
 
-### **Current Focus Areas**
+### **Current Focus Areas (Post WebSocket-Only Implementation)**
 
-Based on stable foundation, immediate priorities are:
+With the stable WebSocket-only foundation, immediate priorities are:
 
-1. **Complete Strategy Data Flow**
+1. **Strategy Execution Engine** 🎯
 
-   - Ensure strategies can receive live OHLCV data
-   - Implement indicator calculations
-   - Stream results back to frontend
+   - Real indicator calculations and signal generation
+   - Live strategy results streaming to frontend
+   - Chart overlays for strategy data
 
-2. **Enhance Trading Panel**
+2. **Trading Implementation** 💰
 
-   - Connect to real trading functions
-   - Add position monitoring
-   - Implement basic order management
+   - Connect to real trading functions via CCXT
+   - Add position monitoring and order management
+   - Implement risk management features
 
-3. **Strategy Execution Engine**
-   - Real indicator calculations
-   - Signal generation
-   - Live data integration
+3. **Advanced Analytics** 📊
+   - Backtesting with historical data
+   - Performance metrics and visualization
+   - Multi-strategy management
 
 **This plan builds upon the stable foundation while avoiding complexity that caused previous issues. Each phase delivers working features before moving to the next level.**

@@ -40,10 +40,41 @@ The trading bot has been successfully upgraded to a **WebSocket-Only Architectur
 
 ### What You'll See
 
-- **Live Charts**: Real-time candlestick charts with Chart.js
-- **Data Tables**: Live OHLCV data updates
-- **Connection Status**: WebSocket connectivity indicator
+- **Live Charts**: Real-time candlestick charts with Chart.js (1000 candles)
+- **Data Tables**: Live OHLCV data updates with sub-second precision
+- **Connection Status**: WebSocket connectivity indicator showing "Connected"
 - **Strategy Tools**: Builder UI and management interface
+
+## 🏗️ **WebSocket-Only Architecture**
+
+### **System Overview**
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Frontend UI   │◄──►│  Express Server  │◄──►│ CCXT/Binance   │
+│                 │    │                  │    │                 │
+│ • Dashboard     │    │ • WebSocket      │    │ • Live Data     │
+│ • Charts        │    │ • Strategy API   │    │ • 1000 Candles  │
+│ • Tables        │    │ • File Storage   │    │ • Real-time     │
+│ • Strategy UI   │    │ • Error Handling │    │ • Updates       │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+### **Data Flow Benefits**
+
+- **Single Source of Truth**: All OHLCV data flows through WebSocket
+- **1000 Historical Candles**: Full context on initial load
+- **Real-time Updates**: Sub-second live price/volume streaming
+- **No Data Inconsistency**: Eliminated REST/WebSocket hybrid issues
+- **Optimized Performance**: Efficient incremental updates
+
+### **Connection Status**
+
+The dashboard displays real-time connection status:
+
+- 🟢 **Connected**: Receiving live data
+- 🟡 **Connecting**: Establishing connection
+- 🔴 **Disconnected**: Connection lost (auto-reconnect)
 
 ## Project Structure
 
@@ -242,6 +273,30 @@ npm start           # Start production server
 node local_modules/scripts/validateStrategy.js --all
 node local_modules/scripts/validateStrategy.js [strategy-name]
 ```
+
+## 🎯 **Current Capabilities & Next Steps**
+
+### **✅ Currently Working**
+
+- **Real-time Data**: 1000 candles + live WebSocket updates
+- **Dashboard**: Professional charts, tables, and status indicators
+- **Strategy Management**: JSON-based strategy storage and validation
+- **WebSocket Infrastructure**: Stable CCXT Pro implementation
+- **UI/UX**: Responsive design with Tailwind CSS
+
+### **🚀 Next Development Phase**
+
+1. **Strategy Execution Engine**: Real indicator calculations and signal generation
+2. **Trading Implementation**: Order placement and position management
+3. **Chart Overlays**: Strategy indicators and signals visualization
+4. **Advanced Analytics**: Backtesting and performance metrics
+
+### **🏭 Future Roadmap**
+
+- Multi-strategy concurrent execution
+- User authentication and API key management
+- Database integration for historical data
+- Production deployment and monitoring
 
 ## Roadmap
 
