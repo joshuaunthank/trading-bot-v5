@@ -298,6 +298,22 @@ node local_modules/scripts/validateStrategy.js [strategy-name]
 - Database integration for historical data
 - Production deployment and monitoring
 
-## Roadmap
+## 📚 Documentation
 
-See the Copilot instructions file for detailed future plans.
+Comprehensive project documentation is organized in the [`docs/`](docs/) directory:
+
+- **📈 [Milestones](docs/milestones/)**: Major achievements and project status
+- **⚡ [Features](docs/features/)**: Implementation details and enhancements
+- **🔧 [Fixes](docs/fixes/)**: Bug fixes and cleanup efforts
+
+📖 **[Documentation Index](docs/DOCUMENTATION-INDEX.md)** - Complete guide to all documentation
+
+### **Key Documents**
+
+- 🎉 **[Latest Milestone](docs/milestones/WEBSOCKET-MILESTONE-COMPLETE.md)**: WebSocket-Only Architecture (June 18, 2025)
+- 🏗️ **[Architecture Overview](docs/milestones/WEBSOCKET-ONLY-ARCHITECTURE-COMPLETE.md)**: Technical implementation details
+- 📊 **[Project Status](docs/milestones/CURRENT-STATUS-SUMMARY.md)**: Current capabilities and roadmap
+
+## Development
+
+See the [Copilot instructions](.github/copilot-instructions.md) for detailed development guidelines and future plans.
