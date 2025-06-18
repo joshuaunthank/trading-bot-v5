@@ -7,6 +7,7 @@ import ChartSpinner from "../components/ChartSpinner";
 import StrategyRunner from "../components/StrategyRunner";
 import { useStrategyWebSocketEnhanced } from "../hooks/useStrategyWebSocketEnhanced";
 import useOhlcvWebSocket from "../hooks/useOhlcvWebSocket";
+import useStrategyExecution from "../hooks/useStrategyExecution";
 
 console.log("[EnhancedDashboard] Module loaded");
 
@@ -97,18 +98,32 @@ const EnhancedDashboard: React.FC = () => {
 	const [ohlcvData, setOhlcvData] = useState<OHLCVData[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [activeStrategy, setActiveStrategy] = useState<string | null>(null);
 	const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-	const [symbol, setSymbol] = useState("BTC/USDT");
-	const [timeframe, setTimeframe] = useState("1h");
 	const [activeTab, setActiveTab] = useState<"chart" | "strategy">("chart"); // Start with chart tab
 
-	// Log initialization only once when symbol/timeframe changes
+	// Strategy execution system
+	const {
+		strategies,
+		selectedStrategy,
+		loading: strategyLoading,
+		error: strategyError,
+		selectStrategy,
+		controlStrategy,
+		refreshSelectedStrategy,
+	} = useStrategyExecution();
+
+	// Derive symbol and timeframe from selected strategy, with fallbacks
+	const symbol = selectedStrategy?.symbol || "BTC/USDT";
+	const timeframe = selectedStrategy?.timeframe || "1h";
+
+	// Log initialization when symbol/timeframe changes (derived from strategy)
 	useEffect(() => {
 		console.log(
-			`[EnhancedDashboard] Initializing with symbol: ${symbol}, timeframe: ${timeframe}`
+			`[EnhancedDashboard] Symbol/Timeframe updated: ${symbol}, ${timeframe} (from ${
+				selectedStrategy ? "strategy: " + selectedStrategy.name : "default"
+			})`
 		);
-	}, [symbol, timeframe]);
+	}, [symbol, timeframe, selectedStrategy]);
 
 	// Strategy data from WebSocket with enhanced connection
 	const {
@@ -117,7 +132,7 @@ const EnhancedDashboard: React.FC = () => {
 		isConnected: isStrategyConnected,
 		connectionStatus: strategyConnectionStatus,
 		reconnect: reconnectStrategyWs,
-	} = useStrategyWebSocketEnhanced(activeStrategy);
+	} = useStrategyWebSocketEnhanced(selectedStrategy?.id || null);
 
 	// OHLCV WebSocket with enhanced connection
 	const {
@@ -140,15 +155,34 @@ const EnhancedDashboard: React.FC = () => {
 	);
 	const [signals, setSignals] = useState<DashboardStrategySignal[]>([]);
 
-	// Update OHLCV data when we receive fullDataset (for full updates) or latestCandle (for incremental updates)
+	// Update OHLCV data from WebSocket - single source of truth
 	useEffect(() => {
-		// Prioritize fullDataset for full updates
+		// Handle WebSocket full dataset updates
 		if (fullDataset && fullDataset.length > 0) {
 			console.log(
-				`[EnhancedDashboard] Using WebSocket fullDataset: ${fullDataset.length} candles`
+				`[EnhancedDashboard] WebSocket fullDataset received: ${fullDataset.length} candles`
 			);
 			setOhlcvData(fullDataset);
-		} else if (latestCandle) {
+			setLoading(false); // Data loaded successfully
+			setError(null); // Clear any previous errors
+		}
+	}, [fullDataset]);
+
+	// Handle WebSocket connection status for loading state
+	useEffect(() => {
+		if (ohlcvConnectionStatus === "open" && fullDataset?.length === 0) {
+			setLoading(true); // Connected but waiting for data
+		} else if (ohlcvConnectionStatus === "closed") {
+			setError("WebSocket connection lost. Reconnecting...");
+		} else if (ohlcvConnectionStatus === "connecting") {
+			setLoading(true);
+			setError(null);
+		}
+	}, [ohlcvConnectionStatus, fullDataset?.length]);
+
+	// Handle incremental updates separately to ensure live updates always work
+	useEffect(() => {
+		if (latestCandle) {
 			console.log(
 				"[EnhancedDashboard] Processing incremental update:",
 				latestCandle
@@ -186,7 +220,7 @@ const EnhancedDashboard: React.FC = () => {
 				}
 			});
 		}
-	}, [latestCandle, fullDataset]);
+	}, [latestCandle]);
 
 	// Process WebSocket data
 	useEffect(() => {
@@ -315,97 +349,14 @@ const EnhancedDashboard: React.FC = () => {
 		};
 	};
 
-	// Initialize data from REST API fallback only when WebSocket is not connected
-	useEffect(() => {
-		const initializeOHLCVData = async () => {
-			// Only use REST API if WebSocket is not connected and we have no fullDataset
-			if (
-				ohlcvConnectionStatus !== "connected" &&
-				(!fullDataset || fullDataset.length === 0)
-			) {
-				console.log(
-					"[EnhancedDashboard] WebSocket not connected, fetching from REST API"
-				);
-				try {
-					setLoading(true);
-					const response = await fetch(
-						`/api/v1/ohlcv?symbol=${symbol}&timeframe=${timeframe}`
-					);
-
-					if (!response.ok) {
-						throw new Error(
-							`Failed to fetch OHLCV data: ${response.statusText}`
-						);
-					}
-
-					const data = await response.json();
-					console.log("[EnhancedDashboard] Received REST OHLCV data:", data);
-
-					// Transform REST data to our format
-					let ohlcvArray: OHLCVData[] = [];
-
-					if (
-						data.result &&
-						data.result.ohlcv &&
-						Array.isArray(data.result.ohlcv)
-					) {
-						ohlcvArray = data.result.ohlcv;
-					} else if (
-						data.result &&
-						data.result.dates &&
-						Array.isArray(data.result.dates)
-					) {
-						const { dates, open, high, low, close, volume } = data.result;
-						ohlcvArray = dates.map((dateStr: string, index: number) => ({
-							timestamp: new Date(dateStr).getTime(),
-							open: open[index] || 0,
-							high: high[index] || 0,
-							low: low[index] || 0,
-							close: close[index] || 0,
-							volume: volume[index] || 0,
-						}));
-					} else if (Array.isArray(data.result)) {
-						ohlcvArray = data.result;
-					} else if (Array.isArray(data)) {
-						ohlcvArray = data;
-					}
-
-					console.log(
-						"[EnhancedDashboard] Transformed REST OHLCV data:",
-						ohlcvArray.slice(0, 3)
-					);
-					setOhlcvData(ohlcvArray);
-					setError(null);
-				} catch (err) {
-					setError(
-						err instanceof Error ? err.message : "An unknown error occurred"
-					);
-				} finally {
-					setLoading(false);
-				}
-			}
-		};
-
-		initializeOHLCVData();
-	}, [symbol, timeframe, fullDataset, ohlcvConnectionStatus]);
-
-	// Handle timeframe change with memoization to prevent unnecessary chart redraws
-	const handleTimeframeChange = useCallback(
-		(newTimeframe: string) => {
-			console.log(
-				`[EnhancedDashboard] Changing timeframe from ${timeframe} to ${newTimeframe}`
-			);
-			setLoading(true); // Set loading state to show spinner during timeframe change
-			setTimeframe(newTimeframe);
-		},
-		[timeframe]
-	);
-
 	// Handle strategy selection
-	const handleStrategySelect = useCallback((strategyId: string) => {
-		setActiveStrategy(strategyId);
-		setActiveTab("strategy");
-	}, []);
+	const handleStrategySelect = useCallback(
+		(strategyId: string) => {
+			selectStrategy(strategyId);
+			setActiveTab("strategy");
+		},
+		[selectStrategy]
+	);
 
 	// Handle strategy config save
 	const handleSaveConfig = useCallback((config: any) => {
@@ -452,7 +403,7 @@ const EnhancedDashboard: React.FC = () => {
 							type="OHLCV"
 							onReconnect={reconnectOhlcvWs}
 						/>
-						{activeStrategy && (
+						{selectedStrategy && (
 							<ConnectionStatus
 								status={strategyConnectionStatus}
 								type="Strategy"
@@ -460,28 +411,18 @@ const EnhancedDashboard: React.FC = () => {
 							/>
 						)}
 					</div>
-					<select
-						className="bg-gray-700 text-white px-3 py-2 rounded-md"
-						value={symbol}
-						onChange={(e) => setSymbol(e.target.value)}
-					>
-						<option value="BTC/USDT">BTC/USDT</option>
-						<option value="ETH/USDT">ETH/USDT</option>
-						<option value="SOL/USDT">SOL/USDT</option>
-						<option value="BNB/USDT">BNB/USDT</option>
-					</select>
-					<select
-						className="bg-gray-700 text-white px-3 py-2 rounded-md"
-						value={timeframe}
-						onChange={(e) => handleTimeframeChange(e.target.value)}
-					>
-						<option value="1m">1m</option>
-						<option value="5m">5m</option>
-						<option value="15m">15m</option>
-						<option value="1h">1h</option>
-						<option value="4h">4h</option>
-						<option value="1d">1d</option>
-					</select>
+					{selectedStrategy && (
+						<div className="text-sm text-gray-300 mr-4">
+							<div>
+								Strategy:{" "}
+								<span className="text-white">{selectedStrategy.name}</span>
+							</div>
+							<div>
+								Symbol: <span className="text-white">{symbol}</span> •
+								Timeframe: <span className="text-white">{timeframe}</span>
+							</div>
+						</div>
+					)}
 					<button
 						onClick={() => setIsConfigModalOpen(true)}
 						className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
@@ -518,7 +459,7 @@ const EnhancedDashboard: React.FC = () => {
 							: "text-gray-400 hover:text-gray-300"
 					}`}
 					onClick={() => setActiveTab("strategy")}
-					disabled={!activeStrategy}
+					disabled={!selectedStrategy}
 				>
 					Strategy
 				</button>
@@ -533,7 +474,6 @@ const EnhancedDashboard: React.FC = () => {
 						timeframe={timeframe}
 						loading={loading}
 						indicators={chartIndicators}
-						onTimeframeChange={handleTimeframeChange}
 					/>
 
 					<TableView
@@ -551,7 +491,7 @@ const EnhancedDashboard: React.FC = () => {
 					<StrategyRunner onStrategySelect={handleStrategySelect} />
 
 					{/* Strategy signals section */}
-					{activeStrategy && (
+					{selectedStrategy && (
 						<div className="bg-gray-800 rounded-lg shadow-lg p-4">
 							<h2 className="text-xl font-semibold mb-4">Strategy Signals</h2>
 
@@ -603,7 +543,7 @@ const EnhancedDashboard: React.FC = () => {
 				isOpen={isConfigModalOpen}
 				onClose={() => setIsConfigModalOpen(false)}
 				onSave={handleSaveConfig}
-				strategyId={activeStrategy || ""}
+				strategyId={selectedStrategy?.id || ""}
 				title="Trading Configuration"
 			/>
 		</div>

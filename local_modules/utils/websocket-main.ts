@@ -35,7 +35,7 @@ function getExchange(): any {
 export async function getOHLCVData(
 	symbol: string = "BTC/USDT",
 	timeframe: string = "1h",
-	limit: number = 100
+	limit: number = 1000
 ): Promise<OHLCVCandle[]> {
 	try {
 		const ex = getExchange();
@@ -334,11 +334,11 @@ async function startWatchLoop(
 							`[Main WS] Using cached OHLCV data: ${fullOhlcv.length} candles`
 						);
 					} else {
-						// Fallback: fetch fresh data (limit to 100 for performance)
+						// Fallback: fetch fresh data (limit to 1000 for full historical data)
 						console.log(
 							`[Main WS] Fetching fresh OHLCV data for complete dataset`
 						);
-						fullOhlcv = await ex.fetchOHLCV(symbol, timeframe, undefined, 100);
+						fullOhlcv = await ex.fetchOHLCV(symbol, timeframe, undefined, 1000);
 					}
 				} catch (error) {
 					console.log(
