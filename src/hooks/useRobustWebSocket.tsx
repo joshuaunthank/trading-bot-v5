@@ -32,10 +32,10 @@ export function useRobustWebSocket(
 		onMessage,
 		onStatusChange,
 		onError,
-		enableFallback = true,
-		fallbackPollInterval = 5000,
+		enableFallback = false, // Disabled by default for WebSocket-only architecture
+		fallbackPollInterval = 0,
 		maxReconnectAttempts = 3,
-		reconnectInterval = 2000,
+		reconnectInterval = 1000, // Reduced from 2000ms for faster reconnection
 	} = config;
 
 	const [status, setStatus] = useState<string>("disconnected");
@@ -82,8 +82,13 @@ export function useRobustWebSocket(
 		onErrorRef.current?.(error);
 	}, []);
 
-	// REST API fallback function
+	// Skip REST fallback if disabled
 	const fetchDataViaRest = useCallback(async () => {
+		if (!enableFallback) {
+			console.log(`[Robust WS] REST fallback disabled`);
+			return;
+		}
+
 		try {
 			console.log(
 				`[Robust WS] Fetching data via REST fallback for ${symbol} ${timeframe}`
@@ -177,9 +182,21 @@ export function useRobustWebSocket(
 		try {
 			wsRef.current = new WebSocket(url);
 
+			// Set faster connection timeout
+			const connectionTimeout = setTimeout(() => {
+				if (
+					wsRef.current &&
+					wsRef.current.readyState === WebSocket.CONNECTING
+				) {
+					console.log(`[Robust WS] Connection timeout, closing...`);
+					wsRef.current.close();
+				}
+			}, 5000); // 5 second timeout instead of default
+
 			wsRef.current.onopen = () => {
 				if (!isMountedRef.current) return;
 
+				clearTimeout(connectionTimeout);
 				console.log(`[Robust WS] WebSocket connected successfully`);
 				updateStatus("connected");
 				setReconnectAttempts(0);

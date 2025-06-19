@@ -31,6 +31,18 @@ function getExchange(): any {
 	return exchange;
 }
 
+// WebSocket subscriptions management
+const subscriptions = new Map<
+	string,
+	{
+		clients: Set<WsWebSocket>;
+		isRunning: boolean;
+		controller?: AbortController;
+		lastSentCandle?: { timestamp: number; close: number; volume: number }; // Track last sent candle for incremental updates
+		cachedFullDataset?: OHLCVCandle[]; // Cache full dataset for immediate response
+	}
+>();
+
 // Function to get historical OHLCV data using CCXT Pro
 export async function getOHLCVData(
 	symbol: string = "BTC/USDT",
@@ -82,15 +94,6 @@ export async function getOHLCVData(
 
 // WebSocket server for streaming OHLCV data
 let wss: WebSocketServer | null = null;
-const activeSubscriptions = new Map<
-	string,
-	{
-		clients: Set<WsWebSocket>;
-		isRunning: boolean;
-		controller?: AbortController;
-		lastSentCandle?: { timestamp: number; close: number; volume: number }; // Track last sent candle for incremental updates
-	}
->();
 
 export function setupMainWebSocket(server: http.Server) {
 	console.log("[Main WS] Setting up WebSocket server using CCXT Pro");
@@ -108,7 +111,7 @@ export function setupMainWebSocket(server: http.Server) {
 
 	console.log("[Main WS] WebSocketServer created at /ws/ohlcv (CCXT Pro)");
 
-	wss.on("connection", (ws, req) => {
+	wss.on("connection", (ws: WsWebSocket, req: http.IncomingMessage) => {
 		const clientId = Math.random().toString(36).substr(2, 9);
 		console.log(`[Main WS] New client connection (ID: ${clientId})`);
 
@@ -130,12 +133,12 @@ export function setupMainWebSocket(server: http.Server) {
 		);
 
 		// Get or create subscription
-		if (!activeSubscriptions.has(subscriptionKey)) {
+		if (!subscriptions.has(subscriptionKey)) {
 			console.log(`[Main WS] Creating new subscription for ${subscriptionKey}`);
 			createCCXTProSubscription(symbol, timeframe, subscriptionKey);
 		}
 
-		const subscription = activeSubscriptions.get(subscriptionKey)!;
+		const subscription = subscriptions.get(subscriptionKey)!;
 		subscription.clients.add(ws);
 		console.log(
 			`[Main WS] Added client ${clientId} to ${subscriptionKey}. Total clients: ${subscription.clients.size}`
@@ -152,6 +155,26 @@ export function setupMainWebSocket(server: http.Server) {
 					message: `Connected to ${symbol} ${timeframe} using CCXT Pro`,
 				})
 			);
+
+			// Send immediate data if available (cached full dataset)
+			if (
+				subscription.cachedFullDataset &&
+				subscription.cachedFullDataset.length > 0
+			) {
+				console.log(
+					`[Main WS] Sending immediate cached data to new client: ${subscription.cachedFullDataset.length} candles`
+				);
+
+				ws.send(
+					JSON.stringify({
+						type: "ohlcv",
+						updateType: "full",
+						data: subscription.cachedFullDataset,
+						symbol,
+						timeframe,
+					})
+				);
+			}
 		} catch (e) {
 			console.error(
 				`[Main WS] Error sending initial message to client ${clientId}:`,
@@ -176,7 +199,7 @@ export function setupMainWebSocket(server: http.Server) {
 				`[Main WS] Client ${clientId} disconnected: code=${code}, reason=${reason}`
 			);
 
-			const subscription = activeSubscriptions.get(subscriptionKey);
+			const subscription = subscriptions.get(subscriptionKey);
 			if (subscription) {
 				subscription.clients.delete(ws);
 				console.log(
@@ -195,7 +218,7 @@ export function setupMainWebSocket(server: http.Server) {
 
 		ws.on("error", (error) => {
 			console.error(`[Main WS] WebSocket error for client ${clientId}:`, error);
-			const subscription = activeSubscriptions.get(subscriptionKey);
+			const subscription = subscriptions.get(subscriptionKey);
 			if (subscription) {
 				subscription.clients.delete(ws);
 			}
@@ -216,9 +239,10 @@ function createCCXTProSubscription(
 		isRunning: true,
 		controller,
 		lastSentCandle: undefined, // Track last sent candle
+		cachedFullDataset: undefined, // Pre-cached full dataset for fast initial response
 	};
 
-	activeSubscriptions.set(subscriptionKey, subscription);
+	subscriptions.set(subscriptionKey, subscription);
 
 	// Start the CCXT Pro watch loop
 	startWatchLoop(symbol, timeframe, subscriptionKey, controller.signal);
@@ -237,6 +261,23 @@ async function startWatchLoop(
 	try {
 		await ex.loadMarkets();
 		console.log(`[Main WS] Markets loaded for ${subscriptionKey}`);
+
+		// Pre-fetch initial dataset to reduce first connection delay
+		console.log(
+			`[Main WS] Pre-fetching historical data for ${symbol} ${timeframe}`
+		);
+		try {
+			const initialData = await getOHLCVData(symbol, timeframe, 1000);
+			const subscription = subscriptions.get(subscriptionKey);
+			if (subscription) {
+				subscription.cachedFullDataset = initialData;
+				console.log(
+					`[Main WS] Pre-fetched ${initialData.length} candles for fast initial response`
+				);
+			}
+		} catch (error) {
+			console.log(`[Main WS] Pre-fetch failed, will fetch on demand:`, error);
+		}
 	} catch (error) {
 		console.error(
 			`[Main WS] Failed to load markets for ${subscriptionKey}:`,
@@ -257,7 +298,7 @@ async function startWatchLoop(
 			);
 
 			// Get subscription to check for changes
-			const subscription = activeSubscriptions.get(subscriptionKey);
+			const subscription = subscriptions.get(subscriptionKey);
 			if (!subscription || subscription.clients.size === 0) {
 				continue;
 			}
@@ -292,9 +333,9 @@ async function startWatchLoop(
 					// Compare with last sent candle to see if there's a meaningful change
 					const lastSent = subscription.lastSentCandle;
 					const priceChanged =
-						Math.abs(latestCandle.close - lastSent.close) > 0.01;
+						Math.abs(latestCandle.close - lastSent.close) > 0.001; // More sensitive
 					const volumeChanged =
-						Math.abs(latestCandle.volume - lastSent.volume) > 0.001;
+						Math.abs(latestCandle.volume - lastSent.volume) > 0.0001; // More sensitive
 					const timestampChanged =
 						latestCandle.timestamp !== lastSent.timestamp;
 
@@ -323,34 +364,49 @@ async function startWatchLoop(
 			let fullOhlcv = ohlcv;
 
 			if (updateType === "full") {
-				// Send full dataset on first connection
-				try {
-					// Try to get more data from exchange cache or fetch fresh data
-					const cachedOhlcv =
-						ex.ohlcvs && ex.ohlcvs[symbol] && ex.ohlcvs[symbol][timeframe];
-					if (cachedOhlcv && cachedOhlcv.length > ohlcv.length) {
-						fullOhlcv = cachedOhlcv;
-						console.log(
-							`[Main WS] Using cached OHLCV data: ${fullOhlcv.length} candles`
-						);
-					} else {
-						// Fallback: fetch fresh data (limit to 1000 for full historical data)
-						console.log(
-							`[Main WS] Fetching fresh OHLCV data for complete dataset`
-						);
-						fullOhlcv = await ex.fetchOHLCV(symbol, timeframe, undefined, 1000);
-					}
-				} catch (error) {
+				// Send full dataset on first connection - use cached data if available
+				if (
+					subscription.cachedFullDataset &&
+					subscription.cachedFullDataset.length > 0
+				) {
+					fullOhlcv = subscription.cachedFullDataset;
 					console.log(
-						`[Main WS] Could not get full OHLCV data, using incremental: ${
-							error instanceof Error ? error.message : String(error)
-						}`
+						`[Main WS] Using pre-cached dataset: ${fullOhlcv.length} candles`
 					);
-					fullOhlcv = ohlcv;
+				} else {
+					// Fallback: try cache or fetch fresh data
+					try {
+						const cachedOhlcv =
+							ex.ohlcvs && ex.ohlcvs[symbol] && ex.ohlcvs[symbol][timeframe];
+						if (cachedOhlcv && cachedOhlcv.length > ohlcv.length) {
+							fullOhlcv = cachedOhlcv;
+							console.log(
+								`[Main WS] Using exchange cached data: ${fullOhlcv.length} candles`
+							);
+						} else {
+							console.log(
+								`[Main WS] Fetching fresh OHLCV data for complete dataset`
+							);
+							fullOhlcv = await ex.fetchOHLCV(
+								symbol,
+								timeframe,
+								undefined,
+								1000
+							);
+						}
+					} catch (error) {
+						console.log(
+							`[Main WS] Could not get full OHLCV data, using incremental: ${
+								error instanceof Error ? error.message : String(error)
+							}`
+						);
+						fullOhlcv = ohlcv;
+					}
 				}
 			} else {
-				// For incremental updates, just use the latest few candles
-				fullOhlcv = ohlcv.slice(-3); // Only send the latest 3 candles for efficiency
+				// For incremental updates, just send the latest candle
+				fullOhlcv = [ohlcv[0]]; // Send only the most recent candle
+				console.log(`[Main WS] Sending incremental update with latest candle`);
 			}
 
 			// Send data to clients
@@ -363,21 +419,29 @@ async function startWatchLoop(
 
 			// Broadcast to all clients immediately - no throttling for financial data
 			if (subscription.clients.size > 0) {
-				// Convert CCXT format to our object format and ensure proper ordering
-				const formattedData = dataToSend
-					.map(([timestamp, open, high, low, close, volume]: any[]) => ({
-						timestamp,
-						open,
-						high,
-						low,
-						close,
-						volume,
-					}))
-					// Sort by timestamp descending (newest first) for consistency with REST API
-					.sort(
-						(a: { timestamp: number }, b: { timestamp: number }) =>
-							b.timestamp - a.timestamp
-					);
+				let formattedData: OHLCVCandle[];
+
+				// Check if dataToSend is already in our format (from cache) or needs conversion (from CCXT)
+				if (
+					dataToSend.length > 0 &&
+					typeof dataToSend[0] === "object" &&
+					"timestamp" in dataToSend[0]
+				) {
+					// Data is already in our OHLCVCandle format (from cache)
+					formattedData = dataToSend as OHLCVCandle[];
+				} else {
+					// Data is in CCXT format [timestamp, open, high, low, close, volume][], needs conversion
+					formattedData = (dataToSend as any[][])
+						.map(([timestamp, open, high, low, close, volume]: any[]) => ({
+							timestamp,
+							open,
+							high,
+							low,
+							close,
+							volume,
+						}))
+						.sort((a, b) => b.timestamp - a.timestamp); // Sort newest first
+				}
 
 				// Track the latest candle for next update comparison
 				if (formattedData.length > 0) {
@@ -394,7 +458,7 @@ async function startWatchLoop(
 					symbol,
 					timeframe,
 					updateType, // "full" or "incremental"
-					data: formattedData,
+					data: updateType === "incremental" ? formattedData[0] : formattedData, // Send single candle for incremental
 					timestamp: Date.now(),
 				};
 
@@ -433,7 +497,7 @@ async function startWatchLoop(
 			);
 
 			// Notify clients of the error
-			const subscription = activeSubscriptions.get(subscriptionKey);
+			const subscription = subscriptions.get(subscriptionKey);
 			if (subscription) {
 				const errorMessage = {
 					type: "error",
@@ -466,12 +530,12 @@ async function startWatchLoop(
 }
 
 function stopSubscription(subscriptionKey: string) {
-	const subscription = activeSubscriptions.get(subscriptionKey);
+	const subscription = subscriptions.get(subscriptionKey);
 	if (subscription) {
 		console.log(`[Main WS] Stopping subscription for ${subscriptionKey}`);
 		subscription.isRunning = false;
 		subscription.controller?.abort();
-		activeSubscriptions.delete(subscriptionKey);
+		subscriptions.delete(subscriptionKey);
 	}
 }
 
@@ -480,7 +544,7 @@ export async function cleanupMainWebSocket() {
 	console.log("[Main WS] Cleaning up WebSocket server");
 
 	// Stop all subscriptions
-	activeSubscriptions.forEach((subscription, key) => {
+	subscriptions.forEach((subscription, key) => {
 		stopSubscription(key);
 	});
 
