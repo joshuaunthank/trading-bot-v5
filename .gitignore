@@ -23,3 +23,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Documentation Guidelines
+# NOTE: All .md files (except README.md) should be created in /docs/ directory
+# This keeps the project root clean and organized

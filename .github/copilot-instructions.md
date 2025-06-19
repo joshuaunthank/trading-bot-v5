@@ -12,6 +12,18 @@ This project is a modular, extensible, full-stack TypeScript trading bot for Bin
 - User-friendly, configurable UI (Chart.js, table, config modal, summary)
 - Secure handling of API keys via `.env`
 
+## 📝 **Documentation Guidelines**
+
+⚠️ **IMPORTANT FOR DEVELOPERS**:
+
+- **All new `.md` files MUST be created within the `/docs` directory structure**
+- **Do NOT create `.md` files in the project root** (except README.md)
+- Use appropriate subdirectories:
+  - `/docs/milestones/` - Major achievements and project status updates
+  - `/docs/features/` - Feature implementations and enhancements
+  - `/docs/fixes/` - Bug fixes and cleanup documentation
+- This keeps the project root clean and maintains professional organization
+
 ## 🎉 **Current State (June 18, 2025) - PRODUCTION READY** ✅
 
 ### **Major Milestone: WebSocket-Only Architecture Complete** 🚀

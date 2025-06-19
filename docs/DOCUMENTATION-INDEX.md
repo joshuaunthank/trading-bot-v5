@@ -4,6 +4,16 @@ This is the **documentation index** for the Trading Bot project. All project doc
 
 > 📋 **Note**: This is the documentation index. For the main project information, see [`../README.md`](../README.md) in the project root.
 
+## 📝 **Documentation Guidelines**
+
+⚠️ **IMPORTANT**: All new `.md` files should be created within the `/docs` directory structure:
+
+- **Milestones & Achievements** → `/docs/milestones/`
+- **Feature Implementations** → `/docs/features/`
+- **Bug Fixes & Cleanup** → `/docs/fixes/`
+
+**Do not create `.md` files in the project root** - this keeps the main directory clean and professional.
+
 ## 📁 Directory Structure
 
 ### `/milestones/`

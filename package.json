@@ -2,6 +2,7 @@
 	"name": "trading-bot-v5",
 	"private": true,
 	"version": "0.0.0",
+	"description": "Modular TypeScript trading bot with WebSocket-only OHLCV data architecture",
 	"scripts": {
 		"dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
 		"dev:frontend": "wait-on http://localhost:3001 && vite",

@@ -308,6 +308,8 @@ Comprehensive project documentation is organized in the [`docs/`](docs/) directo
 
 📖 **[Documentation Index](docs/DOCUMENTATION-INDEX.md)** - Complete guide to all documentation
 
+> ⚠️ **Documentation Guidelines**: All new `.md` files should be created within the `/docs` directory structure, not in the project root. This keeps the main directory clean and organized.
+
 ### **Key Documents**
 
 - 🎉 **[Latest Milestone](docs/milestones/WEBSOCKET-MILESTONE-COMPLETE.md)**: WebSocket-Only Architecture (June 18, 2025)
