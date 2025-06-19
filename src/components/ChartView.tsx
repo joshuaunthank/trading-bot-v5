@@ -184,13 +184,9 @@ const ChartView: React.FC<ChartViewProps> = ({
 				) {
 					zoomState.current = newZoomState;
 					setIsZoomed(true);
-					console.log("Saved zoom state:", zoomState.current);
 				}
 			} else {
 				// No zoom detected, but keep existing zoom state if user just reset
-				if (zoomState.current) {
-					console.log("Chart not zoomed but zoom state exists, keeping it");
-				}
 				setIsZoomed(false);
 			}
 		}

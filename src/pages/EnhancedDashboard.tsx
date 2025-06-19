@@ -9,8 +9,6 @@ import { useStrategyWebSocketEnhanced } from "../hooks/useStrategyWebSocketEnhan
 import useOhlcvWebSocket from "../hooks/useOhlcvWebSocket";
 import useStrategyExecution from "../hooks/useStrategyExecution";
 
-console.log("[EnhancedDashboard] Module loaded");
-
 interface OHLCVData {
 	timestamp: number;
 	open: number;
@@ -215,7 +213,6 @@ const EnhancedDashboard: React.FC = () => {
 						existingCandle.low !== latestCandle.low ||
 						existingCandle.volume !== latestCandle.volume
 					) {
-						console.log("[EnhancedDashboard] Updating existing candle");
 						const newData = [...prevData];
 						newData[existingIndex] = { ...latestCandle };
 						return newData;
@@ -223,7 +220,6 @@ const EnhancedDashboard: React.FC = () => {
 					// No change, return same reference to prevent re-render
 					return prevData;
 				} else {
-					console.log("[EnhancedDashboard] Adding new candle to data");
 					// Add new candle in chronological order
 					const newData = [...prevData, { ...latestCandle }];
 					// Sort chronologically (oldest first, newest last) for Chart.js compatibility

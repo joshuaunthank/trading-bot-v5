@@ -66,15 +66,6 @@ export function useOhlcvWebSocket(
 	// Memoized callbacks to prevent dependency loops
 	const handleMessage = useCallback((data: any) => {
 		try {
-			console.log("[OHLCV WS] Received data:", {
-				type: data.type,
-				updateType: data.updateType,
-				dataLength: data.data?.length,
-				symbol: data.symbol,
-				timeframe: data.timeframe,
-				firstCandle: data.data?.[0],
-			});
-
 			// Handle connection confirmation messages
 			if (data.type === "connection" && data.status === "connected") {
 				console.log("[OHLCV WS] Connection confirmed:", data.message);
@@ -86,13 +77,11 @@ export function useOhlcvWebSocket(
 			if (data.type === "ohlcv") {
 				if (data.updateType === "full" && Array.isArray(data.data)) {
 					console.log(
-						`[OHLCV WS] Processing full dataset: ${data.data.length} candles`
+						`[OHLCV WS] Loaded ${data.data.length} candles for ${data.symbol}/${data.timeframe}`
 					);
-					console.log(`[OHLCV WS] Sample candle:`, data.data[0]);
 					setFullDataset(data.data);
 					isStableConnection.current = true;
 				} else if (data.updateType === "incremental" && data.data) {
-					console.log("[OHLCV WS] Processing incremental update:", data.data);
 					// Incremental data is now a single candle object
 					setLatestCandle(data.data);
 				}
