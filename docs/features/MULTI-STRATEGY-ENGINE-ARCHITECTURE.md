@@ -122,11 +122,11 @@ class DataDistributor {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Implementation Plan
+## Updated Implementation Plan
 
 ### **Phase 1: Strategy Manager Foundation** 🏗️
 
-**Target: 2-3 days**
+**Target: 3-4 days**
 
 #### Backend Tasks:
 
@@ -135,6 +135,7 @@ class DataDistributor {
 - [ ] Build data distribution system with symbol/timeframe filtering
 - [ ] Add concurrent strategy execution support
 - [ ] Create strategy isolation boundaries
+- [ ] Extend schema system for ML model support
 
 #### API Endpoints:
 
@@ -143,6 +144,13 @@ class DataDistributor {
 - [ ] `PUT /api/v1/strategies/:id/pause` - Pause strategy
 - [ ] `GET /api/v1/strategies/active` - List active strategies
 - [ ] `GET /api/v1/strategies/:id/metrics` - Get strategy performance
+- [ ] `GET /api/v1/strategies/:id/signals` - Get strategy signals with ML outputs
+
+#### Schema Enhancement:
+
+- [ ] Expand `model.schema.json` with ML configurations
+- [ ] Add expression parser for complex signal logic
+- [ ] Implement validation for ML model parameters
 
 #### Testing:
 
@@ -152,7 +160,7 @@ class DataDistributor {
 
 ### **Phase 2: Independent Strategy Instances** ⚙️
 
-**Target: 3-4 days**
+**Target: 4-5 days**
 
 #### Core Features:
 
@@ -172,12 +180,80 @@ class DataDistributor {
 
 #### Strategy Logic:
 
-- [ ] Signal evaluation engine
-- [ ] Rule-based condition checking
-- [ ] Confidence scoring for signals
+- [ ] Signal evaluation engine with expression parsing
+- [ ] Rule-based condition checking for complex logic
+- [ ] Confidence scoring for signals (including ML confidence)
 - [ ] Risk management integration
 
-### **Phase 3: Multi-Strategy Frontend** 🎨
+#### ML Model Framework:
+
+- [ ] Base classes for traditional and ML models
+- [ ] Model output integration with signal generation
+- [ ] Framework for future ML model implementations
+
+### **Phase 3: Enhanced Multi-Strategy Frontend** 🎨
+
+**Target: 4-5 days**
+
+#### Core Dashboard Enhancement:
+
+- [ ] **Strategy Selector Dropdown**: Raw price vs strategy-specific views
+- [ ] **Chart Mode Switching**: Clean price chart vs strategy overlay mode
+- [ ] **Strategy Status Indicators**: Active/paused/stopped with visual cues
+- [ ] **Real-time Strategy Cards**: Performance metrics per strategy
+
+#### Strategy-Specific Chart Features:
+
+- [ ] **Indicator Overlays**: RSI, MACD, moving averages on charts
+- [ ] **Signal Markers**: Buy/sell arrows with confidence levels
+- [ ] **ML Model Outputs**: Prediction lines, confidence bands
+- [ ] **Performance Annotations**: Entry/exit points, P&L tracking
+
+#### Advanced UI Components:
+
+- [ ] **Multi-Strategy Grid View**: Side-by-side strategy comparison
+- [ ] **Strategy Detail Panel**: Deep dive into individual strategy performance
+- [ ] **Model Output Visualization**: Charts for ML predictions and confidence
+- [ ] **Real-time Signal Feed**: Live strategy decisions and reasoning
+
+#### Real-time Updates:
+
+- [ ] WebSocket integration for strategy events
+- [ ] Live performance metric updates
+- [ ] Signal visualization on charts
+- [ ] Strategy status indicators
+
+### **Phase 4: Advanced Strategy Builder** 🛠️
+
+**Target: 5-6 days**
+
+#### Visual Strategy Builder:
+
+- [ ] **Multi-Step Wizard**: Meta → Indicators → Models → Signals → Risk → Review
+- [ ] **Drag-and-Drop Expression Builder**: Visual logic construction
+- [ ] **ML Model Configuration Panel**: Hyperparameters, training settings
+- [ ] **Strategy Preview**: Real-time validation and preview
+
+#### Expression Builder Features:
+
+- [ ] **Visual Logic Editor**: Drag-and-drop conditions and operators
+- [ ] **Autocomplete**: Model outputs, indicators, and functions
+- [ ] **Syntax Highlighting**: Expression validation and error highlighting
+- [ ] **Testing Interface**: Test expressions against historical data
+
+#### ML Model Configuration:
+
+- [ ] **Model Type Selection**: LSTM, ARIMA, Linear Regression, etc.
+- [ ] **Hyperparameter Tuning**: Visual sliders and input validation
+- [ ] **Training Configuration**: Data sources, validation splits, schedules
+- [ ] **Performance Metrics**: Model accuracy, confidence tracking
+
+#### Advanced Features:
+
+- [ ] **Strategy Templates**: Pre-built strategy configurations
+- [ ] **Strategy Cloning**: Copy and modify existing strategies
+- [ ] **Backtesting Integration**: Test strategies before deployment
+- [ ] **Strategy Versioning**: Track and rollback strategy changes
 
 **Target: 2-3 days**
 
@@ -379,3 +455,259 @@ _This document will be updated as implementation progresses. Each phase completi
 **Created**: June 19, 2025  
 **Status**: Planning Phase  
 **Next Review**: After Phase 1 completion
+
+# Multi-Strategy Monitoring & User Interface
+
+### **Dashboard Layout Strategy**
+
+#### **Main Dashboard Design**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Trading Bot Dashboard                                      │
+├─────────────────────────────────────────────────────────────┤
+│  Strategy Selector: [Dropdown: Raw Price ▼] [+ New Strategy]│
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │                Chart Area                               │ │
+│  │  • Raw Price (when no strategy selected)               │ │
+│  │  • Strategy overlays (indicators, signals, ML outputs) │ │
+│  │  • Entry/exit markers                                  │ │
+│  │  • Performance overlays                                │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌──────────────┬──────────────┬──────────────┬────────────┐ │
+│  │Strategy Info │ Performance  │   Controls   │   Status   │ │
+│  │• P&L: +2.3%  │• Win Rate    │• ▶️ Start    │• 🟢 Active │ │
+│  │• Trades: 12  │• Sharpe      │• ⏸️ Pause    │• Signals   │ │
+│  │• Position    │• Drawdown    │• ⚙️ Config   │• Health    │ │
+│  └──────────────┴──────────────┴──────────────┴────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### **Strategy Selector Dropdown**
+
+```
+Dropdown Menu:
+├── 📊 Raw Price Chart (BTC/USDT 1h)
+├── ─────────────────────────────
+├── 🤖 MACD Strategy (BTC/USDT 15m) [🟢 Active]
+├── 📈 RSI Mean Reversion (ETH/USDT 5m) [🟡 Paused]
+├── 🧠 LSTM Prediction (BTC/USDT 1h) [🔴 Stopped]
+├── ⚡ Multi-Indicator (BNB/USDT 30m) [🟢 Active]
+└── ─────────────────────────────
+    └── ➕ Create New Strategy...
+```
+
+#### **Chart Visualization Modes**
+
+**Raw Price Mode** (No strategy selected):
+
+- Clean OHLCV candlestick chart
+- Basic volume indicator
+- Symbol/timeframe selector
+- Zoom and pan controls
+
+**Strategy Mode** (Strategy selected):
+
+- Base OHLCV chart
+- **Indicator overlays**: Moving averages, RSI, MACD lines
+- **Signal markers**: Buy/sell arrows with confidence levels
+- **ML model outputs**: Prediction lines, confidence bands
+- **Performance tracking**: Entry/exit points, P&L annotations
+- **Real-time updates**: Live strategy decisions
+
+**Performance Mode**:
+
+- Entry/exit markers with trade performance
+- P&L tracking on the chart
+- Signal strength indicators
+
+**Comparison Mode**:
+
+- Side-by-side strategy performance
+- Correlation analysis
+- Risk/return profile comparison
+
+#### **Multi-Strategy Grid Dashboard** (Advanced View)
+
+```
+┌────────────┬────────────┬────────────┬────────────┐
+│Strategy A  │Strategy B  │Strategy C  │Strategy D  │
+│MACD+RSI    │LSTM Pred   │Hybrid ML   │Arbitrage   │
+│BTC/USDT    │ETH/USDT    │BTC/USDT    │Multi-pair  │
+│🟢 +2.3%    │🟡 -0.5%    │🟢 +5.1%    │🔴 -1.2%    │
+│12 trades   │3 trades    │8 trades    │45 trades   │
+└────────────┴────────────┴────────────┴────────────┘
+```
+
+## Advanced Strategy Configuration Architecture
+
+### **ML-Ready Schema System**
+
+#### **Modular Schema Structure**
+
+```typescript
+// Master strategy configuration
+interface StrategyConfig {
+	meta: MetaConfig; // Basic info, tags, versioning
+	indicators: IndicatorConfig[]; // Technical indicators + modifiers
+	models: ModelConfig[]; // Traditional + ML models
+	postprocessing: PostProcessingConfig[]; // Error correction, ensembling
+	signals: SignalConfig[]; // Entry/exit logic with expressions
+	risk: RiskConfig; // Position sizing, stop-loss, limits
+}
+```
+
+#### **Schema Files** (Backend-Driven)
+
+```
+local_modules/schemas/
+├── strategy.schema.json      ← Master schema (combines all others)
+├── meta.schema.json          ← Strategy metadata
+├── indicator.schema.json     ← Technical indicators + modifiers
+├── model.schema.json         ← ML-ready model configurations
+├── postprocessing.schema.json ← Error correction layers
+├── signal.schema.json        ← Signal generation logic
+└── risk.schema.json          ← Risk management rules
+```
+
+#### **ML Model Configuration Examples**
+
+```json
+{
+	"models": [
+		{
+			"id": "lstm_price_predictor",
+			"type": "ml",
+			"subtype": "lstm",
+			"framework": "tensorflow",
+			"config": {
+				"sequence_length": 60,
+				"hidden_units": 128,
+				"dropout": 0.2,
+				"epochs": 100,
+				"batch_size": 32
+			},
+			"inputs": ["close", "volume", "rsi_14", "macd_signal"],
+			"outputs": ["price_prediction", "confidence"],
+			"training": {
+				"lookback_days": 365,
+				"validation_split": 0.2,
+				"retrain_frequency": "weekly"
+			}
+		},
+		{
+			"id": "arima_trend",
+			"type": "traditional",
+			"subtype": "arima",
+			"config": {
+				"order": [2, 1, 2],
+				"seasonal_order": [1, 1, 1, 24]
+			}
+		}
+	]
+}
+```
+
+#### **Advanced Signal Logic**
+
+```json
+{
+	"signals": [
+		{
+			"id": "ml_enhanced_entry",
+			"type": "entry",
+			"side": "long",
+			"expression": "(lstm_price_predictor.confidence > 0.8) AND (macd_crossover_bullish) AND (rsi_14 < 70)",
+			"confidence_weight": {
+				"lstm_confidence": 0.6,
+				"technical_confirmation": 0.4
+			}
+		}
+	]
+}
+```
+
+### **Strategy Builder UI for Complex Configurations**
+
+#### **Multi-Step Visual Builder**
+
+```
+Step 1: Meta Information
+├── Name, Description, Tags
+├── Symbol/Timeframe selection
+└── Strategy type (Technical/ML/Hybrid)
+
+Step 2: Data Sources & Indicators
+├── Technical indicators (RSI, MACD, etc.)
+├── Feature engineering modifiers
+└── Custom data feeds
+
+Step 3: Models & Predictions
+├── Traditional models (ARIMA, Linear)
+├── ML models (LSTM, MLP, CNN)
+└── Model training configuration
+
+Step 4: Signal Generation
+├── Entry/exit logic builder
+├── Expression editor with autocomplete
+└── Confidence scoring setup
+
+Step 5: Risk Management
+├── Position sizing rules
+├── Stop-loss/take-profit
+└── Portfolio limits
+
+Step 6: Review & Deploy
+├── Configuration preview
+├── Backtesting options
+└── Production deployment
+```
+
+#### **Visual Expression Builder Component**
+
+```tsx
+// Drag-and-drop logic builder
+<ExpressionBuilder>
+	<Condition>
+		<ModelOutput model="lstm_predictor" output="confidence" />
+		<Operator type="greater_than" />
+		<Value>0.8</Value>
+	</Condition>
+	<LogicalOperator type="AND" />
+	<Condition>
+		<Indicator type="macd" modifier="crossover_bullish" />
+	</Condition>
+</ExpressionBuilder>
+```
+
+#### **ML Model Configuration Panel**
+
+```tsx
+<ModelConfigPanel>
+	<ModelTypeSelector />
+	<HyperparameterTuner />
+	<DataSourceSelector />
+	<TrainingScheduler />
+	<PerformanceMetrics />
+</ModelConfigPanel>
+```
+
+### **Strategy Detail Monitoring View**
+
+```
+┌─ LSTM Price Predictor Strategy ─────────────────────┐
+│ Status: 🟢 Active | P&L: +5.1% | Confidence: 87%   │
+├─────────────────────────────────────────────────────┤
+│ Model Outputs:                                      │
+│ • Price Prediction: $67,250 (↗️ +2.1%)             │
+│ • Confidence Score: 0.87/1.00                      │
+│ • Signal Strength: Strong Buy                       │
+├─────────────────────────────────────────────────────┤
+│ Technical Confirmation:                             │
+│ • MACD: Bullish crossover ✅                        │
+│ • RSI(14): 45.2 (Neutral) ⚪                       │
+│ • Volume: Above average ✅                          |
+```
