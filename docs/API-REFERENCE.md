@@ -13,8 +13,8 @@ All endpoints are prefixed with `/api/v1/strategies/manager`
 | ------ | ------------- | -------------------------- | ------------------ |
 | `POST` | `/:id/start`  | Start a strategy instance  | `id` - Strategy ID |
 | `POST` | `/:id/stop`   | Stop a strategy instance   | `id` - Strategy ID |
-| `PUT`  | `/:id/pause`  | Pause a strategy instance  | `id` - Strategy ID |
-| `PUT`  | `/:id/resume` | Resume a strategy instance | `id` - Strategy ID |
+| `POST` | `/:id/pause`  | Pause a strategy instance  | `id` - Strategy ID |
+| `POST` | `/:id/resume` | Resume a strategy instance | `id` - Strategy ID |
 
 ### Monitoring & Status
 
@@ -41,7 +41,7 @@ curl http://localhost:3001/api/v1/strategies/manager/active
 ### Pause a Strategy
 
 ```bash
-curl -X PUT http://localhost:3001/api/v1/strategies/manager/enhanced_rsi_ema_strategy/pause
+curl -X POST http://localhost:3001/api/v1/strategies/manager/enhanced_rsi_ema_strategy/pause
 ```
 
 ### Get Strategy Metrics

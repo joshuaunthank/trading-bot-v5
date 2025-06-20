@@ -120,9 +120,9 @@ const strategyManagerRoutes = (api: any) => {
 
 	/**
 	 * Pause a strategy instance
-	 * PUT /api/v1/strategies/manager/:id/pause
+	 * POST /api/v1/strategies/manager/:id/pause
 	 */
-	router.put(
+	router.post(
 		"/:id/pause",
 		async (req: express.Request, res: express.Response) => {
 			try {
@@ -156,9 +156,9 @@ const strategyManagerRoutes = (api: any) => {
 
 	/**
 	 * Resume a strategy instance
-	 * PUT /api/v1/strategies/manager/:id/resume
+	 * POST /api/v1/strategies/manager/:id/resume
 	 */
-	router.put(
+	router.post(
 		"/:id/resume",
 		async (req: express.Request, res: express.Response) => {
 			try {
