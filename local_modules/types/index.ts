@@ -3,6 +3,16 @@
  */
 import { Request, Response } from "express";
 
+// Market data types
+export interface OHLCVCandle {
+	timestamp: number;
+	open: number;
+	high: number;
+	low: number;
+	close: number;
+	volume: number;
+}
+
 // Common types shared between frontend and backend
 export interface Indicator {
 	id: string;

@@ -139,12 +139,14 @@ class DataDistributor {
 
 #### API Endpoints:
 
-- [ ] `POST /api/v1/strategies/start` - Start new strategy instance
-- [ ] `DELETE /api/v1/strategies/:id` - Stop strategy instance
-- [ ] `PUT /api/v1/strategies/:id/pause` - Pause strategy
-- [ ] `GET /api/v1/strategies/active` - List active strategies
-- [ ] `GET /api/v1/strategies/:id/metrics` - Get strategy performance
-- [ ] `GET /api/v1/strategies/:id/signals` - Get strategy signals with ML outputs
+- [x] `GET /api/v1/strategies/manager/active` - List active strategies
+- [x] `GET /api/v1/strategies/manager/status` - Get strategy manager status
+- [x] `POST /api/v1/strategies/manager/:id/start` - Start new strategy instance
+- [x] `POST /api/v1/strategies/manager/:id/stop` - Stop strategy instance
+- [x] `PUT /api/v1/strategies/manager/:id/pause` - Pause strategy
+- [x] `PUT /api/v1/strategies/manager/:id/resume` - Resume strategy
+- [x] `GET /api/v1/strategies/manager/:id/metrics` - Get strategy performance
+- [ ] `GET /api/v1/strategies/manager/:id/signals` - Get strategy signals with ML outputs
 
 #### Schema Enhancement:
 

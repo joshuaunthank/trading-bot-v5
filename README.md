@@ -142,6 +142,44 @@ Using the API:
 
 See [Validation Documentation](local_modules/utils/README-validation.md) for more details.
 
+## API Reference
+
+### Multi-Strategy Manager API
+
+The strategy manager provides endpoints for controlling multiple concurrent trading strategies:
+
+```
+GET    /api/v1/strategies/manager/active        - Get all active strategies
+GET    /api/v1/strategies/manager/status        - Get strategy manager status
+POST   /api/v1/strategies/manager/:id/start     - Start strategy instance
+POST   /api/v1/strategies/manager/:id/stop      - Stop strategy instance
+PUT    /api/v1/strategies/manager/:id/pause     - Pause strategy instance
+PUT    /api/v1/strategies/manager/:id/resume    - Resume strategy instance
+GET    /api/v1/strategies/manager/:id/metrics   - Get strategy performance metrics
+```
+
+### Strategy Configuration API
+
+For managing strategy definitions and configurations:
+
+```
+GET    /api/v1/strategies              - List all strategies
+GET    /api/v1/strategies/:id          - Get strategy configuration
+POST   /api/v1/strategies              - Create new strategy
+PUT    /api/v1/strategies/:id          - Update strategy configuration
+DELETE /api/v1/strategies/:id          - Delete strategy
+```
+
+### Legacy Strategy Execution API
+
+```
+POST   /api/v1/strategies/:id/run      - Run strategy (legacy)
+GET    /api/v1/strategies/:id/status   - Get strategy status (legacy)
+POST   /api/v1/strategies/:id/stop     - Stop strategy (legacy)
+```
+
+**Note**: The Multi-Strategy Manager API is the recommended approach for new implementations as it supports concurrent strategy execution and better performance monitoring.
+
 ## ✅ **Recent Major Fixes (June 10, 2025)**
 
 ### WebSocket Infrastructure Overhaul

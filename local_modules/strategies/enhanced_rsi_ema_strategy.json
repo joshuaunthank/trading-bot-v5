@@ -1,0 +1,211 @@
+{
+	"id": "enhanced_rsi_ema_strategy",
+	"name": "Enhanced RSI + EMA Strategy",
+	"description": "Advanced strategy combining RSI oversold/overbought conditions with EMA trend confirmation",
+	"symbol": "BTCUSDT",
+	"timeframe": "1h",
+	"tags": ["rsi", "ema", "trend-following", "mean-reversion"],
+	"enabled": true,
+	"meta": {
+		"description": "Production-ready strategy using multiple indicator confirmation",
+		"tags": ["technical-analysis", "multi-indicator"],
+		"version": "2.0.0",
+		"created_at": "2025-01-21T12:00:00Z",
+		"last_updated": "2025-01-21T12:00:00Z"
+	},
+	"indicators": [
+		{
+			"id": "rsi_14",
+			"type": "rsi",
+			"parameters": {
+				"period": 14
+			}
+		},
+		{
+			"id": "ema_20",
+			"type": "ema",
+			"parameters": {
+				"period": 20,
+				"source": "close"
+			}
+		},
+		{
+			"id": "ema_50",
+			"type": "ema",
+			"parameters": {
+				"period": 50,
+				"source": "close"
+			}
+		},
+		{
+			"id": "macd_default",
+			"type": "macd",
+			"parameters": {
+				"fastPeriod": 12,
+				"slowPeriod": 26,
+				"signalPeriod": 9
+			}
+		},
+		{
+			"id": "bb_20",
+			"type": "bollinger",
+			"parameters": {
+				"period": 20,
+				"stdDev": 2
+			}
+		}
+	],
+	"models": [],
+	"signals": [
+		{
+			"id": "rsi_oversold_long",
+			"name": "RSI Oversold Long Entry",
+			"type": "entry",
+			"side": "long",
+			"confidence": 0.7,
+			"logic": "AND",
+			"conditions": [
+				{
+					"indicator": "rsi_14",
+					"operator": "lt",
+					"value": 30
+				},
+				{
+					"indicator": "ema_20",
+					"operator": "gt",
+					"value": "ema_50"
+				}
+			],
+			"description": "Enter long when RSI is oversold and EMA 20 is above EMA 50 (uptrend)"
+		},
+		{
+			"id": "rsi_overbought_short",
+			"name": "RSI Overbought Short Entry",
+			"type": "entry",
+			"side": "short",
+			"confidence": 0.7,
+			"logic": "AND",
+			"conditions": [
+				{
+					"indicator": "rsi_14",
+					"operator": "gt",
+					"value": 70
+				},
+				{
+					"indicator": "ema_20",
+					"operator": "lt",
+					"value": "ema_50"
+				}
+			],
+			"description": "Enter short when RSI is overbought and EMA 20 is below EMA 50 (downtrend)"
+		},
+		{
+			"id": "ema_golden_cross",
+			"name": "EMA Golden Cross",
+			"type": "entry",
+			"side": "long",
+			"confidence": 0.85,
+			"logic": "AND",
+			"conditions": [
+				{
+					"indicator": "ema_20",
+					"operator": "crossover",
+					"value": "ema_50",
+					"lookback": 2
+				},
+				{
+					"indicator": "rsi_14",
+					"operator": "lt",
+					"value": 80
+				}
+			],
+			"description": "Enter long on EMA golden cross with RSI confirmation"
+		},
+		{
+			"id": "ema_death_cross",
+			"name": "EMA Death Cross",
+			"type": "entry",
+			"side": "short",
+			"confidence": 0.85,
+			"logic": "AND",
+			"conditions": [
+				{
+					"indicator": "ema_20",
+					"operator": "crossunder",
+					"value": "ema_50",
+					"lookback": 2
+				},
+				{
+					"indicator": "rsi_14",
+					"operator": "gt",
+					"value": 20
+				}
+			],
+			"description": "Enter short on EMA death cross with RSI confirmation"
+		},
+		{
+			"id": "macd_bullish_divergence",
+			"name": "MACD Bullish Signal",
+			"type": "entry",
+			"side": "long",
+			"confidence": 0.75,
+			"logic": "AND",
+			"conditions": [
+				{
+					"indicator": "macd_default",
+					"operator": "crossover",
+					"value": 0,
+					"lookback": 2
+				},
+				{
+					"indicator": "rsi_14",
+					"operator": "lt",
+					"value": 60
+				}
+			],
+			"description": "Enter long when MACD crosses above zero with RSI confirmation"
+		},
+		{
+			"id": "combined_strong_bullish",
+			"name": "Strong Bullish Confluence",
+			"type": "entry",
+			"side": "long",
+			"confidence": 0.95,
+			"logic": "AND",
+			"conditions": [
+				{
+					"indicator": "rsi_14",
+					"operator": "gte",
+					"value": 25
+				},
+				{
+					"indicator": "rsi_14",
+					"operator": "lte",
+					"value": 45
+				},
+				{
+					"indicator": "ema_20",
+					"operator": "gt",
+					"value": "ema_50"
+				},
+				{
+					"indicator": "macd_default",
+					"operator": "gt",
+					"value": 0
+				}
+			],
+			"description": "High-confidence long entry with multiple indicator confirmation"
+		}
+	],
+	"risk": {
+		"position_size_type": "fixed_percentage",
+		"risk_per_trade": 0.02,
+		"stop_loss_percent": 0.03,
+		"take_profit_percent": 0.06,
+		"trailing_stop": true,
+		"max_drawdown_percent": 0.1
+	},
+	"version": "2.0.0",
+	"created_at": "2025-01-21T12:00:00Z",
+	"last_updated": "2025-01-21T12:00:00Z"
+}

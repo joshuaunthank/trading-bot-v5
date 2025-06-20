@@ -20,6 +20,7 @@ This is the **documentation index** for the Trading Bot project. All project doc
 
 Major project milestones and achievements:
 
+- `PHASE-2-COMPLETE-REAL-INDICATORS-SIGNALS.md` - **NEW** June 19, 2025 - Real indicators and signal generation
 - `WEBSOCKET-MILESTONE-COMPLETE.md` - June 18, 2025 WebSocket-Only Architecture completion
 - `WEBSOCKET-ONLY-ARCHITECTURE-COMPLETE.md` - Detailed implementation summary
 - `CURRENT-STATUS-SUMMARY.md` - Overall project status summary
@@ -28,6 +29,7 @@ Major project milestones and achievements:
 
 Feature implementations and enhancements:
 
+- `MULTI-STRATEGY-ENGINE-ARCHITECTURE.md` - **NEW** Multi-strategy system architecture and design
 - `STRATEGY-STORE-IMPLEMENTATION.md` - JSON strategy storage system
 - `STRATEGY-STORE-IMPROVEMENTS.md` - Strategy storage enhancements
 - `CHART-PERFORMANCE-OPTIMIZATIONS.md` - Chart rendering optimizations
@@ -40,6 +42,8 @@ Feature implementations and enhancements:
 
 Bug fixes and cleanup efforts:
 
+- `LEGACY-FILE-CLEANUP-JUNE-20.md` - **Latest** - Removed reintroduced legacy files (June 20, 2025)
+- `CODEBASE-CLEANUP-COMPLETE.md` - Major codebase cleanup and organization
 - `WEBSOCKET-FIX-FINAL-REPORT.md` - WebSocket connectivity fixes
 - `WEBSOCKET-FIX-SUMMARY.md` - WebSocket issue resolution
 - `WEBSOCKET-CLEANUP-SUMMARY.md` - WebSocket code cleanup
@@ -49,6 +53,15 @@ Bug fixes and cleanup efforts:
 ## 📖 Key Documents
 
 ### **Latest Milestone** 🎉
+
+📄 [`milestones/PHASE-2-COMPLETE-REAL-INDICATORS-SIGNALS.md`](milestones/PHASE-2-COMPLETE-REAL-INDICATORS-SIGNALS.md)
+
+- **Date**: June 19, 2025
+- **Achievement**: Phase 2 Complete - Real Indicators & Signal Generation
+- **Status**: Production Ready ✅
+- **Signals Generated**: 7 real trading signals tested successfully
+
+### **Previous Major Milestones** 🏆
 
 📄 [`milestones/WEBSOCKET-MILESTONE-COMPLETE.md`](milestones/WEBSOCKET-MILESTONE-COMPLETE.md)
 
@@ -74,6 +87,7 @@ Bug fixes and cleanup efforts:
 
 ## 🚀 Quick Navigation
 
+- **API Reference**: [`API-REFERENCE.md`](API-REFERENCE.md) - Complete API endpoint documentation
 - **For Developers**: Start with `/milestones/` for current project state
 - **For Features**: Check `/features/` for specific implementations
 - **For Issues**: Review `/fixes/` for problem resolution history

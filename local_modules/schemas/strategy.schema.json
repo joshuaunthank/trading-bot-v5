@@ -97,12 +97,41 @@
 				"type": "object",
 				"properties": {
 					"id": { "type": "string" },
+					"name": { "type": "string" },
 					"type": { "type": "string", "enum": ["entry", "exit"] },
 					"side": { "type": "string", "enum": ["long", "short"] },
-					"expression": { "type": "string" },
+					"confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+					"logic": { "type": "string", "enum": ["AND", "OR"] },
+					"conditions": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"indicator": { "type": "string" },
+								"operator": {
+									"type": "string",
+									"enum": [
+										"gt",
+										"lt",
+										"eq",
+										"gte",
+										"lte",
+										"crossover",
+										"crossunder"
+									]
+								},
+								"value": {
+									"oneOf": [{ "type": "number" }, { "type": "string" }]
+								},
+								"lookback": { "type": "number", "minimum": 1 }
+							},
+							"required": ["indicator", "operator", "value"]
+						},
+						"minItems": 1
+					},
 					"description": { "type": "string" }
 				},
-				"required": ["id", "type", "side", "expression"]
+				"required": ["id", "name", "type", "logic", "conditions"]
 			}
 		},
 		"risk": {

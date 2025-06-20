@@ -2,6 +2,7 @@ import { pro as ccxt } from "ccxt";
 import { config } from "./config";
 import { WebSocketServer, WebSocket as WsWebSocket } from "ws";
 import * as http from "http";
+import { strategyManager } from "./StrategyManager";
 
 interface OHLCVCandle {
 	timestamp: number;
@@ -474,6 +475,20 @@ async function startWatchLoop(
 							latestCandle.volume
 						}`
 					);
+
+					// Distribute data to Strategy Manager for strategy processing
+					try {
+						if (updateType === "incremental") {
+							// For incremental updates, send the latest candle to strategy manager
+							strategyManager.onNewCandle(latestCandle);
+						}
+						// For full updates, we don't send to strategy manager as it's just initial load
+					} catch (error) {
+						console.error(
+							"[Main WS] Error distributing data to Strategy Manager:",
+							error
+						);
+					}
 				}
 
 				subscription.clients.forEach((ws) => {

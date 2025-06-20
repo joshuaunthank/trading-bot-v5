@@ -1,5 +1,6 @@
 import * as express from "express";
 import strategyRoutes from "./strategy/routes-strategy";
+import strategyManagerRoutes from "./strategy/routes-strategy-manager";
 import indicatorRoutes from "./strategy/routes-indicators";
 import performanceRoutes from "./strategy/routes-performance";
 import tradingRoutes from "./trading/routes-trading-with-auth";
@@ -26,6 +27,7 @@ const apiRoutes = (app: any) => {
 
 	// Initialize strategy routes (side effect)
 	strategyRoutes(api);
+	strategyManagerRoutes(api);
 	indicatorRoutes(api);
 
 	// Mount performance routes

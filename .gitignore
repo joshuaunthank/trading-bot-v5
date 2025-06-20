@@ -27,3 +27,22 @@ dist-ssr
 # Documentation Guidelines
 # NOTE: All .md files (except README.md) should be created in /docs/ directory
 # This keeps the project root clean and organized
+
+# Prevent legacy/duplicate files from reappearing
+**/websocket-simple.ts
+**/websocket-ccxt-pro.ts
+**/useOhlcvWebSocket_new.tsx
+local_modules/utils/*.md
+
+# Prevent duplicate MD files in root (should be in /docs)
+/CHART-*.md
+/CURRENT-STATUS-*.md
+/DASHBOARD-*.md
+/FRONTEND-*.md
+/STRATEGY-*.md
+/VALIDATION-*.md
+/WEBSOCKET-*.md
+/ZOOM-*.md
+
+# Prevent docs/README.md (use DOCUMENTATION-INDEX.md instead)
+docs/README.md
