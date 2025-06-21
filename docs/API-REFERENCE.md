@@ -18,11 +18,12 @@ All endpoints are prefixed with `/api/v1/strategies/manager`
 
 ### Monitoring & Status
 
-| Method | Endpoint       | Description                 | Returns                          |
-| ------ | -------------- | --------------------------- | -------------------------------- |
-| `GET`  | `/active`      | Get all active strategies   | Array of running strategies      |
-| `GET`  | `/status`      | Get strategy manager status | Manager health & stats           |
-| `GET`  | `/:id/metrics` | Get strategy performance    | Performance metrics for strategy |
+| Method | Endpoint       | Description                    | Returns                          |
+| ------ | -------------- | ------------------------------ | -------------------------------- |
+| `GET`  | `/active`      | Get all active strategies      | Array of running strategies      |
+| `GET`  | `/status`      | Get strategy manager status    | Manager health & stats           |
+| `GET`  | `/:id/status`  | Get individual strategy status | Status of specific strategy      |
+| `GET`  | `/:id/metrics` | Get strategy performance       | Performance metrics for strategy |
 
 ## 📝 Example Usage
 

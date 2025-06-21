@@ -5,6 +5,7 @@ import SummaryView from "../components/SummaryView";
 import ConfigModal from "../components/ConfigModal";
 import ChartSpinner from "../components/ChartSpinner";
 import StrategyRunner from "../components/StrategyRunner";
+import StrategyManager from "../components/StrategyManager";
 import { useStrategyWebSocketEnhanced } from "../hooks/useStrategyWebSocketEnhanced";
 import useOhlcvWebSocket from "../hooks/useOhlcvWebSocket";
 import useStrategyExecution from "../hooks/useStrategyExecution";
@@ -103,7 +104,9 @@ const EnhancedDashboard: React.FC = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-	const [activeTab, setActiveTab] = useState<"chart" | "strategy">("chart"); // Start with chart tab
+	const [activeTab, setActiveTab] = useState<"chart" | "strategy" | "manager">(
+		"chart"
+	); // Start with chart tab
 
 	// Strategy execution system
 	const {
@@ -463,6 +466,16 @@ const EnhancedDashboard: React.FC = () => {
 				</button>
 				<button
 					className={`px-4 py-2 font-medium ${
+						activeTab === "manager"
+							? "text-blue-500 border-b-2 border-blue-500"
+							: "text-gray-400 hover:text-gray-300"
+					}`}
+					onClick={() => setActiveTab("manager")}
+				>
+					Strategy Manager
+				</button>
+				<button
+					className={`px-4 py-2 font-medium ${
 						activeTab === "strategy"
 							? "text-blue-500 border-b-2 border-blue-500"
 							: "text-gray-400 hover:text-gray-300"
@@ -470,7 +483,7 @@ const EnhancedDashboard: React.FC = () => {
 					onClick={() => setActiveTab("strategy")}
 					disabled={!selectedStrategy}
 				>
-					Strategy
+					Strategy Runner
 				</button>
 			</div>
 
@@ -493,6 +506,8 @@ const EnhancedDashboard: React.FC = () => {
 					/>
 				</div>
 			)}
+
+			{activeTab === "manager" && <StrategyManager className="max-w-none" />}
 
 			{activeTab === "strategy" && (
 				<>

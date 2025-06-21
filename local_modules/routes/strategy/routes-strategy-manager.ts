@@ -251,6 +251,49 @@ const strategyManagerRoutes = (api: any) => {
 		}
 	});
 
+	/**
+	 * Get strategy status
+	 * GET /api/v1/strategies/manager/:id/status
+	 */
+	router.get(
+		"/:id/status",
+		async (req: express.Request, res: express.Response) => {
+			try {
+				const { id } = req.params;
+
+				// Check if strategy is currently running in the manager
+				const activeStrategies = strategyManager.getActiveStrategies();
+				const runningStrategy = activeStrategies.find((s) => s.id === id);
+
+				if (runningStrategy) {
+					res.json({
+						success: true,
+						status: runningStrategy.status,
+						startTime: new Date(Date.now() - runningStrategy.uptime * 1000),
+						uptime: runningStrategy.uptime,
+						lastUpdate: runningStrategy.lastUpdate,
+					});
+				} else {
+					// Strategy exists but not running
+					res.json({
+						success: true,
+						status: "idle",
+					});
+				}
+			} catch (error) {
+				console.error(
+					"[Strategy Routes] Error getting strategy status:",
+					error
+				);
+				res.status(500).json({
+					success: false,
+					error: "Failed to get strategy status",
+					details: error instanceof Error ? error.message : "Unknown error",
+				});
+			}
+		}
+	);
+
 	// Mount the router
 	api.use("/strategies/manager", router);
 };

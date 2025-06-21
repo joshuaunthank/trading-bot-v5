@@ -229,7 +229,25 @@ export class StrategyManager extends EventEmitter {
 	getStrategyMetrics(strategyId: string) {
 		const strategy = this.strategies.get(strategyId);
 		if (!strategy) {
-			throw new Error(`Strategy '${strategyId}' not found`);
+			// Return default metrics for strategies that aren't running
+			return {
+				status: "idle",
+				performance: {
+					totalSignals: 0,
+					profitLoss: 0,
+					winRate: 0,
+					totalTrades: 0,
+					winningTrades: 0,
+					losingTrades: 0,
+					averageReturn: 0,
+					maxDrawdown: 0,
+					sharpeRatio: 0,
+					startTime: null,
+					lastUpdate: new Date(),
+				},
+				signals: [],
+				indicators: {},
+			};
 		}
 
 		return {
