@@ -73,10 +73,6 @@ const alignIndicatorData = (
 	timestamps: number[],
 	startIndex: number = 0
 ): IndicatorValue[] => {
-	console.log(
-		`[alignIndicatorData] Aligning ${values.length} values with ${timestamps.length} timestamps, startIndex=${startIndex}`
-	);
-
 	const result: IndicatorValue[] = [];
 
 	// Fill initial NaN values before startIndex
@@ -103,14 +99,6 @@ const alignIndicatorData = (
 		});
 	}
 
-	console.log(
-		`[alignIndicatorData] Result: ${
-			result.length
-		} data points, last timestamp: ${new Date(
-			result[result.length - 1].x
-		).toISOString()}, last value: ${result[result.length - 1].y}`
-	);
-
 	return result;
 };
 
@@ -131,7 +119,7 @@ const calculateIndicatorWithLibrary = (
 	const lows = ohlcvData.map((d) => d.low);
 	const volumes = ohlcvData.map((d) => d.volume);
 
-	// Debug: Check for invalid data
+	// Debug: Check for invalid data (keep for production safety)
 	const invalidCloses = closes.filter((c) => !Number.isFinite(c));
 	if (invalidCloses.length > 0) {
 		console.error(
@@ -143,11 +131,7 @@ const calculateIndicatorWithLibrary = (
 	try {
 		switch (type) {
 			case "EMA": {
-				console.log(
-					`Calculating EMA with period ${period}, ${closes.length} closes`
-				);
 				const values = EMA.calculate({ period, values: closes });
-				console.log(`EMA returned ${values.length} values`);
 				const startIndex = period - 1; // EMA typically starts after (period-1) values
 
 				results.push({
@@ -680,25 +664,6 @@ export const useLocalIndicators = (
 			(a, b) => a.timestamp - b.timestamp
 		);
 
-		// DEBUG: Log the input data
-		console.log(
-			`[useLocalIndicators] Processing ${sortedOhlcvData.length} candles, ${indicatorConfigs.length} configs`
-		);
-		if (sortedOhlcvData.length > 0) {
-			const firstCandle = sortedOhlcvData[0];
-			const lastCandle = sortedOhlcvData[sortedOhlcvData.length - 1];
-			console.log(
-				`[useLocalIndicators] First candle (oldest): ${new Date(
-					firstCandle.timestamp
-				).toISOString()}`
-			);
-			console.log(
-				`[useLocalIndicators] Last candle (newest): ${new Date(
-					lastCandle.timestamp
-				).toISOString()}`
-			);
-		}
-
 		const results: CalculatedIndicator[] = [];
 
 		// Track instances of each indicator type for unique axis assignment
@@ -727,22 +692,6 @@ export const useLocalIndicators = (
 			});
 
 			results.push(...indicatorResults);
-		});
-
-		// DEBUG: Log the final results
-		console.log(
-			`[useLocalIndicators] Generated ${results.length} indicator series`
-		);
-		results.forEach((result) => {
-			const nonNullData = result.data.filter((d) => d.y !== null);
-			const lastDataPoint = result.data[result.data.length - 1];
-			console.log(
-				`[useLocalIndicators] ${result.name}: ${
-					nonNullData.length
-				} non-null values, last timestamp: ${new Date(
-					lastDataPoint.x
-				).toISOString()}, last value: ${lastDataPoint.y}`
-			);
 		});
 
 		return results;
