@@ -3,6 +3,10 @@ import { Chart, registerables } from "chart.js";
 import zoomPlugin from "chartjs-plugin-zoom";
 import "chartjs-adapter-date-fns";
 import ChartSpinner from "./ChartSpinner";
+import {
+	CalculatedIndicator,
+	getScaleConfig,
+} from "../hooks/useLocalIndicators";
 
 // Register Chart.js components
 Chart.register(...registerables, zoomPlugin);
@@ -21,11 +25,7 @@ interface ChartViewProps {
 	symbol: string;
 	timeframe: string;
 	loading?: boolean;
-	indicators?: {
-		name: string;
-		data: number[];
-		color: string;
-	}[];
+	indicators?: CalculatedIndicator[];
 	onTimeframeChange?: (timeframe: string) => void;
 }
 
@@ -258,6 +258,68 @@ const ChartView: React.FC<ChartViewProps> = ({
 		}
 	};
 
+	// Helper function to create dynamic scales based on active indicators
+	const createDynamicScales = (indicators: CalculatedIndicator[]) => {
+		const scales: any = {
+			x: {
+				type: "time",
+				time: {
+					displayFormats: {
+						minute: "HH:mm",
+						hour: "HH:mm",
+						day: "MMM dd",
+					},
+				},
+				grid: {
+					color: "rgba(255, 255, 255, 0.1)",
+				},
+				ticks: {
+					color: "rgb(255, 255, 255)",
+				},
+			},
+			// Price axis (right side) - always present
+			y: {
+				type: "linear",
+				position: "right",
+				grid: {
+					color: "rgba(255, 255, 255, 0.1)",
+				},
+				ticks: {
+					color: "rgb(255, 255, 255)",
+				},
+				title: {
+					display: true,
+					text: "Price",
+					color: "rgb(255, 255, 255)",
+				},
+			},
+		};
+
+		// Collect unique y-axis IDs from indicators
+		const axisIds = new Set<string>();
+		indicators.forEach((indicator) => {
+			if (indicator.yAxisID && indicator.yAxisID !== "y") {
+				axisIds.add(indicator.yAxisID);
+			}
+		});
+
+		// Create scales for each unique axis
+		axisIds.forEach((axisId) => {
+			// Determine indicator type from axisId to get appropriate scale config
+			let indicatorType: string = "default";
+			if (axisId.includes("rsi")) indicatorType = "RSI";
+			else if (axisId.includes("macd")) indicatorType = "MACD";
+
+			// Get instance index if present (e.g., y_rsi_1 -> index 1)
+			const match = axisId.match(/_(\d+)$/);
+			const instanceIndex = match ? parseInt(match[1]) : 0;
+
+			scales[axisId] = getScaleConfig(indicatorType as any, instanceIndex);
+		});
+
+		return scales;
+	};
+
 	// Helper function to create initial chart (with performance optimizations)
 	const createChart = (validData: OHLCVData[]) => {
 		if (!chartRef.current) return;
@@ -270,15 +332,21 @@ const ChartView: React.FC<ChartViewProps> = ({
 		}
 
 		console.log(
-			`[Chart Performance] Creating chart with ${validData.length} candles`
+			`[Chart Performance] Creating chart with ${
+				validData.length
+			} candles and ${indicators?.length || 0} indicators`
 		);
+
+		// Create dynamic scales based on active indicators
+		const dynamicScales = createDynamicScales(indicators || []);
 
 		try {
 			chartInstance.current = new Chart(ctx, {
 				type: "line",
-				plugins: [livePriceMarkerPlugin], // Register our custom plugin
+				plugins: [livePriceMarkerPlugin],
 				data: {
 					datasets: [
+						// Price dataset
 						{
 							label: `${symbol} (Close)`,
 							data: validData.map((candle) => ({
@@ -291,21 +359,22 @@ const ChartView: React.FC<ChartViewProps> = ({
 							pointRadius: 0,
 							pointHoverRadius: 4,
 							tension: 0.1,
+							yAxisID: "y",
 						},
-						// Add indicator datasets
-						...indicators.map((indicator) => ({
+						// Indicator datasets
+						...(indicators?.map((indicator) => ({
 							label: indicator.name,
-							data: indicator.data.map((value, index) => ({
-								x: validData[index]?.timestamp || 0,
-								y: value,
-							})),
+							data: indicator.data,
 							borderColor: indicator.color,
-							borderWidth: 1,
+							backgroundColor: indicator.color + "20", // Add transparency
+							borderWidth: 2,
 							pointRadius: 0,
 							pointHoverRadius: 3,
 							tension: 0.1,
 							fill: false,
-						})),
+							borderDash: indicator.type === "BB" ? undefined : [5, 5], // Solid lines for BB, dashed for others
+							yAxisID: indicator.yAxisID,
+						})) || []),
 					],
 				},
 				options: {
@@ -318,34 +387,7 @@ const ChartView: React.FC<ChartViewProps> = ({
 						mode: "index",
 						intersect: false,
 					},
-					scales: {
-						x: {
-							type: "time",
-							time: {
-								displayFormats: {
-									minute: "HH:mm",
-									hour: "HH:mm",
-									day: "MMM dd",
-								},
-							},
-							grid: {
-								color: "rgba(255, 255, 255, 0.1)",
-							},
-							ticks: {
-								color: "rgb(255, 255, 255)",
-							},
-						},
-						y: {
-							type: "linear",
-							position: "right", // Move Y-axis to right side
-							grid: {
-								color: "rgba(255, 255, 255, 0.1)",
-							},
-							ticks: {
-								color: "rgb(255, 255, 255)",
-							},
-						},
-					},
+					scales: dynamicScales,
 					plugins: {
 						legend: {
 							display: true,
@@ -525,13 +567,15 @@ const ChartView: React.FC<ChartViewProps> = ({
 
 			// Update indicators if they exist
 			indicators.forEach((indicator, index) => {
+				const datasetIndex = index + 1; // Skip price dataset at index 0
 				if (
-					chart.data.datasets[index + 1] &&
+					chart.data.datasets[datasetIndex] &&
 					indicator.data[dataToProcess.length - 1] !== undefined
 				) {
-					chart.data.datasets[index + 1].data.push({
+					const latestIndicatorValue = indicator.data[dataToProcess.length - 1];
+					chart.data.datasets[datasetIndex].data.push({
 						x: latestCandle.timestamp,
-						y: indicator.data[dataToProcess.length - 1],
+						y: latestIndicatorValue.y,
 					} as any);
 				}
 			});
@@ -566,11 +610,12 @@ const ChartView: React.FC<ChartViewProps> = ({
 
 			// Update indicators efficiently
 			indicators.forEach((indicator, index) => {
-				if (chart.data.datasets[index + 1]) {
-					chart.data.datasets[index + 1].data = indicator.data.map(
-						(value, i) => ({
-							x: dataToProcess[i]?.timestamp || 0,
-							y: value,
+				const datasetIndex = index + 1; // Skip price dataset at index 0
+				if (chart.data.datasets[datasetIndex]) {
+					chart.data.datasets[datasetIndex].data = indicator.data.map(
+						(indicatorPoint) => ({
+							x: indicatorPoint.x,
+							y: indicatorPoint.y,
 						})
 					) as any;
 				}
@@ -623,22 +668,40 @@ const ChartView: React.FC<ChartViewProps> = ({
 		const currentSymbol =
 			chartInstance.current?.data.datasets[0]?.label?.split(" ")[0];
 		const currentTimeframe = chartInstance.current?.canvas?.dataset?.timeframe;
+
+		// Also check if indicators have changed (count or configuration)
+		const currentIndicatorCount = chartInstance.current?.data.datasets.length
+			? chartInstance.current.data.datasets.length - 1
+			: 0; // Subtract 1 for price dataset
+		const newIndicatorCount = indicators?.length || 0;
+		const indicatorsChanged = currentIndicatorCount !== newIndicatorCount;
+
 		const needsNewChart =
 			!chartInstance.current ||
 			symbol !== currentSymbol ||
-			timeframe !== currentTimeframe;
+			timeframe !== currentTimeframe ||
+			indicatorsChanged;
 
 		if (needsNewChart) {
 			// Save zoom state before recreating chart for timeframe changes
 			const wasTimeframeChange =
 				chartInstance.current &&
 				timeframe !== currentTimeframe &&
-				symbol === currentSymbol;
+				symbol === currentSymbol &&
+				!indicatorsChanged;
 
-			if (wasTimeframeChange) {
-				saveZoomState(); // Preserve zoom when only timeframe changes
+			const wasIndicatorChange =
+				chartInstance.current &&
+				symbol === currentSymbol &&
+				timeframe === currentTimeframe &&
+				indicatorsChanged;
+
+			if (wasTimeframeChange || wasIndicatorChange) {
+				saveZoomState(); // Preserve zoom when only timeframe or indicators change
 				console.log(
-					"[Chart Performance] Saving zoom state for timeframe change"
+					`[Chart Performance] Saving zoom state for ${
+						wasTimeframeChange ? "timeframe" : "indicator"
+					} change`
 				);
 			} else {
 				zoomState.current = null; // Clear zoom state for symbol changes
@@ -652,15 +715,17 @@ const ChartView: React.FC<ChartViewProps> = ({
 				chartInstance.current.canvas.dataset.timeframe = timeframe;
 			}
 
-			// Restore zoom state if it was a timeframe change
-			if (wasTimeframeChange) {
+			// Restore zoom state if it was a timeframe or indicator change
+			if (wasTimeframeChange || wasIndicatorChange) {
 				console.log(
-					"[Chart Performance] Restoring zoom state after timeframe change"
+					`[Chart Performance] Restoring zoom state after ${
+						wasTimeframeChange ? "timeframe" : "indicator"
+					} change`
 				);
 				restoreZoomState();
 			}
 		} else {
-			// Chart exists for same symbol/timeframe - efficient update
+			// Chart exists for same symbol/timeframe/indicators - efficient update
 			console.log("[Chart Performance] Updating existing chart with new data");
 
 			// Save current zoom state before any updates

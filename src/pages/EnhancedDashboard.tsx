@@ -6,9 +6,15 @@ import ConfigModal from "../components/ConfigModal";
 import ChartSpinner from "../components/ChartSpinner";
 import StrategyRunner from "../components/StrategyRunner";
 import StrategyManager from "../components/StrategyManager";
+import IndicatorControls from "../components/IndicatorControls";
 import { useStrategyWebSocketEnhanced } from "../hooks/useStrategyWebSocketEnhanced";
 import useOhlcvWebSocket from "../hooks/useOhlcvWebSocket";
 import useStrategyExecution from "../hooks/useStrategyExecution";
+import {
+	useLocalIndicators,
+	IndicatorConfig,
+} from "../hooks/useLocalIndicators";
+import { useStrategyIndicators } from "../hooks/useStrategyIndicators";
 
 interface OHLCVData {
 	timestamp: number;
@@ -108,6 +114,11 @@ const EnhancedDashboard: React.FC = () => {
 		"chart"
 	); // Start with chart tab
 
+	// Indicator system state
+	const [indicatorConfigs, setIndicatorConfigs] = useState<IndicatorConfig[]>(
+		[]
+	);
+
 	// Strategy execution system
 	const {
 		strategies,
@@ -149,18 +160,29 @@ const EnhancedDashboard: React.FC = () => {
 		reconnect: reconnectOhlcvWs,
 	} = useOhlcvWebSocket(symbol, timeframe);
 
+	// Convert WebSocket data to the format our components expect
+	const [indicators, setIndicators] = useState<DashboardStrategyIndicator[]>(
+		[]
+	);
+	const [signals, setSignals] = useState<DashboardStrategySignal[]>([]);
+
+	// Calculate indicators from OHLCV data
+	const calculatedIndicators = useLocalIndicators(ohlcvData, indicatorConfigs);
+
+	// Combine with strategy indicators from WebSocket
+	const strategyIndicators = useStrategyIndicators(indicators, ohlcvData, true);
+
+	// All indicators for the chart
+	const allChartIndicators = useMemo(() => {
+		return [...calculatedIndicators, ...strategyIndicators];
+	}, [calculatedIndicators, strategyIndicators]);
+
 	// Log connection status changes only
 	useEffect(() => {
 		console.log(
 			`[EnhancedDashboard] OHLCV connection status: ${ohlcvConnectionStatus}`
 		);
 	}, [ohlcvConnectionStatus]);
-
-	// Convert WebSocket data to the format our components expect
-	const [indicators, setIndicators] = useState<DashboardStrategyIndicator[]>(
-		[]
-	);
-	const [signals, setSignals] = useState<DashboardStrategySignal[]>([]);
 
 	// Update OHLCV data from WebSocket - single source of truth
 	useEffect(() => {
@@ -377,29 +399,13 @@ const EnhancedDashboard: React.FC = () => {
 		setIsConfigModalOpen(false);
 	}, []);
 
-	// Prepare indicator overlays for chart with memoization
-	const chartIndicators = useMemo(() => {
-		return indicators.map((indicator, index) => {
-			// Generate a color based on index
-			const colors = [
-				"rgba(255, 99, 132, 1)",
-				"rgba(54, 162, 235, 1)",
-				"rgba(255, 206, 86, 1)",
-				"rgba(75, 192, 192, 1)",
-				"rgba(153, 102, 255, 1)",
-				"rgba(255, 159, 64, 1)",
-			];
-			const color = colors[index % colors.length];
-
-			return {
-				name: indicator.id,
-				data: Array.isArray(indicator.values)
-					? indicator.values
-					: Array(ohlcvData.length).fill(indicator.current_value),
-				color,
-			};
-		});
-	}, [indicators, ohlcvData.length]);
+	// Handler for updating indicator configurations
+	const handleUpdateIndicators = useCallback(
+		(newConfigs: IndicatorConfig[]) => {
+			setIndicatorConfigs(newConfigs);
+		},
+		[]
+	);
 
 	// Summary data
 	const summaryData = calculateSummaryData();
@@ -489,22 +495,32 @@ const EnhancedDashboard: React.FC = () => {
 
 			{/* Tab content */}
 			{activeTab === "chart" && (
-				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					<ChartView
-						data={ohlcvData}
-						symbol={symbol}
-						timeframe={timeframe}
-						loading={loading}
-						indicators={chartIndicators}
-					/>
+				<>
+					{/* Indicator Controls */}
+					<div className="mb-4">
+						<IndicatorControls
+							indicators={indicatorConfigs}
+							onUpdateIndicators={handleUpdateIndicators}
+						/>
+					</div>
 
-					<TableView
-						data={ohlcvData.slice(0, 10)}
-						loading={loading}
-						symbol={symbol}
-						timeframe={timeframe}
-					/>
-				</div>
+					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+						<ChartView
+							data={ohlcvData}
+							symbol={symbol}
+							timeframe={timeframe}
+							loading={loading}
+							indicators={allChartIndicators}
+						/>
+
+						<TableView
+							data={ohlcvData.slice(0, 10)}
+							loading={loading}
+							symbol={symbol}
+							timeframe={timeframe}
+						/>
+					</div>
+				</>
 			)}
 
 			{activeTab === "manager" && <StrategyManager className="max-w-none" />}
