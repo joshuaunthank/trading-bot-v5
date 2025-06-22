@@ -170,3 +170,42 @@ The frontend codebase is now **production-ready** with:
 ---
 
 **Cleanup completed successfully - Ready for production deployment** 🎉
+
+## 🔧 **Technical Findings - Indicator Alignment Issue** ✅ **FIXED**
+
+### Root Cause Identified and Resolved
+
+**Problem**: Technical indicators (EMA, SMA, RSI, MACD, Bollinger Bands) were ending before the latest live candle on the chart.
+
+**Root Cause**: The filtering logic `filter((point) => !isNaN(point.y))` was removing NaN values from indicator arrays, which broke the timestamp alignment between indicators and OHLCV data. When indicators have warm-up periods (e.g., EMA needs 20 periods), the first N values are NaN, but filtering them out caused the remaining values to be misaligned with their corresponding timestamps.
+
+**Solution Applied**:
+
+- **MAJOR UPGRADE**: Replaced all custom indicator calculations with the professional `technicalindicators` library
+- Implemented proper alignment function that preserves array length using `null` values for missing data
+- Added support for many more indicators: EMA, SMA, RSI, MACD, Bollinger Bands, Stochastic, ADX, CCI, Williams %R, ATR, OBV
+- Each indicator config now has a unique `id` for proper instance management
+- Enhanced Y-axis assignment with logical grouping (oscillators, momentum, trend, volume)
+
+**Result**: All technical indicators now properly extend to the latest live candle, maintaining perfect timestamp alignment with the OHLCV data.
+
+### Code Changes Made
+
+**File**: `src/hooks/useLocalIndicators.ts`
+
+- **Before**: Custom indicator calculations with NaN filtering issues
+- **After**: Professional `technicalindicators` library with proper alignment function
+- **New Features**:
+  - Support for 11 different indicator types
+  - Advanced parameter support (fastPeriod, slowPeriod, signalPeriod, etc.)
+  - Unique ID-based configuration system
+  - Intelligent Y-axis grouping
+
+**Benefits of Library Approach**:
+
+- ✅ **Reliability**: Battle-tested, professional calculations
+- ✅ **Accuracy**: No more custom math bugs or edge cases
+- ✅ **Scalability**: Easy to add new indicators
+- ✅ **Maintainability**: No need to maintain complex calculation logic
+- ✅ **Completeness**: Comprehensive set of technical indicators
+- ✅ **Perfect Alignment**: All indicators end at the live candle

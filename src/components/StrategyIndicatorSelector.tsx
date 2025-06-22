@@ -103,6 +103,9 @@ const convertStrategyIndicators = (
 		}
 
 		indicatorConfigs.push({
+			id: `${mappedType}_${period}_${Date.now()}_${Math.random()
+				.toString(36)
+				.substr(2, 9)}`,
 			type: mappedType,
 			period,
 			enabled: true,

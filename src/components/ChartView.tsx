@@ -345,7 +345,7 @@ const ChartView: React.FC<ChartViewProps> = ({
 						// Indicator datasets
 						...(indicators?.map((indicator) => ({
 							label: indicator.name,
-							data: indicator.data,
+							data: indicator.data as any, // Type assertion to handle IndicatorValue compatibility
 							borderColor: indicator.color,
 							backgroundColor: indicator.color + "20", // Add transparency
 							borderWidth: 2,
@@ -357,7 +357,7 @@ const ChartView: React.FC<ChartViewProps> = ({
 							yAxisID: indicator.yAxisID,
 						})) || []),
 					],
-				},
+				} as any, // Type assertion to handle Chart.js data format compatibility
 				options: {
 					responsive: true,
 					maintainAspectRatio: false,

@@ -28,6 +28,7 @@ const IndicatorControls: React.FC<IndicatorControlsProps> = ({
 		const defaultPeriod =
 			availableIndicators.find((ind) => ind.type === type)?.defaultPeriod || 20;
 		const newIndicator: IndicatorConfig = {
+			id: `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
 			type,
 			period: defaultPeriod,
 			enabled: true,
