@@ -68,17 +68,12 @@ export function useOhlcvWebSocket(
 		try {
 			// Handle connection confirmation messages
 			if (data.type === "connection" && data.status === "connected") {
-				console.log("[OHLCV WS] Connection confirmed:", data.message);
 				isStableConnection.current = true;
 				return;
 			}
-
 			// Handle OHLCV data messages
 			if (data.type === "ohlcv") {
 				if (data.updateType === "full" && Array.isArray(data.data)) {
-					console.log(
-						`[OHLCV WS] Loaded ${data.data.length} candles for ${data.symbol}/${data.timeframe}`
-					);
 					setFullDataset(data.data);
 					isStableConnection.current = true;
 				} else if (data.updateType === "incremental" && data.data) {
@@ -92,7 +87,7 @@ export function useOhlcvWebSocket(
 	}, []);
 
 	const handleStatusChange = useCallback((status: string) => {
-		console.log(`[OHLCV WS] Status changed to: ${status}`);
+		// Track connection status for reconnection logic
 		if (status === "disconnected" || status === "closed") {
 			isStableConnection.current = false;
 		}

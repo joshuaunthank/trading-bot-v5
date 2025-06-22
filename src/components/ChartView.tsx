@@ -194,8 +194,6 @@ const ChartView: React.FC<ChartViewProps> = ({
 
 	const restoreZoomState = () => {
 		if (chartInstance.current && zoomState.current) {
-			console.log("Attempting to restore zoom state:", zoomState.current);
-
 			// Use multiple attempts with different delays to ensure chart is ready
 			const attemptRestore = (attempt = 0) => {
 				if (attempt > 5) {
@@ -218,9 +216,6 @@ const ChartView: React.FC<ChartViewProps> = ({
 								xScale.options.min = zoomState.current.x.min;
 								xScale.options.max = zoomState.current.x.max;
 								chart.update("none");
-								console.log(
-									"Successfully restored zoom state via direct scale manipulation"
-								);
 								setIsZoomed(true);
 								return;
 							}
@@ -234,21 +229,13 @@ const ChartView: React.FC<ChartViewProps> = ({
 								},
 								"none"
 							);
-							console.log("Restored zoom state using zoomScale()");
 							setIsZoomed(true);
 						} catch (error) {
-							console.warn(
-								`Zoom restore attempt ${attempt + 1} failed:`,
-								error
-							);
 							// Try again with longer delay
 							attemptRestore(attempt + 1);
 						}
 					} else {
 						// Chart not ready, try again
-						console.log(
-							`Chart not ready for zoom restore, attempt ${attempt + 1}`
-						);
 						attemptRestore(attempt + 1);
 					}
 				}, 10 + attempt * 20); // Shorter initial delay, increasing for each attempt
@@ -330,12 +317,6 @@ const ChartView: React.FC<ChartViewProps> = ({
 		if (chartInstance.current) {
 			chartInstance.current.destroy();
 		}
-
-		console.log(
-			`[Chart Performance] Creating chart with ${
-				validData.length
-			} candles and ${indicators?.length || 0} indicators`
-		);
 
 		// Create dynamic scales based on active indicators
 		const dynamicScales = createDynamicScales(indicators || []);
@@ -532,9 +513,6 @@ const ChartView: React.FC<ChartViewProps> = ({
 		if (validData.length > maxDataPoints) {
 			// Keep only the most recent data points
 			dataToProcess = validData.slice(-maxDataPoints);
-			console.log(
-				`[Chart Performance] Trimmed data from ${validData.length} to ${maxDataPoints} candles`
-			);
 		}
 
 		// Check if this is just a price update for the same candle (WebSocket live update)
@@ -598,10 +576,6 @@ const ChartView: React.FC<ChartViewProps> = ({
 			previousPrice.current = lastKnownPrice.current;
 
 			// Data structure changed - efficient bulk update
-			console.log(
-				"[Chart Performance] Data structure changed, replacing chart data efficiently"
-			);
-
 			// Update all data at once for efficiency
 			chart.data.datasets[0].data = dataToProcess.map((candle) => ({
 				x: candle.timestamp,
@@ -705,9 +679,6 @@ const ChartView: React.FC<ChartViewProps> = ({
 				);
 			} else {
 				zoomState.current = null; // Clear zoom state for symbol changes
-				console.log(
-					"[Chart Performance] Clearing zoom state for symbol change"
-				);
 			}
 
 			createChart(optimizedData);
@@ -717,17 +688,10 @@ const ChartView: React.FC<ChartViewProps> = ({
 
 			// Restore zoom state if it was a timeframe or indicator change
 			if (wasTimeframeChange || wasIndicatorChange) {
-				console.log(
-					`[Chart Performance] Restoring zoom state after ${
-						wasTimeframeChange ? "timeframe" : "indicator"
-					} change`
-				);
 				restoreZoomState();
 			}
 		} else {
 			// Chart exists for same symbol/timeframe/indicators - efficient update
-			console.log("[Chart Performance] Updating existing chart with new data");
-
 			// Save current zoom state before any updates
 			if (chartInstance.current && (isZoomed || zoomState.current)) {
 				saveZoomState();

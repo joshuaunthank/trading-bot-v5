@@ -85,15 +85,10 @@ export function useRobustWebSocket(
 	// Skip REST fallback if disabled
 	const fetchDataViaRest = useCallback(async () => {
 		if (!enableFallback) {
-			console.log(`[Robust WS] REST fallback disabled`);
 			return;
 		}
 
 		try {
-			console.log(
-				`[Robust WS] Fetching data via REST fallback for ${symbol} ${timeframe}`
-			);
-
 			const response = await fetch(
 				`/api/v1/ohlcv?symbol=${encodeURIComponent(
 					symbol

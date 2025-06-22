@@ -134,13 +134,18 @@ const EnhancedDashboard: React.FC = () => {
 	const symbol = selectedStrategy?.symbol || "BTC/USDT";
 	const timeframe = selectedStrategy?.timeframe || "1h";
 
-	// Log initialization when symbol/timeframe changes (derived from strategy)
+	// Symbol/timeframe initialization - derived from strategy with fallbacks
 	useEffect(() => {
-		console.log(
-			`[EnhancedDashboard] Symbol/Timeframe updated: ${symbol}, ${timeframe} (from ${
-				selectedStrategy ? "strategy: " + selectedStrategy.name : "default"
-			})`
-		);
+		// Track symbol/timeframe changes for debugging in development
+		if (process.env.NODE_ENV === "development") {
+			console.log(
+				`[EnhancedDashboard] Symbol/Timeframe: ${symbol}, ${timeframe} (${
+					selectedStrategy
+						? "from strategy: " + selectedStrategy.name
+						: "default"
+				})`
+			);
+		}
 	}, [symbol, timeframe, selectedStrategy]);
 
 	// Strategy data from WebSocket with enhanced connection
@@ -177,23 +182,25 @@ const EnhancedDashboard: React.FC = () => {
 		return [...calculatedIndicators, ...strategyIndicators];
 	}, [calculatedIndicators, strategyIndicators]);
 
-	// Log connection status changes only
+	// Track connection status for error handling
 	useEffect(() => {
-		console.log(
-			`[EnhancedDashboard] OHLCV connection status: ${ohlcvConnectionStatus}`
-		);
+		// Log connection issues for debugging
+		if (
+			ohlcvConnectionStatus !== "connected" &&
+			ohlcvConnectionStatus !== "open"
+		) {
+			console.log(
+				`[EnhancedDashboard] OHLCV connection: ${ohlcvConnectionStatus}`
+			);
+		}
 	}, [ohlcvConnectionStatus]);
 
-	// Update OHLCV data from WebSocket - single source of truth
+	// Handle WebSocket full dataset updates
 	useEffect(() => {
-		// Handle WebSocket full dataset updates
 		if (fullDataset && fullDataset.length > 0) {
-			console.log(
-				`[EnhancedDashboard] WebSocket fullDataset received: ${fullDataset.length} candles`
-			);
 			setOhlcvData(fullDataset);
-			setLoading(false); // Data loaded successfully
-			setError(null); // Clear any previous errors
+			setLoading(false);
+			setError(null);
 		}
 	}, [fullDataset]);
 
@@ -216,21 +223,16 @@ const EnhancedDashboard: React.FC = () => {
 		}
 	}, [ohlcvConnectionStatus, fullDataset?.length]);
 
-	// Handle incremental updates separately to ensure live updates always work
+	// Handle incremental updates for live data
 	useEffect(() => {
 		if (latestCandle) {
-			console.log(
-				"[EnhancedDashboard] Processing incremental update:",
-				latestCandle
-			);
 			setOhlcvData((prevData) => {
-				// Check if this candle already exists in our data
 				const existingIndex = prevData.findIndex(
 					(candle) => candle.timestamp === latestCandle.timestamp
 				);
 
 				if (existingIndex >= 0) {
-					// Update existing candle (live candle updating) - optimized for Chart.js
+					// Update existing candle (live updates)
 					const existingCandle = prevData[existingIndex];
 					if (
 						existingCandle.close !== latestCandle.close ||
@@ -242,14 +244,11 @@ const EnhancedDashboard: React.FC = () => {
 						newData[existingIndex] = { ...latestCandle };
 						return newData;
 					}
-					// No change, return same reference to prevent re-render
-					return prevData;
+					return prevData; // No change
 				} else {
-					// Add new candle in chronological order
+					// Add new candle chronologically
 					const newData = [...prevData, { ...latestCandle }];
-					// Sort chronologically (oldest first, newest last) for Chart.js compatibility
 					newData.sort((a, b) => a.timestamp - b.timestamp);
-					// Keep only the most recent candles (limit to prevent memory issues)
 					return newData.slice(-1000); // Keep last 1000 candles
 				}
 			});
@@ -394,8 +393,7 @@ const EnhancedDashboard: React.FC = () => {
 
 	// Handle strategy config save
 	const handleSaveConfig = useCallback((config: any) => {
-		// Save config to API
-		console.log("Saving config:", config);
+		// TODO: Implement config save to API
 		setIsConfigModalOpen(false);
 	}, []);
 
