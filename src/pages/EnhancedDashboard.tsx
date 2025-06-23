@@ -7,7 +7,8 @@ import ConfigModal from "../components/ConfigModal";
 import ChartSpinner from "../components/ChartSpinner";
 import StrategyRunner from "../components/StrategyRunner";
 import StrategyManager from "../components/StrategyManager";
-import IndicatorControls from "../components/IndicatorControls";
+import StrategySelect from "../components/StrategySelect";
+import { useStrategies } from "../hooks/useStrategies";
 import { useStrategyWebSocketEnhanced } from "../hooks/useStrategyWebSocketEnhanced";
 import useOhlcvWebSocket from "../hooks/useOhlcvWebSocket";
 import useStrategyExecution from "../hooks/useStrategyExecution";
@@ -119,6 +120,15 @@ const EnhancedDashboard: React.FC = () => {
 	const [indicatorConfigs, setIndicatorConfigs] = useState<IndicatorConfig[]>(
 		[]
 	);
+
+	// Strategy selection for indicator management
+	const [selectedIndicatorStrategyId, setSelectedIndicatorStrategyId] =
+		useState<string | null>(null);
+	const {
+		strategies: availableStrategies,
+		loading: strategiesLoading,
+		error: strategiesError,
+	} = useStrategies();
 
 	// Strategy execution system
 	const {
@@ -406,6 +416,14 @@ const EnhancedDashboard: React.FC = () => {
 		[]
 	);
 
+	// Handler for strategy-based indicator changes
+	const handleStrategyIndicatorsChange = useCallback(
+		(indicators: IndicatorConfig[]) => {
+			setIndicatorConfigs(indicators);
+		},
+		[]
+	);
+
 	// Summary data
 	const summaryData = calculateSummaryData();
 
@@ -495,11 +513,15 @@ const EnhancedDashboard: React.FC = () => {
 			{/* Tab content */}
 			{activeTab === "chart" && (
 				<>
-					{/* Indicator Controls */}
+					{/* Strategy Indicator Controls */}
 					<div className="mb-4">
-						<IndicatorControls
-							indicators={indicatorConfigs}
-							onUpdateIndicators={handleUpdateIndicators}
+						<StrategySelect
+							strategies={availableStrategies}
+							selectedStrategyId={selectedIndicatorStrategyId}
+							onStrategySelect={setSelectedIndicatorStrategyId}
+							onIndicatorsChange={handleStrategyIndicatorsChange}
+							loading={strategiesLoading}
+							error={strategiesError}
 						/>
 					</div>
 

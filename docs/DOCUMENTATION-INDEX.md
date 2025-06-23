@@ -20,7 +20,8 @@ This is the **documentation index** for the Trading Bot project. All project doc
 
 Major project milestones and achievements:
 
-- `PHASE-2-COMPLETE-REAL-INDICATORS-SIGNALS.md` - **NEW** June 19, 2025 - Real indicators and signal generation
+- `STRATEGY-CHART-INTEGRATION-COMPLETE.md` - **NEW** June 24, 2025 - Strategy-driven indicator system complete
+- `PHASE-2-COMPLETE-REAL-INDICATORS-SIGNALS.md` - June 19, 2025 - Real indicators and signal generation
 - `WEBSOCKET-MILESTONE-COMPLETE.md` - June 18, 2025 WebSocket-Only Architecture completion
 - `WEBSOCKET-ONLY-ARCHITECTURE-COMPLETE.md` - Detailed implementation summary
 - `CURRENT-STATUS-SUMMARY.md` - Overall project status summary
@@ -29,7 +30,8 @@ Major project milestones and achievements:
 
 Feature implementations and enhancements:
 
-- `MULTI-STRATEGY-ENGINE-ARCHITECTURE.md` - **NEW** Multi-strategy system architecture and design
+- `STRATEGY-DRIVEN-INDICATOR-SYSTEM.md` - **NEW** June 24, 2025 - Complete strategy-chart integration
+- `MULTI-STRATEGY-ENGINE-ARCHITECTURE.md` - Multi-strategy system architecture and design
 - `STRATEGY-STORE-IMPLEMENTATION.md` - JSON strategy storage system
 - `STRATEGY-STORE-IMPROVEMENTS.md` - Strategy storage enhancements
 - `CHART-PERFORMANCE-OPTIMIZATIONS.md` - Chart rendering optimizations
