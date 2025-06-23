@@ -451,7 +451,7 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 			});
 
 			previousDataLength.current = validData.length;
-			
+
 			// Initialize price tracking for price panel
 			if (panelType === "price" && validData.length > 0) {
 				const currentPrice = validData[validData.length - 1].close;
@@ -504,15 +504,19 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 
 		if (needsNewChart) {
 			createChart(validData);
-		} else if (panelType === "price" && chartInstance.current && validData.length > 0) {
+		} else if (
+			panelType === "price" &&
+			chartInstance.current &&
+			validData.length > 0
+		) {
 			// Update price tracking for live updates
 			const currentPrice = validData[validData.length - 1].close;
 			const priceChanged = lastKnownPrice.current !== currentPrice;
-			
+
 			if (priceChanged) {
 				previousPrice.current = lastKnownPrice.current;
 				lastKnownPrice.current = currentPrice;
-				
+
 				// Trigger chart redraw to show updated price marker
 				chartInstance.current.update("none");
 			}
