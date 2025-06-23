@@ -1,4 +1,4 @@
-import { EMA, MACD, RSI, BollingerBands, ATR } from "technicalindicators";
+import { EMA, MACD, RSI, BollingerBands, ATR, SMA } from "technicalindicators";
 
 // Indicator and array conversion helpers for trading strategies
 
@@ -84,6 +84,13 @@ export function calcATR(
 	period = 14
 ): number[] {
 	return ATR.calculate({ period, high: highs, low: lows, close: closes });
+}
+
+/**
+ * Calculate SMA for a given period and values.
+ */
+export function calcSMA(values: number[], period: number): number[] {
+	return SMA.calculate({ period, values });
 }
 
 export interface MacdHistRegressionResult {

@@ -9,6 +9,46 @@
 
 All frontend cleanup and indicator alignment issues have been resolved. The trading bot frontend is now production-ready with professional-grade technical indicators that perfectly align with live market data.
 
+## 🛡️ **NEW: Overtrading Prevention System Implemented**
+
+Added comprehensive overtrading protection system to prevent rapid signal firing and reduce transaction costs:
+
+### **Core Protection Features**
+
+- ✅ **Signal Cooldown** - Configurable minimum time between signals
+- ✅ **Frequency Limits** - Max trades per hour/day restrictions
+- ✅ **Signal Strength Filtering** - Only high-confidence signals execute
+- ✅ **Volume Confirmation** - Avoid low-liquidity trading periods
+- ✅ **Indicator Agreement** - Multiple indicators must align
+- ✅ **Position State Tracking** - Prevents conflicting trades
+
+### **New Components Added**
+
+- `src/lib/trading/SignalManager.ts` - Core overtrading protection logic
+- `src/lib/trading/EnhancedStrategyRunner.ts` - Strategy execution with filtering
+- `local_modules/strategies/conservative_ema_rsi_v2.json` - Example protected strategy
+- Enhanced risk schema with overtrading protection settings
+- Integration examples and documentation
+
+### **Recommended Settings**
+
+```json
+{
+	"overtrading_protection": {
+		"enabled": true,
+		"signal_cooldown_minutes": 30,
+		"max_trades_per_hour": 2,
+		"max_trades_per_day": 8,
+		"min_time_between_entries": 900,
+		"signal_strength_threshold": 0.65,
+		"volume_spike_detection": {
+			"enabled": true,
+			"min_volume_multiplier": 1.2
+		}
+	}
+}
+```
+
 ### **Latest Update: Test & Debug File Organization** ✅
 
 **Completed comprehensive cleanup and organization of test and debug files:**

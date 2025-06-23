@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import ChartView from "../components/ChartView";
+import MultiPanelChart from "../components/MultiPanelChart";
 import TableView from "../components/TableView";
 import SummaryView from "../components/SummaryView";
 import ConfigModal from "../components/ConfigModal";
@@ -503,7 +504,7 @@ const EnhancedDashboard: React.FC = () => {
 					</div>
 
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-						<ChartView
+						<MultiPanelChart
 							data={ohlcvData}
 							symbol={symbol}
 							timeframe={timeframe}

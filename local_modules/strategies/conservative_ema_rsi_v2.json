@@ -1,0 +1,215 @@
+{
+  "id": "conservative_ema_rsi_v2",
+  "name": "Conservative EMA-RSI with Overtrading Protection",
+  "description": "A conservative strategy using EMA crossovers and RSI confirmation with built-in overtrading prevention",
+  "symbol": "BTC/USDT",
+  "timeframe": "1h",
+  "enabled": true,
+  "tags": ["conservative", "trend-following", "protected"],
+  
+  "indicators": [
+    {
+      "id": "ema_fast",
+      "name": "Fast EMA",
+      "type": "EMA",
+      "source": "close",
+      "parameters": { "period": 12 },
+      "output_fields": ["ema_12"]
+    },
+    {
+      "id": "ema_slow", 
+      "name": "Slow EMA",
+      "type": "EMA", 
+      "source": "close",
+      "parameters": { "period": 26 },
+      "output_fields": ["ema_26"]
+    },
+    {
+      "id": "rsi",
+      "name": "RSI",
+      "type": "RSI",
+      "source": "close", 
+      "parameters": { "period": 14 },
+      "output_fields": ["rsi_14"]
+    },
+    {
+      "id": "volume_sma",
+      "name": "Volume SMA",
+      "type": "SMA",
+      "source": "volume",
+      "parameters": { "period": 20 },
+      "output_fields": ["volume_sma_20"]
+    }
+  ],
+
+  "signals": [
+    {
+      "id": "long_entry",
+      "name": "Long Entry Signal", 
+      "type": "entry",
+      "side": "long",
+      "conditions": [
+        {
+          "indicator": "ema_fast",
+          "field": "ema_12", 
+          "operator": ">",
+          "compare_to": "ema_slow.ema_26",
+          "lookback": 0
+        },
+        {
+          "indicator": "ema_fast",
+          "field": "ema_12",
+          "operator": ">", 
+          "compare_to": "ema_slow.ema_26",
+          "lookback": 1,
+          "inverted": true
+        },
+        {
+          "indicator": "rsi",
+          "field": "rsi_14",
+          "operator": "<",
+          "value": 70,
+          "lookback": 0
+        },
+        {
+          "indicator": "rsi", 
+          "field": "rsi_14",
+          "operator": ">",
+          "value": 30,
+          "lookback": 0
+        }
+      ],
+      "confidence_calculation": {
+        "type": "weighted_average",
+        "weights": {
+          "ema_crossover": 0.4,
+          "rsi_position": 0.3, 
+          "volume_confirmation": 0.3
+        }
+      }
+    },
+    {
+      "id": "long_exit",
+      "name": "Long Exit Signal",
+      "type": "exit", 
+      "side": "long",
+      "conditions": [
+        {
+          "operator": "OR",
+          "conditions": [
+            {
+              "indicator": "ema_fast",
+              "field": "ema_12",
+              "operator": "<", 
+              "compare_to": "ema_slow.ema_26",
+              "lookback": 0
+            },
+            {
+              "indicator": "rsi",
+              "field": "rsi_14", 
+              "operator": ">",
+              "value": 75,
+              "lookback": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "short_entry",
+      "name": "Short Entry Signal",
+      "type": "entry",
+      "side": "short", 
+      "conditions": [
+        {
+          "indicator": "ema_fast",
+          "field": "ema_12",
+          "operator": "<",
+          "compare_to": "ema_slow.ema_26", 
+          "lookback": 0
+        },
+        {
+          "indicator": "ema_fast", 
+          "field": "ema_12",
+          "operator": "<",
+          "compare_to": "ema_slow.ema_26",
+          "lookback": 1,
+          "inverted": true
+        },
+        {
+          "indicator": "rsi",
+          "field": "rsi_14",
+          "operator": ">",
+          "value": 30,
+          "lookback": 0
+        },
+        {
+          "indicator": "rsi",
+          "field": "rsi_14", 
+          "operator": "<",
+          "value": 70,
+          "lookback": 0
+        }
+      ]
+    },
+    {
+      "id": "short_exit",
+      "name": "Short Exit Signal",
+      "type": "exit",
+      "side": "short",
+      "conditions": [
+        {
+          "operator": "OR", 
+          "conditions": [
+            {
+              "indicator": "ema_fast",
+              "field": "ema_12",
+              "operator": ">",
+              "compare_to": "ema_slow.ema_26",
+              "lookback": 0
+            },
+            {
+              "indicator": "rsi",
+              "field": "rsi_14",
+              "operator": "<", 
+              "value": 25,
+              "lookback": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+
+  "risk": {
+    "position_size_type": "percentage",
+    "risk_per_trade": 2.0,
+    "stop_loss_percent": 2.5,
+    "take_profit_percent": 5.0,
+    "trailing_stop": true,
+    "max_drawdown_percent": 10.0,
+    
+    "overtrading_protection": {
+      "enabled": true,
+      "signal_cooldown_minutes": 30,
+      "max_trades_per_hour": 2,
+      "max_trades_per_day": 8,
+      "min_time_between_entries": 900,
+      "min_time_between_exits": 300,
+      "signal_strength_threshold": 0.65,
+      "volume_spike_detection": {
+        "enabled": true,
+        "min_volume_multiplier": 1.2
+      }
+    }
+  },
+
+  "meta": {
+    "version": "2.0.0",
+    "created": "2025-06-23T00:00:00Z",
+    "updated": "2025-06-23T00:00:00Z",
+    "author": "Trading Bot V5",
+    "tested": true,
+    "description_long": "This strategy uses EMA crossovers as the primary signal with RSI confirmation to avoid extreme conditions. It includes comprehensive overtrading protection with cooldowns, frequency limits, and signal strength filtering to maintain consistent performance and reduce transaction costs."
+  }
+}

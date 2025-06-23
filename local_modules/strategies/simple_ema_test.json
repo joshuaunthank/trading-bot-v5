@@ -1,0 +1,93 @@
+{
+	"id": "simple_ema_test",
+	"name": "Simple EMA Test Strategy",
+	"description": "A basic strategy using only EMA indicators for testing",
+	"symbol": "BTC/USDT",
+	"timeframe": "1h",
+	"enabled": true,
+	"tags": ["simple", "test"],
+
+	"indicators": [
+		{
+			"id": "ema_fast",
+			"name": "Fast EMA",
+			"type": "EMA",
+			"source": "close",
+			"parameters": { "period": 12 },
+			"output_fields": ["ema_12"]
+		},
+		{
+			"id": "ema_slow",
+			"name": "Slow EMA",
+			"type": "EMA",
+			"source": "close",
+			"parameters": { "period": 26 },
+			"output_fields": ["ema_26"]
+		}
+	],
+
+	"signals": [
+		{
+			"id": "long_entry",
+			"name": "Long Entry Signal",
+			"type": "entry",
+			"side": "long",
+			"conditions": [
+				{
+					"indicator": "ema_fast",
+					"field": "ema_12",
+					"operator": ">",
+					"compare_to": "ema_slow.ema_26",
+					"lookback": 0
+				}
+			]
+		},
+		{
+			"id": "long_exit",
+			"name": "Long Exit Signal",
+			"type": "exit",
+			"side": "long",
+			"conditions": [
+				{
+					"indicator": "ema_fast",
+					"field": "ema_12",
+					"operator": "<",
+					"compare_to": "ema_slow.ema_26",
+					"lookback": 0
+				}
+			]
+		}
+	],
+
+	"risk": {
+		"position_size_type": "percentage",
+		"risk_per_trade": 2.0,
+		"stop_loss_percent": 2.5,
+		"take_profit_percent": 5.0,
+		"trailing_stop": false,
+		"max_drawdown_percent": 10.0,
+
+		"overtrading_protection": {
+			"enabled": true,
+			"signal_cooldown_minutes": 15,
+			"max_trades_per_hour": 2,
+			"max_trades_per_day": 8,
+			"min_time_between_entries": 600,
+			"min_time_between_exits": 300,
+			"signal_strength_threshold": 0.5,
+			"volume_spike_detection": {
+				"enabled": false,
+				"min_volume_multiplier": 1.0
+			}
+		}
+	},
+
+	"meta": {
+		"version": "1.0.0",
+		"created": "2025-06-23T00:00:00Z",
+		"updated": "2025-06-23T00:00:00Z",
+		"author": "Trading Bot V5",
+		"tested": true,
+		"description_long": "Simple EMA crossover strategy for testing the enhanced strategy system with overtrading protection."
+	}
+}

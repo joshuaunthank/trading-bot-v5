@@ -3,6 +3,10 @@ import { OHLCVCandle } from "../types/index";
 import { StrategyInstance, Signal } from "./StrategyInstance";
 import { DataDistributor } from "./DataDistributor";
 import { PerformanceTracker } from "./PerformanceTracker";
+import {
+	EnhancedStrategyRunner,
+	EnhancedStrategyConfig,
+} from "./trading/EnhancedStrategyRunner";
 
 export interface StrategyConfig {
 	id: string;
@@ -50,6 +54,7 @@ export interface StrategyStatus {
  */
 export class StrategyManager extends EventEmitter {
 	private strategies: Map<string, StrategyInstance> = new Map();
+	private enhancedRunners: Map<string, EnhancedStrategyRunner> = new Map();
 	private dataDistributor: DataDistributor;
 	private performanceTracker: PerformanceTracker;
 	private isRunning: boolean = false;
@@ -95,6 +100,27 @@ export class StrategyManager extends EventEmitter {
 			// Register strategy
 			this.strategies.set(config.id, strategy);
 
+			// Create enhanced strategy runner if overtrading protection is enabled
+			if (config.risk?.overtrading_protection?.enabled) {
+				const enhancedConfig: EnhancedStrategyConfig = {
+					strategyId: config.id,
+					overtradingProtection: config.risk.overtrading_protection,
+					signalFiltering: {
+						enableTrendConfirmation: true,
+						requireVolumeConfirmation:
+							config.risk.overtrading_protection.volume_spike_detection
+								?.enabled || false,
+						minimumIndicatorAgreement: 0.6,
+					},
+				};
+
+				const enhancedRunner = new EnhancedStrategyRunner(enhancedConfig);
+				this.enhancedRunners.set(config.id, enhancedRunner);
+				console.log(
+					`[Strategy Manager] Enabled overtrading protection for ${config.id}`
+				);
+			}
+
 			// Start strategy execution
 			await strategy.start();
 
@@ -137,6 +163,16 @@ export class StrategyManager extends EventEmitter {
 
 			// Remove from registry
 			this.strategies.delete(strategyId);
+
+			// Clean up enhanced runner if it exists
+			const enhancedRunner = this.enhancedRunners.get(strategyId);
+			if (enhancedRunner) {
+				enhancedRunner.reset();
+				this.enhancedRunners.delete(strategyId);
+				console.log(
+					`[Strategy Manager] Cleaned up overtrading protection for ${strategyId}`
+				);
+			}
 
 			console.log(`[Strategy Manager] Stopped strategy: ${strategyId}`);
 			this.emit("strategyStopped", { id: strategyId });
@@ -295,6 +331,62 @@ export class StrategyManager extends EventEmitter {
 	 */
 	private handleSignal(strategyId: string, signal: Signal): void {
 		try {
+			// Check if enhanced runner with overtrading protection is available
+			const enhancedRunner = this.enhancedRunners.get(strategyId);
+
+			if (enhancedRunner) {
+				// Get strategy instance
+				const strategy = this.strategies.get(strategyId);
+				if (!strategy) {
+					console.error(
+						`[Strategy Manager] Strategy ${strategyId} not found for signal handling`
+					);
+					return;
+				}
+
+				// Get current data from strategy instance
+				const dataBuffer = strategy.getDataBuffer();
+				const currentCandle = dataBuffer[dataBuffer.length - 1];
+				const currentIndicators = strategy.getCurrentIndicators();
+
+				// Convert indicators to object format
+				const indicatorValues: { [key: string]: any } = {};
+				currentIndicators.forEach((indicator: any) => {
+					indicatorValues[indicator.name] = indicator.value;
+				});
+
+				// Convert signal to enhanced format
+				const strategySignal = {
+					id: `${strategyId}_${Date.now()}`,
+					timestamp: Date.now(),
+					side: signal.side as "long" | "short",
+					type: signal.type as "entry" | "exit",
+					confidence: signal.confidence || 0.7,
+					price: signal.price,
+					volume: currentCandle?.volume || 0,
+					indicators: indicatorValues,
+					metadata: signal.metadata,
+				};
+
+				// Process through overtrading protection
+				const filteredSignal =
+					enhancedRunner.processStrategySignal(strategySignal);
+
+				if (!filteredSignal) {
+					// Signal was rejected by overtrading protection
+					console.log(
+						`[Strategy Manager] Signal from ${strategyId} rejected by overtrading protection`
+					);
+					return;
+				}
+
+				// Log statistics
+				const stats = enhancedRunner.getStatistics();
+				console.log(
+					`[Strategy Manager] Overtrading stats for ${strategyId}: ${stats.tradesLastHour}/${stats.hourlyLimit} trades/hour`
+				);
+			}
+
 			console.log(
 				`[Strategy Manager] Signal from ${strategyId}: ${signal.type} ${signal.side} at ${signal.price}`
 			);
@@ -343,6 +435,13 @@ export class StrategyManager extends EventEmitter {
 
 		this.isRunning = false;
 		console.log("[Strategy Manager] Shutdown complete");
+	}
+
+	/**
+	 * Check if enhanced runner exists for strategy (for testing)
+	 */
+	hasEnhancedRunner(strategyId: string): boolean {
+		return this.enhancedRunners.has(strategyId);
 	}
 }
 

@@ -11,7 +11,8 @@
 		"start": "node dist/server.js",
 		"test": "echo \"Running all tests...\" && npm run test:debug && npm run test:manual",
 		"test:debug": "npx ts-node tests/debug/debug-indicator-alignment.ts",
-		"test:manual": "echo \"Running manual tests...\" && node tests/manual/test-indicator-library.mjs && node tests/manual/test-simple-indicators.js"
+		"test:manual": "echo \"Running manual tests...\" && node tests/manual/test-indicator-library.mjs && node tests/manual/test-simple-indicators.js",
+		"test:categorization": "node tests/debug/test-multi-panel-categorization.mjs"
 	},
 	"devDependencies": {
 		"@tailwindcss/postcss": "^4.1.8",

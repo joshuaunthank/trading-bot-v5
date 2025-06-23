@@ -6,7 +6,26 @@
 		"stop_loss_percent": { "type": "number" },
 		"take_profit_percent": { "type": "number" },
 		"trailing_stop": { "type": "boolean" },
-		"max_drawdown_percent": { "type": "number" }
+		"max_drawdown_percent": { "type": "number" },
+		"overtrading_protection": {
+			"type": "object",
+			"properties": {
+				"enabled": { "type": "boolean", "default": true },
+				"signal_cooldown_minutes": { "type": "number", "default": 15 },
+				"max_trades_per_hour": { "type": "number", "default": 4 },
+				"max_trades_per_day": { "type": "number", "default": 20 },
+				"min_time_between_entries": { "type": "number", "default": 300 },
+				"min_time_between_exits": { "type": "number", "default": 60 },
+				"signal_strength_threshold": { "type": "number", "default": 0.7 },
+				"volume_spike_detection": {
+					"type": "object",
+					"properties": {
+						"enabled": { "type": "boolean", "default": true },
+						"min_volume_multiplier": { "type": "number", "default": 1.5 }
+					}
+				}
+			}
+		}
 	},
 	"required": ["position_size_type", "risk_per_trade"]
 }

@@ -11,6 +11,7 @@ import {
 	calcRSI,
 	calcMACD,
 	calcBollingerBands,
+	calcSMA,
 } from "./indicatorUtils";
 
 export interface IndicatorResult {
@@ -340,6 +341,85 @@ export class BollingerBandsIndicator extends BaseIndicator {
 }
 
 /**
+ * SMA (Simple Moving Average) Indicator
+ */
+export class SMAIndicator extends BaseIndicator {
+	private period: number;
+	private source: string;
+	private values: number[] = [];
+
+	constructor(config: IndicatorConfig) {
+		super(config);
+		this.period = config.parameters.period || 20;
+		this.source = config.parameters.source || "close"; // close, open, high, low, volume
+	}
+
+	update(candle: OHLCVCandle): IndicatorResult {
+		const sourceValue = this.getSourceValue(candle);
+		this.values.push(sourceValue);
+
+		// Keep only what we need for calculation
+		if (this.values.length > this.period + 10) {
+			this.values = this.values.slice(-(this.period + 10));
+		}
+
+		let smaValue: number | null = null;
+
+		if (this.values.length >= this.period) {
+			const smaArray = calcSMA(this.values, this.period);
+			if (smaArray.length > 0) {
+				smaValue = smaArray[smaArray.length - 1];
+				if (smaValue !== null) {
+					this.addToHistory(smaValue);
+				}
+			}
+		}
+
+		return {
+			id: this.id,
+			name: this.getName(),
+			value: smaValue,
+			timestamp: candle.timestamp,
+			metadata: {
+				period: this.period,
+				source: this.source,
+				samplesNeeded: this.period,
+				samplesAvailable: this.values.length,
+			},
+		};
+	}
+
+	private getSourceValue(candle: OHLCVCandle): number {
+		switch (this.source) {
+			case "open":
+				return candle.open;
+			case "high":
+				return candle.high;
+			case "low":
+				return candle.low;
+			case "volume":
+				return candle.volume;
+			case "close":
+			default:
+				return candle.close;
+		}
+	}
+
+	getName(): string {
+		return `SMA(${this.period})`;
+	}
+
+	isReady(): boolean {
+		return this.values.length >= this.period;
+	}
+
+	reset(): void {
+		super.reset();
+		this.values = [];
+	}
+}
+
+/**
  * Factory function to create indicators from configuration
  */
 export function createIndicator(config: IndicatorConfig): BaseIndicator {
@@ -353,6 +433,8 @@ export function createIndicator(config: IndicatorConfig): BaseIndicator {
 		case "bollinger":
 		case "bb":
 			return new BollingerBandsIndicator(config);
+		case "sma":
+			return new SMAIndicator(config);
 		default:
 			throw new Error(`Unknown indicator type: ${config.type}`);
 	}
@@ -387,6 +469,11 @@ export function createCommonIndicators(): IndicatorConfig[] {
 			id: "bb_20",
 			type: "bollinger",
 			parameters: { period: 20, stdDev: 2 },
+		},
+		{
+			id: "sma_20",
+			type: "sma",
+			parameters: { period: 20, source: "close" },
 		},
 	];
 }

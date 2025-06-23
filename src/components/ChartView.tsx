@@ -8,7 +8,7 @@ import {
 	getScaleConfig,
 } from "../hooks/useLocalIndicators";
 
-// Register Chart.js components
+// Register Chart.js components and plugins
 Chart.register(...registerables, zoomPlugin);
 
 interface OHLCVData {
@@ -462,6 +462,8 @@ const ChartView: React.FC<ChartViewProps> = ({
 							},
 							limits: {
 								x: { min: "original", max: "original" },
+								// Explicitly prevent Y-axis zoom/pan for all axes
+								y: { min: "original", max: "original" },
 							},
 						},
 					},
