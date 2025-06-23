@@ -51,6 +51,89 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 	const lastUpdateTime = useRef<number>(0);
 	const minUpdateInterval = 50; // ~20 FPS for smooth updates
 
+	// Live price tracking (only for price panel)
+	const lastKnownPrice = useRef<number | null>(null);
+	const previousPrice = useRef<number | null>(null);
+
+	// TradingView-style live price marker plugin (only for price panel)
+	const livePriceMarkerPlugin = {
+		id: "livePriceMarker",
+		afterDraw: (chart: Chart) => {
+			// Only show live price marker on price panel
+			if (panelType !== "price" || !lastKnownPrice.current || !chart.scales.y)
+				return;
+
+			const ctx = chart.ctx;
+			const yScale = chart.scales.y;
+			const chartArea = chart.chartArea;
+
+			// Get current price and determine color based on price movement
+			const currentPrice = lastKnownPrice.current;
+			const prevPrice = previousPrice.current;
+			let priceColor = "#ffffff"; // Default white
+			let backgroundColor = "rgba(255, 255, 255, 0.1)";
+
+			if (prevPrice !== null && currentPrice !== prevPrice) {
+				if (currentPrice > prevPrice) {
+					priceColor = "#00ff88"; // Green for price increase
+					backgroundColor = "rgba(0, 255, 136, 0.2)";
+				} else if (currentPrice < prevPrice) {
+					priceColor = "#ff4757"; // Red for price decrease
+					backgroundColor = "rgba(255, 71, 87, 0.2)";
+				}
+			}
+
+			// Calculate Y position for the current price
+			const yPosition = yScale.getPixelForValue(currentPrice);
+
+			// Only draw if price is within visible chart area
+			if (yPosition < chartArea.top || yPosition > chartArea.bottom) return;
+
+			ctx.save();
+
+			// Draw horizontal dotted line across the chart
+			ctx.setLineDash([5, 5]); // Dotted line pattern
+			ctx.strokeStyle = priceColor;
+			ctx.lineWidth = 1;
+			ctx.globalAlpha = 0.8;
+
+			ctx.beginPath();
+			ctx.moveTo(chartArea.left, yPosition);
+			ctx.lineTo(chartArea.right, yPosition);
+			ctx.stroke();
+
+			// Draw price box on the right side
+			const priceText = `$${currentPrice.toFixed(4)}`;
+			ctx.font =
+				'12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+			const textMetrics = ctx.measureText(priceText);
+			const boxWidth = textMetrics.width + 12; // Padding
+			const boxHeight = 20;
+			const boxX = chartArea.right + 2; // Right side of chart
+			const boxY = yPosition - boxHeight / 2;
+
+			// Draw background box
+			ctx.setLineDash([]); // Reset line dash
+			ctx.fillStyle = backgroundColor;
+			ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+			// Draw border
+			ctx.strokeStyle = priceColor;
+			ctx.lineWidth = 1;
+			ctx.globalAlpha = 0.9;
+			ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+			// Draw price text
+			ctx.fillStyle = priceColor;
+			ctx.globalAlpha = 1;
+			ctx.textAlign = "left";
+			ctx.textBaseline = "middle";
+			ctx.fillText(priceText, boxX + 6, yPosition);
+
+			ctx.restore();
+		},
+	};
+
 	// Create scales based on panel type
 	const createScales = () => {
 		const scales: any = {
@@ -268,6 +351,7 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 		try {
 			chartInstance.current = new Chart(ctx, {
 				type: "line",
+				plugins: panelType === "price" ? [livePriceMarkerPlugin] : [], // Only add live price marker to price panel
 				data: { datasets },
 				options: {
 					responsive: true,
@@ -367,6 +451,13 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 			});
 
 			previousDataLength.current = validData.length;
+			
+			// Initialize price tracking for price panel
+			if (panelType === "price" && validData.length > 0) {
+				const currentPrice = validData[validData.length - 1].close;
+				previousPrice.current = lastKnownPrice.current; // Save previous price if exists
+				lastKnownPrice.current = currentPrice;
+			}
 		} catch (error) {
 			console.error("Chart.js error in panel:", panelType, error);
 		}
@@ -413,6 +504,18 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 
 		if (needsNewChart) {
 			createChart(validData);
+		} else if (panelType === "price" && chartInstance.current && validData.length > 0) {
+			// Update price tracking for live updates
+			const currentPrice = validData[validData.length - 1].close;
+			const priceChanged = lastKnownPrice.current !== currentPrice;
+			
+			if (priceChanged) {
+				previousPrice.current = lastKnownPrice.current;
+				lastKnownPrice.current = currentPrice;
+				
+				// Trigger chart redraw to show updated price marker
+				chartInstance.current.update("none");
+			}
 		}
 	}, [data, symbol, timeframe, indicators, loading, panelType, showPrice]);
 
