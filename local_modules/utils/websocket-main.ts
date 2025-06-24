@@ -114,7 +114,9 @@ export function setupMainWebSocket(server: http.Server) {
 
 	wss.on("connection", (ws: WsWebSocket, req: http.IncomingMessage) => {
 		const clientId = Math.random().toString(36).substr(2, 9);
-		console.log(`[Main WS] New client connection (ID: ${clientId})`);
+		if (process.env.NODE_ENV === "development") {
+			console.log(`[Main WS] New client connection (ID: ${clientId})`);
+		}
 
 		let symbol = "BTC/USDT";
 		let timeframe = "1h";

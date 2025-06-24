@@ -51,9 +51,11 @@ export function useOhlcvWebSocket(
 			currentSymbol.current !== symbol ||
 			currentTimeframe.current !== timeframe
 		) {
-			console.log(
-				`[OHLCV WS] Symbol/timeframe changed from ${currentSymbol.current}/${currentTimeframe.current} to ${symbol}/${timeframe}, clearing stale data`
-			);
+			if (process.env.NODE_ENV === "development") {
+				console.log(
+					`[OHLCV WS] Symbol/timeframe changed from ${currentSymbol.current}/${currentTimeframe.current} to ${symbol}/${timeframe}, clearing stale data`
+				);
+			}
 			setLatestCandle(null);
 			setFullDataset([]);
 			isStableConnection.current = false;
@@ -127,7 +129,9 @@ export function useOhlcvWebSocket(
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			if (status === "disconnected") {
-				console.log(`[OHLCV WS] Auto-connecting to ${symbol}/${timeframe}`);
+				if (process.env.NODE_ENV === "development") {
+					console.log(`[OHLCV WS] Auto-connecting to ${symbol}/${timeframe}`);
+				}
 				connect();
 			}
 		}, 100); // Small delay to prevent rapid connections

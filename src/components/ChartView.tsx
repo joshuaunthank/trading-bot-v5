@@ -567,9 +567,11 @@ const ChartView: React.FC<ChartViewProps> = ({
 			chart.update("none");
 		} else if (dataToProcess.length < previousDataLength.current) {
 			// Data reduction case - full refresh needed
-			console.log(
-				"[Chart Performance] Data array decreased, full chart recreation needed"
-			);
+			if (process.env.NODE_ENV === "development") {
+				console.log(
+					"[Chart Performance] Data array decreased, full chart recreation needed"
+				);
+			}
 			saveZoomState();
 			createChart(dataToProcess);
 			restoreZoomState();
@@ -635,9 +637,11 @@ const ChartView: React.FC<ChartViewProps> = ({
 				: validData;
 
 		if (optimizedData.length !== validData.length) {
-			console.log(
-				`[Chart Performance] Using ${optimizedData.length} of ${validData.length} candles for optimal performance`
-			);
+			if (process.env.NODE_ENV === "development") {
+				console.log(
+					`[Chart Performance] Using ${optimizedData.length} of ${validData.length} candles for optimal performance`
+				);
+			}
 		}
 
 		// Check if chart exists and is for the same symbol/timeframe
@@ -674,12 +678,13 @@ const ChartView: React.FC<ChartViewProps> = ({
 
 			if (wasTimeframeChange || wasIndicatorChange) {
 				saveZoomState(); // Preserve zoom when only timeframe or indicators change
-				console.log(
-					`[Chart Performance] Saving zoom state for ${
-						wasTimeframeChange ? "timeframe" : "indicator"
-					} change`
-				);
-			} else {
+				if (process.env.NODE_ENV === "development") {
+					console.log(
+						`[Chart Performance] Saving zoom state for ${
+							wasTimeframeChange ? "timeframe" : "indicator"
+						} change`
+					);
+				} else {
 				zoomState.current = null; // Clear zoom state for symbol changes
 			}
 
