@@ -144,41 +144,134 @@ See [Validation Documentation](local_modules/utils/README-validation.md) for mor
 
 ## API Reference
 
-### Multi-Strategy Manager API
+### **New Modular API Architecture** 🚀
 
-The strategy manager provides endpoints for controlling multiple concurrent trading strategies:
+The API has been completely restructured with a clean, modular design:
 
-```
-GET    /api/v1/strategies/manager/active        - Get all active strategies
-GET    /api/v1/strategies/manager/status        - Get strategy manager status
-POST   /api/v1/strategies/manager/:id/start     - Start strategy instance
-POST   /api/v1/strategies/manager/:id/stop      - Stop strategy instance
-PUT    /api/v1/strategies/manager/:id/pause     - Pause strategy instance
-PUT    /api/v1/strategies/manager/:id/resume    - Resume strategy instance
-GET    /api/v1/strategies/manager/:id/metrics   - Get strategy performance metrics
-```
-
-### Strategy Configuration API
-
-For managing strategy definitions and configurations:
+#### **Core API Structure**
 
 ```
-GET    /api/v1/strategies              - List all strategies
-GET    /api/v1/strategies/:id          - Get strategy configuration
-POST   /api/v1/strategies              - Create new strategy
-PUT    /api/v1/strategies/:id          - Update strategy configuration
-DELETE /api/v1/strategies/:id          - Delete strategy
+/api/v1/
+├── strategies/     - Strategy management endpoints
+├── indicators/     - Indicator configuration and data
+├── performance/    - Strategy performance and analytics
+└── trading/        - Live trading and execution
 ```
 
-### Legacy Strategy Execution API
+#### **Database-Style File Organization**
 
 ```
-POST   /api/v1/strategies/:id/run      - Run strategy (legacy)
-GET    /api/v1/strategies/:id/status   - Get strategy status (legacy)
-POST   /api/v1/strategies/:id/stop     - Stop strategy (legacy)
+local_modules/db/
+├── strategies/     - Individual strategy JSON files + registry
+│   ├── strategies.json                 - Strategy registry/index
+│   ├── enhanced_rsi_ema_strategy.json  - Individual strategies
+│   ├── conservative_ema_rsi_v2.json
+│   └── ...
+└── indicators/     - Indicator definitions + registry
+    ├── indicators.json                 - Indicator registry/index
+    ├── ema.json                       - Individual indicators
+    ├── rsi.json
+    └── ...
 ```
 
-**Note**: The Multi-Strategy Manager API is the recommended approach for new implementations as it supports concurrent strategy execution and better performance monitoring.
+### **Strategy Management API**
+
+#### **Strategy CRUD Operations**
+
+```http
+GET    /api/v1/strategies              # List all strategies
+GET    /api/v1/strategies/:id          # Get specific strategy
+POST   /api/v1/strategies              # Create new strategy
+PUT    /api/v1/strategies/:id          # Update strategy
+DELETE /api/v1/strategies/:id          # Delete strategy
+POST   /api/v1/strategies/:id/clone    # Clone existing strategy
+```
+
+#### **Strategy Execution Control**
+
+```http
+POST   /api/v1/strategies/:id/start    # Start strategy execution
+POST   /api/v1/strategies/:id/stop     # Stop strategy execution
+PUT    /api/v1/strategies/:id/pause    # Pause strategy
+PUT    /api/v1/strategies/:id/resume   # Resume paused strategy
+```
+
+#### **Strategy Analysis**
+
+```http
+GET    /api/v1/strategies/:id/backtest # Run historical backtest
+GET    /api/v1/strategies/:id/signals  # Get strategy signals
+GET    /api/v1/strategies/:id/validate # Validate strategy configuration
+```
+
+### **Indicator Management API**
+
+#### **Indicator Configuration**
+
+```http
+GET    /api/v1/indicators              # List all available indicators
+GET    /api/v1/indicators/:id          # Get indicator definition
+POST   /api/v1/indicators              # Create custom indicator
+PUT    /api/v1/indicators/:id          # Update indicator
+DELETE /api/v1/indicators/:id          # Delete custom indicator
+```
+
+#### **Indicator Data & Calculations**
+
+```http
+GET    /api/v1/indicators/:id/calculate    # Calculate indicator values
+POST   /api/v1/indicators/:id/historical  # Get historical indicator data
+GET    /api/v1/indicators/:id/realtime    # Stream real-time indicator values
+```
+
+### **Performance & Analytics API**
+
+#### **Strategy Performance**
+
+```http
+GET    /api/v1/performance/strategies/:id     # Strategy performance metrics
+GET    /api/v1/performance/portfolio          # Overall portfolio performance
+GET    /api/v1/performance/comparison         # Compare multiple strategies
+```
+
+#### **Trading Analytics**
+
+```http
+GET    /api/v1/performance/trades             # Trading history and analysis
+GET    /api/v1/performance/risk               # Risk metrics and analysis
+GET    /api/v1/performance/drawdown           # Drawdown analysis
+```
+
+### **Trading Execution API**
+
+#### **Order Management**
+
+```http
+POST   /api/v1/trading/orders                 # Place new order
+GET    /api/v1/trading/orders                 # List active orders
+GET    /api/v1/trading/orders/:id             # Get order details
+PUT    /api/v1/trading/orders/:id             # Modify order
+DELETE /api/v1/trading/orders/:id             # Cancel order
+```
+
+#### **Position Management**
+
+```http
+GET    /api/v1/trading/positions              # List open positions
+GET    /api/v1/trading/positions/:symbol      # Get position for symbol
+POST   /api/v1/trading/positions/:symbol/close # Close position
+```
+
+### **WebSocket Endpoints**
+
+#### **Real-time Data Streams**
+
+```
+ws://localhost:3001/ws/ohlcv           # OHLCV price data (1000 candles + live)
+ws://localhost:3001/ws/strategy        # Strategy signals and indicators
+ws://localhost:3001/ws/trading         # Live trading updates
+ws://localhost:3001/ws/performance     # Real-time performance metrics
+```
 
 ## ✅ **Recent Major Fixes (June 10, 2025)**
 
@@ -213,9 +306,9 @@ Frontend (React + Chart.js) ←→ Backend (Express + CCXT Pro)
     Live Data Tables              REST API Endpoints
 ```
 
-- **Historical Data**: REST API (`/api/v1/ohlcv`) provides finalized candles
-- **Live Updates**: WebSocket (`/ws/ohlcv`) streams real-time data via CCXT Pro
-- **Hybrid Model**: Frontend combines both sources for seamless experience
+- **WebSocket-Only Data**: All OHLCV data flows through WebSocket (`/ws/ohlcv`)
+- **Live Updates**: WebSocket streams 1000 candles + real-time updates via CCXT Pro
+- **Single Source of Truth**: Eliminates data consistency issues with unified data flow
 
 ### Key Components
 

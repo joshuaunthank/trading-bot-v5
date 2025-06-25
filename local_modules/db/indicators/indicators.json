@@ -1,0 +1,3 @@
+// This will be a register of avaliable indicators served at the /api/v1/indicators endpoint
+
+// individual indicators in this same folder will be served at /api/v1/indicators/:id

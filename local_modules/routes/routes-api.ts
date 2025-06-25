@@ -1,46 +1,19 @@
 import * as express from "express";
-import strategyRoutes from "./strategy/routes-strategy";
-import strategyManagerRoutes from "./strategy/routes-strategy-manager";
-import indicatorRoutes from "./strategy/routes-indicators";
-import performanceRoutes from "./strategy/routes-performance";
-import tradingRoutes from "./trading/routes-trading-with-auth";
-import authRoutes from "./auth/routes-auth";
-import { optionalAuthentication } from "../utils/authMiddleware";
+import strategyRoutes from "./apiRoutes/routes-strategy";
+import indicatorRoutes from "./apiRoutes/routes-indicators";
+import performanceRoutes from "./apiRoutes/routes-performance";
+import tradingRoutes from "./apiRoutes/routes-trading";
 
-const apiRoutes = (app: any) => {
+const apiRoutes = (app: express.Application) => {
 	const api = express.Router();
 
-	// OHLCV data is now provided only via WebSocket - no REST endpoint needed
-
-	app.get(
-		"/api/schemas/:type",
-		(req: express.Request, res: express.Response) => {
-			const type = req.params.type;
-			try {
-				const schema = require(`../schemas/${type}.schema.json`);
-				res.json(schema);
-			} catch {
-				res.status(404).json({ error: "Schema not found" });
-			}
-		}
-	);
-
-	// Initialize strategy routes (side effect)
 	strategyRoutes(api);
-	strategyManagerRoutes(api);
 	indicatorRoutes(api);
-
-	// Mount performance routes
-	api.use("/strategy", performanceRoutes);
-
-	// Mount trading routes
-	api.use("/trading", tradingRoutes);
-
-	// Mount auth routes
-	api.use("/auth", authRoutes);
+	performanceRoutes(api);
+	tradingRoutes(api);
 
 	// Load strategies and attach API routes
-	app.use("/api/v1", optionalAuthentication, api);
+	app.use("/api/v1", api);
 };
 
 export default apiRoutes;

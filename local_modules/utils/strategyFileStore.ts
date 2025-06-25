@@ -1,6 +1,6 @@
 /**
  * Strategy File Store - Provides CRUD operations for strategy files
- * Serves as a fallback storage mechanism for strategies
+ * Currently serves as a file-based store for strategies but will look to use postgres in the future
  */
 
 import * as fs from "fs";
@@ -21,7 +21,11 @@ const stat = promisify(fs.stat);
 const mkdir = promisify(fs.mkdir);
 
 // Path to strategies directory
-const STRATEGIES_DIR = path.join(__dirname, "../strategies");
+const STRATEGIES_DIR = path.join(__dirname, "../db/strategies");
+
+/*
+	THIS FILE WILL NEED TO BE REFACTORED AS PART OF THE API CHANGES
+*/
 
 /**
  * Initialize the strategies directory if it doesn't exist
