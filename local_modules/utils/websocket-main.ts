@@ -3,15 +3,7 @@ import { config } from "./config";
 import { WebSocketServer, WebSocket as WsWebSocket } from "ws";
 import * as http from "http";
 import { strategyManager } from "./StrategyManager";
-
-interface OHLCVCandle {
-	timestamp: number;
-	open: number;
-	high: number;
-	close: number;
-	low: number;
-	volume: number;
-}
+import { OHLCVCandle } from "../types/index";
 
 // CCXT Pro Exchange instance with proper configuration
 let exchange: any | null = null;
@@ -96,136 +88,377 @@ export async function getOHLCVData(
 // WebSocket server for streaming OHLCV data
 let wss: WebSocketServer | null = null;
 
+// Strategy WebSocket functionality integrated into main server
+interface StrategyResult {
+	timestamp: number;
+	indicators: Record<string, number[]>;
+	models: Record<string, number[]>;
+	signals: Record<string, boolean>;
+}
+
+// Strategy results cache - maps strategy ID to recent results
+const strategyResultsCache: Record<string, StrategyResult[]> = {};
+const MAX_STRATEGY_CACHE_SIZE = 1000;
+
+// Strategy WebSocket clients management
+const strategyClients: Map<string, Set<WsWebSocket>> = new Map();
+
+/**
+ * Add strategy result to cache and broadcast to clients
+ */
+export function addStrategyResult(
+	strategyId: string,
+	result: StrategyResult
+): void {
+	// Add to cache
+	if (!strategyResultsCache[strategyId]) {
+		strategyResultsCache[strategyId] = [];
+	}
+
+	strategyResultsCache[strategyId].push(result);
+
+	// Limit cache size
+	if (strategyResultsCache[strategyId].length > MAX_STRATEGY_CACHE_SIZE) {
+		strategyResultsCache[strategyId].shift();
+	}
+
+	// Broadcast to connected clients for this strategy (via OHLCV WebSocket with strategy param)
+	const clients = strategyClients.get(strategyId);
+	if (clients && clients.size > 0) {
+		const message = JSON.stringify({
+			type: "strategy-update",
+			strategyId,
+			data: result,
+			timestamp: Date.now(),
+		});
+
+		clients.forEach((ws) => {
+			try {
+				if (ws.readyState === WsWebSocket.OPEN) {
+					ws.send(message);
+				}
+			} catch (error) {
+				console.error(`[Strategy WS] Error sending update to client:`, error);
+			}
+		});
+
+		console.log(
+			`[Strategy WS] Broadcasted strategy update to ${clients.size} OHLCV clients`
+		);
+	}
+}
+
+/**
+ * Get strategy results from cache
+ */
+export function getStrategyResults(
+	strategyId: string,
+	limit?: number
+): StrategyResult[] {
+	const results = strategyResultsCache[strategyId] || [];
+	if (limit && limit > 0) {
+		return results.slice(-limit);
+	}
+	return results;
+}
+
+/**
+ * Get list of available strategies
+ */
+export function getAvailableStrategies(): string[] {
+	return Object.keys(strategyResultsCache);
+}
+
 export function setupMainWebSocket(server: http.Server) {
-	console.log("[Main WS] Setting up WebSocket server using CCXT Pro");
+	console.log(
+		"[Main WS] Setting up unified WebSocket server (OHLCV + Strategy)"
+	);
 
 	if (wss) {
 		console.log("[Main WS] WebSocketServer already initialized");
 		return;
 	}
 
+	// Create WebSocket server for OHLCV data with optional strategy integration
 	wss = new WebSocketServer({
 		server,
 		path: "/ws/ohlcv",
 		perMessageDeflate: false,
 	});
 
-	console.log("[Main WS] WebSocketServer created at /ws/ohlcv (CCXT Pro)");
+	console.log(
+		"[Main WS] WebSocketServer created at /ws/ohlcv with strategy support"
+	);
+
+	// Connect to strategy manager events for strategy data integration
+	strategyManager.on("signal", ({ strategyId, signal }) => {
+		console.log(`[Strategy Integration] Signal from ${strategyId}:`, signal);
+
+		// Create a strategy result with the signal
+		const strategyResult: StrategyResult = {
+			timestamp: signal.timestamp || Date.now(),
+			indicators: {}, // Will be populated by strategy
+			models: {}, // Will be populated by strategy
+			signals: {
+				[`${signal.type}_${signal.side}`]: true,
+			},
+		};
+
+		// Add to cache and broadcast to strategy subscribers
+		addStrategyResult(strategyId, strategyResult);
+	});
+
+	// Listen for strategy results (we'll add this event to strategy manager)
+	strategyManager.on("strategyResult", ({ strategyId, result }) => {
+		console.log(`[Strategy Integration] Result from ${strategyId}`);
+		addStrategyResult(strategyId, result);
+	});
 
 	wss.on("connection", (ws: WsWebSocket, req: http.IncomingMessage) => {
 		const clientId = Math.random().toString(36).substr(2, 9);
-		if (process.env.NODE_ENV === "development") {
-			console.log(`[Main WS] New client connection (ID: ${clientId})`);
-		}
-
-		let symbol = "BTC/USDT";
-		let timeframe = "1h";
-
-		// Get params from query string
 		const url = new URL(req.url || "", "http://localhost");
-		if (url.searchParams.get("symbol")) {
-			symbol = url.searchParams.get("symbol")!;
-		}
-		if (url.searchParams.get("timeframe")) {
-			timeframe = url.searchParams.get("timeframe")!;
+
+		if (process.env.NODE_ENV === "development") {
+			console.log(`[OHLCV WS] New client connection (ID: ${clientId})`);
 		}
 
-		const subscriptionKey = `${symbol}_${timeframe}`;
+		handleOhlcvConnection(ws, req, clientId, url);
+	});
+}
+
+/**
+ * Handle OHLCV WebSocket connections with optional strategy integration
+ */
+function handleOhlcvConnection(
+	ws: WsWebSocket,
+	req: http.IncomingMessage,
+	clientId: string,
+	url: URL
+) {
+	let symbol = "BTC/USDT";
+	let timeframe = "1h";
+	let strategyId: string | null = null; // Optional strategy subscription
+
+	// Get params from query string
+	if (url.searchParams.get("symbol")) {
+		symbol = url.searchParams.get("symbol")!;
+	}
+	if (url.searchParams.get("timeframe")) {
+		timeframe = url.searchParams.get("timeframe")!;
+	}
+	if (url.searchParams.get("strategy")) {
+		strategyId = url.searchParams.get("strategy")!;
 		console.log(
-			`[Main WS] Client ${clientId} subscribing to ${subscriptionKey}`
+			`[OHLCV WS] Client ${clientId} also subscribing to strategy: ${strategyId}`
 		);
+	}
 
-		// Get or create subscription
-		if (!subscriptions.has(subscriptionKey)) {
-			console.log(`[Main WS] Creating new subscription for ${subscriptionKey}`);
-			createCCXTProSubscription(symbol, timeframe, subscriptionKey);
+	const subscriptionKey = `${symbol}_${timeframe}`;
+	console.log(
+		`[OHLCV WS] Client ${clientId} subscribing to ${subscriptionKey}`
+	);
+
+	// Get or create subscription
+	if (!subscriptions.has(subscriptionKey)) {
+		console.log(`[OHLCV WS] Creating new subscription for ${subscriptionKey}`);
+		createCCXTProSubscription(symbol, timeframe, subscriptionKey);
+	}
+
+	const subscription = subscriptions.get(subscriptionKey)!;
+	subscription.clients.add(ws);
+	console.log(
+		`[OHLCV WS] Added client ${clientId} to ${subscriptionKey}. Total clients: ${subscription.clients.size}`
+	);
+
+	// Send initial connection confirmation
+	try {
+		const connectionMessage: any = {
+			type: "connection",
+			status: "connected",
+			symbol,
+			timeframe,
+			message: `Connected to ${symbol} ${timeframe} using CCXT Pro`,
+		};
+
+		if (strategyId) {
+			connectionMessage.strategyId = strategyId;
+			connectionMessage.message += ` with strategy ${strategyId}`;
 		}
 
-		const subscription = subscriptions.get(subscriptionKey)!;
-		subscription.clients.add(ws);
-		console.log(
-			`[Main WS] Added client ${clientId} to ${subscriptionKey}. Total clients: ${subscription.clients.size}`
-		);
+		ws.send(JSON.stringify(connectionMessage));
 
-		// Send initial connection confirmation
-		try {
-			ws.send(
-				JSON.stringify({
-					type: "connection",
-					status: "connected",
-					symbol,
-					timeframe,
-					message: `Connected to ${symbol} ${timeframe} using CCXT Pro`,
-				})
+		// If client wants strategy data, add them to strategy client management
+		if (strategyId) {
+			if (!strategyClients.has(strategyId)) {
+				strategyClients.set(strategyId, new Set());
+			}
+			strategyClients.get(strategyId)!.add(ws);
+			console.log(
+				`[Strategy WS] Added client ${clientId} to strategy ${strategyId} updates`
 			);
 
-			// Send immediate data if available (cached full dataset)
-			if (
-				subscription.cachedFullDataset &&
-				subscription.cachedFullDataset.length > 0
-			) {
-				console.log(
-					`[Main WS] Sending immediate cached data to new client: ${subscription.cachedFullDataset.length} candles`
-				);
-
+			// Send any cached strategy results
+			const cachedResults = getStrategyResults(strategyId!);
+			if (cachedResults.length > 0) {
 				ws.send(
 					JSON.stringify({
-						type: "ohlcv",
-						updateType: "full",
-						data: subscription.cachedFullDataset,
-						symbol,
-						timeframe,
+						type: "strategy-history",
+						strategyId,
+						data: cachedResults,
 					})
 				);
 			}
-		} catch (e) {
-			console.error(
-				`[Main WS] Error sending initial message to client ${clientId}:`,
-				e
-			);
 		}
 
-		ws.on("message", (msg) => {
-			try {
-				const data = JSON.parse(msg.toString());
-				console.log(`[Main WS] Message from client ${clientId}:`, data);
-			} catch (error) {
-				console.error(
-					`[Main WS] Failed to parse message from client ${clientId}:`,
-					error
-				);
-			}
-		});
-
-		ws.on("close", (code, reason) => {
+		// Send immediate data if available (cached full dataset)
+		if (
+			subscription.cachedFullDataset &&
+			subscription.cachedFullDataset.length > 0
+		) {
 			console.log(
-				`[Main WS] Client ${clientId} disconnected: code=${code}, reason=${reason}`
+				`[Main WS] Sending immediate cached data to new client: ${subscription.cachedFullDataset.length} candles`
 			);
 
-			const subscription = subscriptions.get(subscriptionKey);
-			if (subscription) {
-				subscription.clients.delete(ws);
-				console.log(
-					`[Main WS] Removed client ${clientId} from ${subscriptionKey}. Remaining: ${subscription.clients.size}`
-				);
+			ws.send(
+				JSON.stringify({
+					type: "ohlcv",
+					updateType: "full",
+					data: subscription.cachedFullDataset,
+					symbol,
+					timeframe,
+				})
+			);
+		}
+	} catch (e) {
+		console.error(
+			`[Main WS] Error sending initial message to client ${clientId}:`,
+			e
+		);
+	}
 
-				// If no more clients, stop the subscription
-				if (subscription.clients.size === 0) {
+	ws.on("message", (msg) => {
+		try {
+			const data = JSON.parse(msg.toString());
+			console.log(`[OHLCV WS] Message from client ${clientId}:`, data);
+
+			// Handle strategy subscription changes
+			if (data.type === "subscribe-strategy" && data.strategyId) {
+				const newStrategyId = data.strategyId;
+
+				// Remove from old strategy if exists
+				if (strategyId) {
+					const oldClients = strategyClients.get(strategyId);
+					if (oldClients) {
+						oldClients.delete(ws);
+						if (oldClients.size === 0) {
+							strategyClients.delete(strategyId);
+						}
+					}
+				}
+
+				// Add to new strategy
+				strategyId = newStrategyId;
+				if (strategyId !== null) {
+					if (!strategyClients.has(strategyId)) {
+						strategyClients.set(strategyId, new Set());
+					}
+					strategyClients.get(strategyId)!.add(ws);
+
 					console.log(
-						`[Main WS] No more clients for ${subscriptionKey}, stopping subscription`
+						`[Strategy WS] Client ${clientId} switched to strategy: ${strategyId}`
 					);
-					stopSubscription(subscriptionKey);
+
+					// Send cached strategy results
+					const cachedResults = getStrategyResults(strategyId);
+					if (cachedResults.length > 0) {
+						ws.send(
+							JSON.stringify({
+								type: "strategy-history",
+								strategyId,
+								data: cachedResults,
+							})
+						);
+					}
+				}
+			} else if (data.type === "unsubscribe-strategy") {
+				// Remove from strategy updates
+				if (strategyId) {
+					const clients = strategyClients.get(strategyId);
+					if (clients) {
+						clients.delete(ws);
+						if (clients.size === 0) {
+							strategyClients.delete(strategyId);
+						}
+					}
+					console.log(
+						`[Strategy WS] Client ${clientId} unsubscribed from strategy: ${strategyId}`
+					);
+					strategyId = null;
 				}
 			}
-		});
+		} catch (error) {
+			console.error(
+				`[OHLCV WS] Failed to parse message from client ${clientId}:`,
+				error
+			);
+		}
+	});
 
-		ws.on("error", (error) => {
-			console.error(`[Main WS] WebSocket error for client ${clientId}:`, error);
-			const subscription = subscriptions.get(subscriptionKey);
-			if (subscription) {
-				subscription.clients.delete(ws);
+	ws.on("close", (code, reason) => {
+		console.log(
+			`[OHLCV WS] Client ${clientId} disconnected: code=${code}, reason=${reason}`
+		);
+
+		// Clean up OHLCV subscription
+		const subscription = subscriptions.get(subscriptionKey);
+		if (subscription) {
+			subscription.clients.delete(ws);
+			console.log(
+				`[OHLCV WS] Removed client ${clientId} from ${subscriptionKey}. Remaining: ${subscription.clients.size}`
+			);
+
+			// If no more clients, stop the subscription
+			if (subscription.clients.size === 0) {
+				console.log(
+					`[OHLCV WS] No more clients for ${subscriptionKey}, stopping subscription`
+				);
+				stopSubscription(subscriptionKey);
 			}
-		});
+		}
+
+		// Clean up strategy subscription
+		if (strategyId) {
+			const clients = strategyClients.get(strategyId);
+			if (clients) {
+				clients.delete(ws);
+				if (clients.size === 0) {
+					strategyClients.delete(strategyId);
+				}
+				console.log(
+					`[Strategy WS] Removed client ${clientId} from strategy ${strategyId}`
+				);
+			}
+		}
+	});
+
+	ws.on("error", (error) => {
+		console.error(`[OHLCV WS] WebSocket error for client ${clientId}:`, error);
+
+		// Clean up subscriptions on error
+		const subscription = subscriptions.get(subscriptionKey);
+		if (subscription) {
+			subscription.clients.delete(ws);
+		}
+
+		if (strategyId) {
+			const clients = strategyClients.get(strategyId);
+			if (clients) {
+				clients.delete(ws);
+				if (clients.size === 0) {
+					strategyClients.delete(strategyId);
+				}
+			}
+		}
 	});
 }
 
@@ -564,6 +797,13 @@ export async function cleanupMainWebSocket() {
 	subscriptions.forEach((subscription, key) => {
 		stopSubscription(key);
 	});
+
+	// Clear strategy clients
+	strategyClients.clear();
+
+	// Remove strategy manager listeners
+	strategyManager.removeAllListeners("signal");
+	strategyManager.removeAllListeners("strategyResult");
 
 	// Close WebSocket server
 	if (wss) {

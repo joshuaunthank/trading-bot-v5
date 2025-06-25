@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useRobustWebSocket } from "./useRobustWebSocket";
+import { useWebSocket } from "./useWebSocket";
 import {
 	StrategyIndicatorData,
 	StrategySignal,
@@ -18,17 +18,17 @@ export function useStrategyWebSocketEnhanced(strategyId: string | null) {
 		error: null,
 	});
 
-	// Build WebSocket URL - Connect directly to backend to bypass Vite proxy issues
+	// Build WebSocket URL - Connect to unified OHLCV endpoint with strategy parameter
 	const wsUrl = strategyId
-		? `ws://localhost:3001/ws/strategy?strategy=${strategyId}`
+		? `ws://localhost:3001/ws/ohlcv?strategy=${strategyId}&symbol=BTC/USDT&timeframe=1h`
 		: null;
 
 	// Handle incoming message
 	const handleMessage = useCallback((data: any) => {
 		if (!data) return;
 
-		if (data.type === "update" || data.type === "global-update") {
-			// Handle real-time updates
+		if (data.type === "strategy-update" || data.type === "global-update") {
+			// Handle real-time strategy updates from unified WebSocket
 			const result = data.data;
 			if (!result) return;
 
@@ -90,8 +90,8 @@ export function useStrategyWebSocketEnhanced(strategyId: string | null) {
 					signals: [...prev.signals, ...newSignals],
 				}));
 			}
-		} else if (data.type === "history") {
-			// Handle historical data
+		} else if (data.type === "strategy-history") {
+			// Handle historical strategy data from unified WebSocket
 			const historyData = data.data || [];
 
 			// Process historical data
@@ -167,7 +167,7 @@ export function useStrategyWebSocketEnhanced(strategyId: string | null) {
 
 	// Initialize WebSocket with reconnection (only if we have a valid URL)
 	const webSocketResult = wsUrl
-		? useRobustWebSocket({
+		? useWebSocket({
 				url: wsUrl,
 				onMessage: handleMessage,
 				onError: handleError,
@@ -179,8 +179,6 @@ export function useStrategyWebSocketEnhanced(strategyId: string | null) {
 				},
 				maxReconnectAttempts: 10,
 				reconnectInterval: 3000,
-				enableFallback: true,
-				fallbackPollInterval: 5000,
 		  })
 		: {
 				status: "disconnected",
@@ -189,17 +187,10 @@ export function useStrategyWebSocketEnhanced(strategyId: string | null) {
 				send: () => false,
 				lastError: null,
 				reconnectAttempts: 0,
-				isUsingFallback: false,
 		  };
 
-	const {
-		status,
-		disconnect,
-		connect,
-		lastError,
-		reconnectAttempts,
-		isUsingFallback,
-	} = webSocketResult;
+	const { status, disconnect, connect, lastError, reconnectAttempts } =
+		webSocketResult;
 
 	// Reset data when strategy changes
 	useEffect(() => {

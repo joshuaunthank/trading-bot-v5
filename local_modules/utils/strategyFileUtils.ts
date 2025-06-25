@@ -4,7 +4,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { Strategy } from "../types/strategy";
-import { addStrategyResult } from "./strategyWebsocket";
+// TODO: Strategy results caching removed - implement when needed
 import { validateStrategyFile, validateStrategy } from "./strategyValidator";
 import { fixStrategyIssues } from "./strategyFixer";
 import { config } from "./config";
@@ -310,8 +310,8 @@ export const runStrategy = async (
 			},
 		};
 
-		// Add result to WebSocket cache
-		addStrategyResult(id, result);
+		// TODO: Add result to cache when strategy results system is implemented
+		// addStrategyResult(id, result);
 
 		return { success: true };
 	} catch (err) {

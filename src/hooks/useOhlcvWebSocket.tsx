@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRobustWebSocket } from "./useRobustWebSocket";
+import { useWebSocket } from "./useWebSocket";
 
 interface OHLCVCandle {
 	timestamp: number;
@@ -23,7 +23,6 @@ interface OHLCVWebSocketResult {
 	reconnect: () => void;
 	disconnect: () => void;
 	lastError: Error | null;
-	isUsingFallback: boolean;
 	reconnectAttempts: number;
 }
 
@@ -106,24 +105,15 @@ export function useOhlcvWebSocket(
 	)}&timeframe=${encodeURIComponent(timeframe)}`;
 
 	// Setup WebSocket connection with simplified options (no REST fallback)
-	const {
-		send,
-		disconnect,
-		connect,
-		status,
-		lastError,
-		reconnectAttempts,
-		isUsingFallback,
-	} = useRobustWebSocket({
-		url: wsUrl,
-		onMessage: handleMessage,
-		onStatusChange: handleStatusChange,
-		onError: handleError,
-		enableFallback: false, // Disable REST fallback for WebSocket-only architecture
-		fallbackPollInterval: 0, // Not used when fallback disabled
-		maxReconnectAttempts: 3,
-		reconnectInterval: 2000,
-	});
+	const { send, disconnect, connect, status, lastError, reconnectAttempts } =
+		useWebSocket({
+			url: wsUrl,
+			onMessage: handleMessage,
+			onStatusChange: handleStatusChange,
+			onError: handleError,
+			maxReconnectAttempts: 10,
+			reconnectInterval: 2000,
+		});
 
 	// Auto-connect when component mounts with a small delay for stability
 	useEffect(() => {
@@ -147,7 +137,6 @@ export function useOhlcvWebSocket(
 		reconnect: connect,
 		disconnect,
 		lastError,
-		isUsingFallback,
 		reconnectAttempts,
 	};
 }
