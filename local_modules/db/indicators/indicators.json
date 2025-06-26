@@ -1,3 +1,74 @@
-// This will be a register of avaliable indicators served at the /api/v1/indicators endpoint
-
-// individual indicators in this same folder will be served at /api/v1/indicators/:id
+[
+	{
+		"id": "rsi",
+		"name": "Relative Strength Index",
+		"description": "Momentum oscillator that measures speed and magnitude of price changes",
+		"category": "momentum",
+		"type": "oscillator",
+		"default_parameters": {
+			"period": 14
+		},
+		"output_fields": ["rsi"],
+		"scale": {
+			"min": 0,
+			"max": 100,
+			"overbought": 70,
+			"oversold": 30
+		},
+		"panel": "separate"
+	},
+	{
+		"id": "ema",
+		"name": "Exponential Moving Average",
+		"description": "Trend-following indicator that gives more weight to recent prices",
+		"category": "trend",
+		"type": "overlay",
+		"default_parameters": {
+			"period": 20,
+			"source": "close"
+		},
+		"output_fields": ["ema"],
+		"panel": "main"
+	},
+	{
+		"id": "sma",
+		"name": "Simple Moving Average",
+		"description": "Trend-following indicator that averages price over a specified period",
+		"category": "trend",
+		"type": "overlay",
+		"default_parameters": {
+			"period": 20,
+			"source": "close"
+		},
+		"output_fields": ["sma"],
+		"panel": "main"
+	},
+	{
+		"id": "macd",
+		"name": "MACD",
+		"description": "Moving Average Convergence Divergence - trend and momentum indicator",
+		"category": "momentum",
+		"type": "oscillator",
+		"default_parameters": {
+			"fastPeriod": 12,
+			"slowPeriod": 26,
+			"signalPeriod": 9
+		},
+		"output_fields": ["macd", "signal", "histogram"],
+		"panel": "separate"
+	},
+	{
+		"id": "bollingerBands",
+		"name": "Bollinger Bands",
+		"description": "Volatility indicator consisting of moving average with standard deviation bands",
+		"category": "volatility",
+		"type": "overlay",
+		"default_parameters": {
+			"period": 20,
+			"stdDev": 2,
+			"source": "close"
+		},
+		"output_fields": ["upper", "middle", "lower"],
+		"panel": "main"
+	}
+]
