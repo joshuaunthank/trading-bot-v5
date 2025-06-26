@@ -1,17 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import ChartView from "../components/ChartView";
 import MultiPanelChart from "../components/MultiPanelChart";
 import TableView from "../components/TableView";
 import SummaryView from "../components/SummaryView";
 import ConfigModal from "../components/ConfigModal";
-import ChartSpinner from "../components/ChartSpinner";
-import StrategyRunner from "../components/StrategyRunner";
 import StrategyManager from "../components/StrategyManager";
 import StrategySelect from "../components/StrategySelect";
 import { useStrategies } from "../hooks/useStrategies";
-import { useStrategyWebSocketEnhanced } from "../hooks/useStrategyWebSocketEnhanced";
 import useOhlcvWebSocket from "../hooks/useOhlcvWebSocket";
-import useStrategyExecution from "../hooks/useStrategyExecution";
 import {
 	useLocalIndicators,
 	IndicatorConfig,
@@ -112,9 +107,7 @@ const EnhancedDashboard: React.FC = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-	const [activeTab, setActiveTab] = useState<"chart" | "strategy" | "manager">(
-		"chart"
-	); // Start with chart tab
+	const [activeTab, setActiveTab] = useState<"chart" | "manager">("chart"); // Start with chart tab
 
 	// Indicator system state
 	const [indicatorConfigs, setIndicatorConfigs] = useState<IndicatorConfig[]>(
@@ -130,57 +123,33 @@ const EnhancedDashboard: React.FC = () => {
 		error: strategiesError,
 	} = useStrategies();
 
-	// Strategy execution system
-	const {
-		strategies,
-		selectedStrategy,
-		loading: strategyLoading,
-		error: strategyError,
-		selectStrategy,
-		controlStrategy,
-		refreshSelectedStrategy,
-	} = useStrategyExecution();
+	// Simple symbol and timeframe state - no complex strategy execution needed
+	const [symbol] = useState("BTC/USDT");
+	const [timeframe] = useState("1h");
 
-	// Derive symbol and timeframe from selected strategy, with fallbacks
-	const symbol = selectedStrategy?.symbol || "BTC/USDT";
-	const timeframe = selectedStrategy?.timeframe || "1h";
-
-	// Symbol/timeframe initialization - derived from strategy with fallbacks
+	// Symbol/timeframe initialization - simple static values for now
 	useEffect(() => {
 		// Track symbol/timeframe changes for debugging in development
 		if (process.env.NODE_ENV === "development") {
 			console.log(
-				`[EnhancedDashboard] Symbol/Timeframe: ${symbol}, ${timeframe} (${
-					selectedStrategy
-						? "from strategy: " + selectedStrategy.name
-						: "default"
-				})`
+				`[EnhancedDashboard] Using static symbol/timeframe: ${symbol}/${timeframe}`
 			);
 		}
-	}, [symbol, timeframe, selectedStrategy]);
+	}, [symbol, timeframe]);
 
-	// Strategy data from WebSocket with enhanced connection
-	const {
-		indicators: wsIndicators,
-		signals: wsSignals,
-		isConnected: isStrategyConnected,
-		connectionStatus: strategyConnectionStatus,
-		reconnect: reconnectStrategyWs,
-	} = useStrategyWebSocketEnhanced(selectedStrategy?.id || null);
+	// Strategy data - simplified, no complex WebSocket strategy execution
+	const [indicators, setIndicators] = useState<DashboardStrategyIndicator[]>(
+		[]
+	);
+	const [signals, setSignals] = useState<DashboardStrategySignal[]>([]);
 
-	// OHLCV WebSocket with enhanced connection
+	// OHLCV WebSocket for chart data
 	const {
 		latestCandle,
 		fullDataset,
 		connectionStatus: ohlcvConnectionStatus,
 		reconnect: reconnectOhlcvWs,
 	} = useOhlcvWebSocket(symbol, timeframe);
-
-	// Convert WebSocket data to the format our components expect
-	const [indicators, setIndicators] = useState<DashboardStrategyIndicator[]>(
-		[]
-	);
-	const [signals, setSignals] = useState<DashboardStrategySignal[]>([]);
 
 	// Calculate indicators from OHLCV data
 	const calculatedIndicators = useLocalIndicators(ohlcvData, indicatorConfigs);
@@ -266,52 +235,8 @@ const EnhancedDashboard: React.FC = () => {
 		}
 	}, [latestCandle]);
 
-	// Process WebSocket data
-	useEffect(() => {
-		if (wsIndicators.length > 0) {
-			// Convert indicator data format
-			const processedIndicators: DashboardStrategyIndicator[] = [];
-
-			// Get the latest values from each indicator
-			const latestData = wsIndicators[wsIndicators.length - 1];
-
-			if (latestData && latestData.values) {
-				// Extract each indicator from the values object
-				Object.entries(latestData.values).forEach(([key, value]) => {
-					processedIndicators.push({
-						id: key,
-						current_value: value as number,
-						values: wsIndicators.map((i) => (i.values[key] as number) || 0),
-					});
-				});
-			}
-
-			setIndicators(processedIndicators);
-		}
-
-		// Process signal data
-		if (wsSignals.length > 0) {
-			// Create signals based on the type and side
-			const processedSignals: DashboardStrategySignal[] = [
-				{ id: "entry_long", side: "long", active: false },
-				{ id: "exit_long", side: "long", active: false },
-				{ id: "entry_short", side: "short", active: false },
-				{ id: "exit_short", side: "short", active: false },
-			];
-
-			// Check the last 5 signals to see if any are active (recent)
-			const recentSignals = wsSignals.slice(-5);
-			recentSignals.forEach((signal) => {
-				const signalId = `${signal.type}_${signal.side}`;
-				const existingSignal = processedSignals.find((s) => s.id === signalId);
-				if (existingSignal) {
-					existingSignal.active = true;
-				}
-			});
-
-			setSignals(processedSignals);
-		}
-	}, [wsIndicators, wsSignals]);
+	// Note: Strategy WebSocket processing removed for simplification
+	// Indicators are now managed through StrategySelect component
 
 	// Calculate summary data
 	const calculateSummaryData = () => {
@@ -356,27 +281,16 @@ const EnhancedDashboard: React.FC = () => {
 				.map((candle) => candle.low)
 		);
 
-		// Extract strategy signals
+		// Simple trading data - no strategy signals for now
 		const strategySignals = {
-			entry_long: signals.some(
-				(s) => s.id.includes("entry") && s.side === "long" && s.active
-			),
-			entry_short: signals.some(
-				(s) => s.id.includes("entry") && s.side === "short" && s.active
-			),
-			exit_long: signals.some(
-				(s) => s.id.includes("exit") && s.side === "long" && s.active
-			),
-			exit_short: signals.some(
-				(s) => s.id.includes("exit") && s.side === "short" && s.active
-			),
+			entry_long: false,
+			entry_short: false,
+			exit_long: false,
+			exit_short: false,
 		};
 
-		// Extract indicator values
+		// Simple indicator data - no strategy indicators for now
 		const strategyIndicators: Record<string, number | number[]> = {};
-		indicators.forEach((indicator) => {
-			strategyIndicators[indicator.id] = indicator.current_value;
-		});
 
 		return {
 			symbol,
@@ -393,14 +307,11 @@ const EnhancedDashboard: React.FC = () => {
 		};
 	};
 
-	// Handle strategy selection
-	const handleStrategySelect = useCallback(
-		(strategyId: string) => {
-			selectStrategy(strategyId);
-			setActiveTab("strategy");
-		},
-		[selectStrategy]
-	);
+	// Handle strategy selection - simplified
+	const handleStrategySelect = useCallback((strategyId: string) => {
+		// For now, just switch to manager tab
+		setActiveTab("manager");
+	}, []);
 
 	// Handle strategy config save
 	const handleSaveConfig = useCallback((config: any) => {
@@ -438,26 +349,7 @@ const EnhancedDashboard: React.FC = () => {
 							type="OHLCV"
 							onReconnect={reconnectOhlcvWs}
 						/>
-						{selectedStrategy && (
-							<ConnectionStatus
-								status={strategyConnectionStatus}
-								type="Strategy"
-								onReconnect={reconnectStrategyWs}
-							/>
-						)}
 					</div>
-					{selectedStrategy && (
-						<div className="text-sm text-gray-300 mr-4">
-							<div>
-								Strategy:{" "}
-								<span className="text-white">{selectedStrategy.name}</span>
-							</div>
-							<div>
-								Symbol: <span className="text-white">{symbol}</span> •
-								Timeframe: <span className="text-white">{timeframe}</span>
-							</div>
-						</div>
-					)}
 					<button
 						onClick={() => setIsConfigModalOpen(true)}
 						className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
@@ -485,7 +377,7 @@ const EnhancedDashboard: React.FC = () => {
 					}`}
 					onClick={() => setActiveTab("chart")}
 				>
-					Chart & Data
+					Chart & Indicators
 				</button>
 				<button
 					className={`px-4 py-2 font-medium ${
@@ -496,17 +388,6 @@ const EnhancedDashboard: React.FC = () => {
 					onClick={() => setActiveTab("manager")}
 				>
 					Strategy Manager
-				</button>
-				<button
-					className={`px-4 py-2 font-medium ${
-						activeTab === "strategy"
-							? "text-blue-500 border-b-2 border-blue-500"
-							: "text-gray-400 hover:text-gray-300"
-					}`}
-					onClick={() => setActiveTab("strategy")}
-					disabled={!selectedStrategy}
-				>
-					Strategy Runner
 				</button>
 			</div>
 
@@ -546,65 +427,12 @@ const EnhancedDashboard: React.FC = () => {
 
 			{activeTab === "manager" && <StrategyManager className="max-w-none" />}
 
-			{activeTab === "strategy" && (
-				<>
-					{/* Strategy Runner */}
-					<StrategyRunner onStrategySelect={handleStrategySelect} />
-
-					{/* Strategy signals section */}
-					{selectedStrategy && (
-						<div className="bg-gray-800 rounded-lg shadow-lg p-4">
-							<h2 className="text-xl font-semibold mb-4">Strategy Signals</h2>
-
-							{!isStrategyConnected ? (
-								<div className="flex items-center justify-center p-8">
-									<ChartSpinner size="medium" />
-									<span className="ml-2">Connecting to strategy...</span>
-								</div>
-							) : signals.length === 0 ? (
-								<div className="text-gray-400 text-center p-4">
-									No signals available
-								</div>
-							) : (
-								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-									{signals.map((signal) => (
-										<div
-											key={signal.id}
-											className={`p-4 rounded-md ${
-												signal.active
-													? signal.side === "long"
-														? "bg-green-900/30 border border-green-500"
-														: "bg-red-900/30 border border-red-500"
-													: "bg-gray-700 border border-gray-600"
-											}`}
-										>
-											<div className="font-semibold">{signal.id}</div>
-											<div className="text-sm text-gray-300 flex justify-between mt-1">
-												<span>Side: {signal.side}</span>
-												<span>
-													Status:{" "}
-													{signal.active ? (
-														<span className="text-green-400">Active</span>
-													) : (
-														<span className="text-gray-400">Inactive</span>
-													)}
-												</span>
-											</div>
-										</div>
-									))}
-								</div>
-							)}
-						</div>
-					)}
-				</>
-			)}
-
 			{/* Config modal */}
 			<ConfigModal
 				isOpen={isConfigModalOpen}
 				onClose={() => setIsConfigModalOpen(false)}
 				onSave={handleSaveConfig}
-				strategyId={selectedStrategy?.id || ""}
+				strategyId=""
 				title="Trading Configuration"
 			/>
 		</div>

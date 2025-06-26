@@ -1,7 +1,5 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-import StrategyLibrary from "./components/StrategyLibrary";
-import StrategyBuilder from "./components/builder/StrategyBuilder";
 import StrategyManager from "./components/StrategyManager";
 import EnhancedDashboard from "./pages/EnhancedDashboard";
 import { StrategyProvider } from "./context/StrategyContext";
@@ -27,12 +25,6 @@ export default function App() {
 								<Link to="/manager" className="hover:text-blue-400">
 									Strategy Manager
 								</Link>
-								<Link to="/library" className="hover:text-blue-400">
-									Strategy Library
-								</Link>
-								<Link to="/builder" className="hover:text-blue-400">
-									Strategy Builder
-								</Link>
 								<button
 									onClick={() => setDarkMode(!darkMode)}
 									className="ml-4 p-2 rounded bg-gray-700 hover:bg-gray-600"
@@ -47,9 +39,6 @@ export default function App() {
 						<Routes>
 							<Route path="/" element={<EnhancedDashboard />} />
 							<Route path="/manager" element={<StrategyManager />} />
-							<Route path="/library" element={<StrategyLibrary />} />
-							<Route path="/builder" element={<StrategyBuilder />} />
-							<Route path="/builder/:id" element={<StrategyBuilder />} />
 						</Routes>
 					</main>
 				</div>
