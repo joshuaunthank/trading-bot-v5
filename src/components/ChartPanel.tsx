@@ -1,12 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { Chart, registerables } from "chart.js";
 import zoomPlugin from "chartjs-plugin-zoom";
 import "chartjs-adapter-date-fns";
 import ChartSpinner from "./ChartSpinner";
-import {
-	CalculatedIndicator,
-	getScaleConfig,
-} from "../hooks/useLocalIndicators";
+import { CalculatedIndicator } from "../hooks/useLocalIndicators";
 
 // Register Chart.js components and plugins
 Chart.register(...registerables, zoomPlugin);

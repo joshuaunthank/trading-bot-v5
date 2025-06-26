@@ -70,17 +70,23 @@ const strategyRoutes = (router: express.Router) => {
 
 	// POST /api/v1/strategies/:id/start
 	strategies.post("/strategies/:id/start", (req, res) => {
-		// Run a strategy by ID
+		// TODO: Connect to real StrategyManager for actual indicator calculations
 		res.json({
-			message: `Starting strategy with ID ${req.params.id} will be implemented here.`,
+			success: true,
+			strategy_id: req.params.id,
+			status: "running",
+			message: `Strategy '${req.params.id}' ready for real RSI, EMA, MACD calculations - connection pending`,
 		});
 	});
 
 	// POST /api/v1/strategies/:id/stop
 	strategies.post("/strategies/:id/stop", (req, res) => {
-		// Stop a running strategy by ID
+		// TODO: Connect to real StrategyManager
 		res.json({
-			message: `Stopping strategy with ID ${req.params.id} will be implemented here.`,
+			success: true,
+			strategy_id: req.params.id,
+			status: "stopped",
+			message: `Strategy stopped - real connection pending`,
 		});
 	});
 

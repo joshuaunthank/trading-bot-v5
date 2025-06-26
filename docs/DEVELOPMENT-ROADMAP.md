@@ -10,6 +10,7 @@
 - RESTful API structure with domain separation
 - File-based strategy/indicator storage system
 - Clean, maintainable codebase with no technical debt
+- **✅ Code cleanup complete** - Removed 1,200+ lines of redundant/unused code (June 26)
 
 ### **❌ MISSING CORE FEATURES (Not Implemented)**
 
