@@ -326,9 +326,16 @@ export function useOhlcvWebSocket(
 				if (data.updateType === "full" && Array.isArray(data.data)) {
 					setFullDataset(data.data);
 					isStableConnection.current = true;
-				} else if (data.updateType === "incremental" && data.data) {
-					// Incremental data is now a single candle object
-					setLatestCandle(data.data);
+				} else if (
+					data.updateType === "incremental" &&
+					Array.isArray(data.data)
+				) {
+					// Server now sends full dataset for both full and incremental updates
+					// Extract the latest candle for incremental updates
+					if (data.data.length > 0) {
+						const latestCandle = data.data[data.data.length - 1]; // Last item is newest
+						setLatestCandle(latestCandle);
+					}
 				}
 			}
 		} catch (error) {

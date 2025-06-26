@@ -463,6 +463,24 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 		}
 	};
 
+	// Update existing chart with new data
+	const updateChart = (validData: OHLCVData[]) => {
+		if (!chartInstance.current) return;
+
+		try {
+			// Update datasets with new data
+			const newDatasets = createDatasets(validData);
+
+			// Replace chart data
+			chartInstance.current.data.datasets = newDatasets;
+
+			// Update chart with reduced animation for live updates
+			chartInstance.current.update("none"); // No animation for real-time updates
+		} catch (error) {
+			console.error("Chart.js update error in panel:", panelType, error);
+		}
+	};
+
 	// Sync zoom state across panels
 	useEffect(() => {
 		if (chartInstance.current && zoomState && onZoomChange) {
@@ -496,6 +514,28 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 
 		if (validData.length === 0) return;
 
+		// Check if this is a live update vs new data
+		const currentDataLength = validData.length;
+		const dataLengthChanged = previousDataLength.current !== currentDataLength;
+		const now = Date.now();
+		const shouldThrottle = now - lastUpdateTime.current < minUpdateInterval;
+
+		// Check if data actually changed (not just repeated identical data)
+		const latestCandle = validData[validData.length - 1];
+		const dataActuallyChanged = (() => {
+			if (dataLengthChanged) return true;
+
+			// Compare with last known data to detect real changes
+			const lastKnownData = chartInstance.current?.data?.datasets?.[0]?.data;
+			if (!lastKnownData || lastKnownData.length === 0) return true;
+
+			const lastKnownPoint = lastKnownData[lastKnownData.length - 1] as any;
+			const priceChanged = lastKnownPoint?.y !== latestCandle?.close;
+			const timestampChanged = lastKnownPoint?.x !== latestCandle?.timestamp;
+
+			return priceChanged || timestampChanged;
+		})();
+
 		// Create chart if it doesn't exist or indicators changed
 		const needsNewChart =
 			!chartInstance.current ||
@@ -504,21 +544,29 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 
 		if (needsNewChart) {
 			createChart(validData);
-		} else if (
-			panelType === "price" &&
-			chartInstance.current &&
-			validData.length > 0
-		) {
-			// Update price tracking for live updates
-			const currentPrice = validData[validData.length - 1].close;
-			const priceChanged = lastKnownPrice.current !== currentPrice;
+			previousDataLength.current = currentDataLength;
+			lastUpdateTime.current = now;
+		} else if (chartInstance.current && dataActuallyChanged) {
+			// Update existing chart data only if data actually changed
+			if (!shouldThrottle) {
+				// Update the chart data directly
+				updateChart(validData);
+				previousDataLength.current = currentDataLength;
+				lastUpdateTime.current = now;
+			}
 
-			if (priceChanged) {
-				previousPrice.current = lastKnownPrice.current;
-				lastKnownPrice.current = currentPrice;
+			// Update price tracking for live price marker (price panel only)
+			if (panelType === "price" && validData.length > 0) {
+				const currentPrice = validData[validData.length - 1].close;
+				const priceChanged = lastKnownPrice.current !== currentPrice;
 
-				// Trigger chart redraw to show updated price marker
-				chartInstance.current.update("none");
+				if (priceChanged) {
+					previousPrice.current = lastKnownPrice.current;
+					lastKnownPrice.current = currentPrice;
+
+					// Trigger chart redraw to show updated price marker
+					chartInstance.current.update("none");
+				}
 			}
 		}
 	}, [data, symbol, timeframe, indicators, loading, panelType, showPrice]);

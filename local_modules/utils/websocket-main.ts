@@ -58,10 +58,10 @@ export async function getOHLCVData(
 				close,
 				volume,
 			}))
-			// Sort by timestamp descending (newest first) for frontend display
+			// Sort by timestamp ascending (oldest first) for proper time series calculations
 			.sort(
 				(a: { timestamp: number }, b: { timestamp: number }) =>
-					b.timestamp - a.timestamp
+					a.timestamp - b.timestamp
 			);
 
 		console.log(
@@ -676,12 +676,12 @@ async function startWatchLoop(
 							close,
 							volume,
 						}))
-						.sort((a, b) => b.timestamp - a.timestamp); // Sort newest first
+						.sort((a, b) => a.timestamp - b.timestamp); // Sort oldest first for consistent frontend handling
 				}
 
 				// Track the latest candle for next update comparison
 				if (formattedData.length > 0) {
-					const latestCandle = formattedData[0];
+					const latestCandle = formattedData[formattedData.length - 1]; // Last item is newest in chronological order
 					subscription.lastSentCandle = {
 						timestamp: latestCandle.timestamp,
 						close: latestCandle.close,
@@ -694,7 +694,7 @@ async function startWatchLoop(
 					symbol,
 					timeframe,
 					updateType, // "full" or "incremental"
-					data: updateType === "incremental" ? formattedData[0] : formattedData, // Send single candle for incremental
+					data: formattedData, // Always send full dataset - frontend will handle updates efficiently
 					timestamp: Date.now(),
 				};
 

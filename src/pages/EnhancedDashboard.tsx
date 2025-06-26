@@ -129,12 +129,7 @@ const EnhancedDashboard: React.FC = () => {
 
 	// Symbol/timeframe initialization - simple static values for now
 	useEffect(() => {
-		// Track symbol/timeframe changes for debugging in development
-		if (process.env.NODE_ENV === "development") {
-			console.log(
-				`[EnhancedDashboard] Using static symbol/timeframe: ${symbol}/${timeframe}`
-			);
-		}
+		// Set static symbol/timeframe for simplified trading bot operation
 	}, [symbol, timeframe]);
 
 	// Strategy data - simplified, no complex WebSocket strategy execution
@@ -164,21 +159,23 @@ const EnhancedDashboard: React.FC = () => {
 
 	// Track connection status for error handling
 	useEffect(() => {
-		// Log connection issues for debugging
+		// Monitor OHLCV connection status for error display
 		if (
 			ohlcvConnectionStatus !== "connected" &&
 			ohlcvConnectionStatus !== "open"
 		) {
-			console.log(
-				`[EnhancedDashboard] OHLCV connection: ${ohlcvConnectionStatus}`
-			);
+			// Connection issues will be handled by error state
 		}
 	}, [ohlcvConnectionStatus]);
 
 	// Handle WebSocket full dataset updates
 	useEffect(() => {
 		if (fullDataset && fullDataset.length > 0) {
-			setOhlcvData(fullDataset);
+			// Normalize data to chronological order (oldest first) for consistent calculations
+			const normalizedData = [...fullDataset].sort(
+				(a, b) => a.timestamp - b.timestamp
+			);
+			setOhlcvData(normalizedData);
 			setLoading(false);
 			setError(null);
 		}
@@ -242,44 +239,54 @@ const EnhancedDashboard: React.FC = () => {
 	const calculateSummaryData = () => {
 		if (!Array.isArray(ohlcvData) || ohlcvData.length === 0) return {};
 
-		// Data is now in chronological order (oldest first, newest last)
-		const latestCandle = ohlcvData[ohlcvData.length - 1];
-		const previous24hCandle =
-			ohlcvData.find(
-				(candle) =>
-					candle.timestamp <= latestCandle.timestamp - 24 * 60 * 60 * 1000
-			) || ohlcvData[0]; // Use oldest candle as fallback
+		// Data is now normalized to chronological order (oldest first, newest last)
+		const latestCandle = ohlcvData[ohlcvData.length - 1]; // Last item is newest
+
+		// Calculate timeframe-aware 24h comparison
+		const getTimeframeMilliseconds = (tf: string): number => {
+			const timeframeMap: Record<string, number> = {
+				"1m": 60 * 1000,
+				"3m": 3 * 60 * 1000,
+				"5m": 5 * 60 * 1000,
+				"15m": 15 * 60 * 1000,
+				"30m": 30 * 60 * 1000,
+				"1h": 60 * 60 * 1000,
+				"2h": 2 * 60 * 60 * 1000,
+				"4h": 4 * 60 * 60 * 1000,
+				"6h": 6 * 60 * 60 * 1000,
+				"8h": 8 * 60 * 60 * 1000,
+				"12h": 12 * 60 * 60 * 1000,
+				"1d": 24 * 60 * 60 * 1000,
+				"3d": 3 * 24 * 60 * 60 * 1000,
+				"1w": 7 * 24 * 60 * 60 * 1000,
+			};
+			return timeframeMap[tf] || 60 * 60 * 1000; // Default to 1h
+		};
+
+		// Calculate how many candles back we need for 24 hours
+		const timeframeMs = getTimeframeMilliseconds(timeframe);
+		const candlesIn24h = Math.ceil((24 * 60 * 60 * 1000) / timeframeMs);
+
+		// Get the candle from 24 hours ago - data is oldest first, so go backwards from latest
+		const targetIndex = Math.max(0, ohlcvData.length - 1 - candlesIn24h);
+		const previous24hCandle = ohlcvData[targetIndex];
 
 		const priceChange24h = latestCandle.close - previous24hCandle.close;
 		const priceChangePercent24h =
 			(priceChange24h / previous24hCandle.close) * 100;
 
-		// Calculate 24h volume
-		const volumeIn24h = ohlcvData
-			.filter(
-				(candle) =>
-					candle.timestamp >= latestCandle.timestamp - 24 * 60 * 60 * 1000
-			)
-			.reduce((sum, candle) => sum + candle.volume, 0);
+		// Use consistent array-based approach for all 24h calculations
+		const last24hCandles = ohlcvData.slice(targetIndex);
 
-		// Find 24h high and low
-		const high24h = Math.max(
-			...ohlcvData
-				.filter(
-					(candle) =>
-						candle.timestamp >= latestCandle.timestamp - 24 * 60 * 60 * 1000
-				)
-				.map((candle) => candle.high)
+		// Calculate 24h volume using the same candles
+		const volumeIn24h = last24hCandles.reduce(
+			(sum, candle) => sum + candle.volume,
+			0
 		);
 
-		const low24h = Math.min(
-			...ohlcvData
-				.filter(
-					(candle) =>
-						candle.timestamp >= latestCandle.timestamp - 24 * 60 * 60 * 1000
-				)
-				.map((candle) => candle.low)
-		);
+		// Find 24h high and low using the same candles
+		const high24h = Math.max(...last24hCandles.map((candle) => candle.high));
+		const low24h = Math.min(...last24hCandles.map((candle) => candle.low));
 
 		// Simple trading data - no strategy signals for now
 		const strategySignals = {
@@ -416,7 +423,7 @@ const EnhancedDashboard: React.FC = () => {
 						/>
 
 						<TableView
-							data={ohlcvData.slice(0, 10)}
+							data={ohlcvData.slice(-10).reverse()} // Show last 10 candles (newest first for table display)
 							loading={loading}
 							symbol={symbol}
 							timeframe={timeframe}
