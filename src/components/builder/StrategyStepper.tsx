@@ -1,5 +1,6 @@
 import React from "react";
 import { useStrategy } from "../../context/StrategyContext";
+import StrategyBuilderChart from "./StrategyBuilderChart";
 
 // Import all step components
 import StepMeta from "./steps/StepMeta";
@@ -22,7 +23,8 @@ const steps = [
 ];
 
 const StrategyStepper: React.FC = () => {
-	const { currentStep, setCurrentStep, isValid, saveStrategy } = useStrategy();
+	const { currentStep, setCurrentStep, isValid, saveStrategy, strategy } =
+		useStrategy();
 
 	// Handle next step button click
 	const handleNext = () => {
@@ -76,9 +78,24 @@ const StrategyStepper: React.FC = () => {
 				))}
 			</div>
 
-			{/* Current Step Content */}
-			<div className="py-6">
-				<CurrentStepComponent />
+			{/* Split Screen: Step Content + Live Chart */}
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-6">
+				{/* Left Panel: Current Step Content */}
+				<div className="space-y-4">
+					<h2 className="text-xl font-semibold text-white">
+						{steps[currentStep].label}
+					</h2>
+					<CurrentStepComponent />
+				</div>
+
+				{/* Right Panel: Live Chart Preview */}
+				<div className="lg:sticky lg:top-6">
+					<StrategyBuilderChart
+						indicators={strategy.indicators || []}
+						symbol={strategy.symbol || "BTC/USDT"}
+						timeframe={strategy.timeframe || "1h"}
+					/>
+				</div>
 			</div>
 
 			{/* Navigation Buttons */}

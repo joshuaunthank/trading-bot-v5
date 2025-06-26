@@ -684,7 +684,8 @@ const ChartView: React.FC<ChartViewProps> = ({
 							wasTimeframeChange ? "timeframe" : "indicator"
 						} change`
 					);
-				} else {
+				}
+			} else {
 				zoomState.current = null; // Clear zoom state for symbol changes
 			}
 
