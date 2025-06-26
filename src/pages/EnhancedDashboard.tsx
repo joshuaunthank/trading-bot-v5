@@ -11,6 +11,7 @@ import {
 	useLocalIndicators,
 	IndicatorConfig,
 } from "../hooks/useLocalIndicators";
+import { useStrategyIndicators } from "../hooks/useStrategyIndicators";
 
 interface OHLCVData {
 	timestamp: number;
@@ -19,6 +20,18 @@ interface OHLCVData {
 	close: number;
 	low: number;
 	volume: number;
+}
+
+interface DashboardStrategyIndicator {
+	id: string;
+	current_value: number;
+	values?: number[];
+}
+
+interface DashboardStrategySignal {
+	id: string;
+	side: "long" | "short";
+	active: boolean;
 }
 
 interface ConnectionStatusProps {
@@ -125,7 +138,10 @@ const EnhancedDashboard: React.FC = () => {
 	}, [symbol, timeframe]);
 
 	// Strategy data - simplified, no complex WebSocket strategy execution
-	// Note: Strategy indicators now come through StrategySelect component instead
+	const [indicators, setIndicators] = useState<DashboardStrategyIndicator[]>(
+		[]
+	);
+	const [signals, setSignals] = useState<DashboardStrategySignal[]>([]);
 
 	// OHLCV WebSocket for chart data
 	const {
@@ -138,10 +154,13 @@ const EnhancedDashboard: React.FC = () => {
 	// Calculate indicators from OHLCV data
 	const calculatedIndicators = useLocalIndicators(ohlcvData, indicatorConfigs);
 
-	// All indicators for the chart (simplified - just calculated indicators)
+	// Combine with strategy indicators from WebSocket
+	const strategyIndicators = useStrategyIndicators(indicators, ohlcvData, true);
+
+	// All indicators for the chart
 	const allChartIndicators = useMemo(() => {
-		return calculatedIndicators;
-	}, [calculatedIndicators]);
+		return [...calculatedIndicators, ...strategyIndicators];
+	}, [calculatedIndicators, strategyIndicators]);
 
 	// Track connection status for error handling
 	useEffect(() => {

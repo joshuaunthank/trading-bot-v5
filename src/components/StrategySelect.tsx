@@ -1,20 +1,13 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { IndicatorConfig, IndicatorType } from "../hooks/useLocalIndicators";
-
-interface Strategy {
-	id: string;
-	name: string;
-	description: string;
-	indicators: Array<{
-		id: string;
-		type: string;
-		parameters: Record<string, any>;
-	}>;
-	tags?: string[];
-}
+import {
+	strategyService,
+	StrategySummary,
+	DetailedStrategy,
+} from "../services/strategyService";
 
 interface StrategySelectProps {
-	strategies: Strategy[];
+	strategies: StrategySummary[];
 	selectedStrategyId: string | null;
 	onStrategySelect: (strategyId: string | null) => void;
 	onIndicatorsChange: (indicators: IndicatorConfig[]) => void;
@@ -30,7 +23,51 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 	loading = false,
 	error = null,
 }) => {
-	const selectedStrategy = strategies.find((s) => s.id === selectedStrategyId);
+	// State for detailed strategy data
+	const [detailedStrategy, setDetailedStrategy] =
+		useState<DetailedStrategy | null>(null);
+	const [strategyLoading, setStrategyLoading] = useState(false);
+	const [strategyError, setStrategyError] = useState<string | null>(null);
+
+	// Find selected strategy summary
+	const selectedStrategySummary = strategies.find(
+		(s) => s.id === selectedStrategyId
+	);
+
+	// Fetch detailed strategy data when strategy is selected
+	const fetchDetailedStrategy = useCallback(async (strategyId: string) => {
+		if (!strategyId) {
+			setDetailedStrategy(null);
+			setStrategyError(null);
+			return;
+		}
+
+		try {
+			setStrategyLoading(true);
+			setStrategyError(null);
+
+			const detailed = await strategyService.getDetailedStrategy(strategyId);
+			setDetailedStrategy(detailed);
+		} catch (err) {
+			console.error("Error fetching detailed strategy:", err);
+			setStrategyError(
+				err instanceof Error ? err.message : "Failed to load strategy details"
+			);
+			setDetailedStrategy(null);
+		} finally {
+			setStrategyLoading(false);
+		}
+	}, []);
+
+	// Fetch detailed strategy when selection changes
+	useEffect(() => {
+		if (selectedStrategyId) {
+			fetchDetailedStrategy(selectedStrategyId);
+		} else {
+			setDetailedStrategy(null);
+			setStrategyError(null);
+		}
+	}, [selectedStrategyId, fetchDetailedStrategy]);
 
 	// Map strategy indicator types to our IndicatorType
 	const mapStrategyIndicatorType = (
@@ -68,64 +105,67 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 	};
 
 	// Convert strategy indicators to IndicatorConfig format
-	const convertStrategyToIndicators = (
-		strategy: Strategy
-	): IndicatorConfig[] => {
-		return strategy.indicators
-			.map((indicator) => {
-				const mappedType = mapStrategyIndicatorType(indicator.type);
-				if (!mappedType) return null;
+	const convertStrategyToIndicators = useCallback(
+		(strategy: DetailedStrategy): IndicatorConfig[] => {
+			if (!strategy.indicators) return [];
 
-				const config: IndicatorConfig = {
-					id: indicator.id,
-					type: mappedType,
-					enabled: true,
-					period: indicator.parameters.period || 14, // Default period
-					parameters: {},
-				};
+			return strategy.indicators
+				.map((indicator) => {
+					const mappedType = mapStrategyIndicatorType(indicator.type);
+					if (!mappedType) return null;
 
-				// Map specific parameters based on indicator type
-				switch (mappedType) {
-					case "MACD":
-						config.parameters = {
-							fastPeriod: indicator.parameters.fastPeriod || 12,
-							slowPeriod: indicator.parameters.slowPeriod || 26,
-							signalPeriod: indicator.parameters.signalPeriod || 9,
-						};
-						break;
-					case "BB":
-						config.parameters = {
-							stdDev: indicator.parameters.stdDev || 2,
-						};
-						config.period = indicator.parameters.period || 20;
-						break;
-					case "STOCH":
-						config.parameters = {
-							kPeriod: indicator.parameters.kPeriod || 14,
-							dPeriod: indicator.parameters.dPeriod || 3,
-						};
-						break;
-					default:
-						// For simple indicators, just use the period
-						config.period = indicator.parameters.period || 14;
-						break;
-				}
+					const config: IndicatorConfig = {
+						id: indicator.id,
+						type: mappedType,
+						enabled: true,
+						period: indicator.parameters.period || 14, // Default period
+						parameters: {},
+					};
 
-				return config;
-			})
-			.filter((config): config is IndicatorConfig => config !== null);
-	};
+					// Map specific parameters based on indicator type
+					switch (mappedType) {
+						case "MACD":
+							config.parameters = {
+								fastPeriod: indicator.parameters.fastPeriod || 12,
+								slowPeriod: indicator.parameters.slowPeriod || 26,
+								signalPeriod: indicator.parameters.signalPeriod || 9,
+							};
+							break;
+						case "BB":
+							config.parameters = {
+								stdDev: indicator.parameters.stdDev || 2,
+							};
+							config.period = indicator.parameters.period || 20;
+							break;
+						case "STOCH":
+							config.parameters = {
+								kPeriod: indicator.parameters.kPeriod || 14,
+								dPeriod: indicator.parameters.dPeriod || 3,
+							};
+							break;
+						default:
+							// For simple indicators, just use the period
+							config.period = indicator.parameters.period || 14;
+							break;
+					}
 
-	// Apply indicators when strategy selection changes
+					return config;
+				})
+				.filter((config): config is IndicatorConfig => config !== null);
+		},
+		[]
+	);
+
+	// Apply indicators when detailed strategy data is loaded
 	useEffect(() => {
-		if (selectedStrategy) {
-			const indicators = convertStrategyToIndicators(selectedStrategy);
+		if (detailedStrategy) {
+			const indicators = convertStrategyToIndicators(detailedStrategy);
 			onIndicatorsChange(indicators);
 		} else {
 			// Clear indicators when no strategy is selected
 			onIndicatorsChange([]);
 		}
-	}, [selectedStrategyId, selectedStrategy, onIndicatorsChange]);
+	}, [detailedStrategy, onIndicatorsChange, convertStrategyToIndicators]);
 
 	return (
 		<div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
@@ -133,14 +173,18 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 				<h3 className="text-lg font-semibold text-gray-900">
 					Strategy Indicators
 				</h3>
-				{loading && (
-					<div className="text-sm text-gray-500">Loading strategies...</div>
+				{(loading || strategyLoading) && (
+					<div className="text-sm text-gray-500">
+						{loading ? "Loading strategies..." : "Loading strategy details..."}
+					</div>
 				)}
 			</div>
 
-			{error && (
+			{(error || strategyError) && (
 				<div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-					<p className="text-sm text-red-600">Error: {error}</p>
+					<p className="text-sm text-red-600">
+						Error: {error || strategyError}
+					</p>
 				</div>
 			)}
 
@@ -154,7 +198,7 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 						value={selectedStrategyId || ""}
 						onChange={(e) => onStrategySelect(e.target.value || null)}
 						className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-						disabled={loading}
+						disabled={loading || strategyLoading}
 					>
 						<option value="">No strategy selected</option>
 						{strategies.map((strategy) => (
@@ -175,56 +219,76 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 			</div>
 
 			{/* Selected Strategy Info */}
-			{selectedStrategy && (
+			{selectedStrategySummary && (
 				<div className="border-t border-gray-200 pt-4">
-					<div className="mb-3">
-						<h4 className="text-sm font-medium text-gray-900 mb-1">
-							{selectedStrategy.name}
-						</h4>
-						<p className="text-sm text-gray-600">
-							{selectedStrategy.description}
-						</p>
-						{selectedStrategy.tags && selectedStrategy.tags.length > 0 && (
-							<div className="flex flex-wrap gap-1 mt-2">
-								{selectedStrategy.tags.map((tag) => (
-									<span
-										key={tag}
-										className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-									>
-										{tag}
-									</span>
-								))}
+					{strategyLoading && (
+						<div className="text-center py-4">
+							<div className="text-sm text-gray-500">
+								Loading strategy details...
 							</div>
-						)}
-					</div>
-
-					<div>
-						<h5 className="text-sm font-medium text-gray-700 mb-2">
-							Indicators ({selectedStrategy.indicators.length})
-						</h5>
-						<div className="space-y-2">
-							{selectedStrategy.indicators.map((indicator) => (
-								<div
-									key={indicator.id}
-									className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded"
-								>
-									<div>
-										<span className="text-sm font-medium text-gray-900">
-											{indicator.type.toUpperCase()}
-										</span>
-										<span className="text-sm text-gray-500 ml-2">
-											({indicator.id})
-										</span>
-									</div>
-									<div className="text-xs text-gray-600">
-										{Object.entries(indicator.parameters)
-											.map(([key, value]) => `${key}: ${value}`)
-											.join(", ")}
-									</div>
-								</div>
-							))}
 						</div>
-					</div>
+					)}
+
+					{!strategyLoading && detailedStrategy && (
+						<>
+							<div className="mb-3">
+								<h4 className="text-sm font-medium text-gray-900 mb-1">
+									{detailedStrategy.name}
+								</h4>
+								<p className="text-sm text-gray-600">
+									{detailedStrategy.description}
+								</p>
+								{detailedStrategy.tags && detailedStrategy.tags.length > 0 && (
+									<div className="flex flex-wrap gap-1 mt-2">
+										{detailedStrategy.tags.map((tag) => (
+											<span
+												key={tag}
+												className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+											>
+												{tag}
+											</span>
+										))}
+									</div>
+								)}
+							</div>
+
+							<div>
+								<h5 className="text-sm font-medium text-gray-700 mb-2">
+									Indicators ({detailedStrategy.indicators?.length || 0})
+								</h5>
+								<div className="space-y-2">
+									{detailedStrategy.indicators?.map((indicator) => (
+										<div
+											key={indicator.id}
+											className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded"
+										>
+											<div>
+												<span className="text-sm font-medium text-gray-900">
+													{indicator.type.toUpperCase()}
+												</span>
+												<span className="text-sm text-gray-500 ml-2">
+													({indicator.id})
+												</span>
+											</div>
+											<div className="text-xs text-gray-600">
+												{Object.entries(indicator.parameters)
+													.map(([key, value]) => `${key}: ${value}`)
+													.join(", ")}
+											</div>
+										</div>
+									))}
+								</div>
+							</div>
+						</>
+					)}
+
+					{!strategyLoading && !detailedStrategy && strategyError && (
+						<div className="text-center py-4">
+							<div className="text-sm text-red-600">
+								Failed to load strategy details
+							</div>
+						</div>
+					)}
 				</div>
 			)}
 		</div>

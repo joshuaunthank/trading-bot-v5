@@ -1,29 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-
-interface Strategy {
-	id: string;
-	name: string;
-	description: string;
-	symbol: string;
-	timeframe: string;
-	indicators: Array<{
-		id: string;
-		type: string;
-		parameters: Record<string, any>;
-	}>;
-	tags?: string[];
-	enabled: boolean;
-}
+import { StrategySummary } from "../services/strategyService";
 
 interface UseStrategiesResult {
-	strategies: Strategy[];
+	strategies: StrategySummary[];
 	loading: boolean;
 	error: string | null;
 	loadStrategies: () => Promise<void>;
 }
 
 export function useStrategies(): UseStrategiesResult {
-	const [strategies, setStrategies] = useState<Strategy[]>([]);
+	const [strategies, setStrategies] = useState<StrategySummary[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
