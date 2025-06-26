@@ -1,6 +1,14 @@
 import * as express from "express";
 import * as fs from "fs";
 import * as path from "path";
+import {
+	startStrategy,
+	stopStrategy,
+	pauseStrategy,
+	resumeStrategy,
+	getAllStrategyStatus,
+	getStrategyStatus,
+} from "../api-utils";
 
 const strategyRoutes = (router: express.Router) => {
 	const strategies = express.Router();
@@ -68,57 +76,23 @@ const strategyRoutes = (router: express.Router) => {
 		});
 	});
 
-	// POST /api/v1/strategies/:id/start
-	strategies.post("/strategies/:id/start", (req, res) => {
-		// TODO: Connect to real StrategyManager for actual indicator calculations
-		res.json({
-			success: true,
-			strategy_id: req.params.id,
-			status: "running",
-			message: `Strategy '${req.params.id}' ready for real RSI, EMA, MACD calculations - connection pending`,
-		});
-	});
+	// POST /api/v1/strategies/:id/start - Real indicator calculations
+	strategies.post("/strategies/:id/start", startStrategy);
 
-	// POST /api/v1/strategies/:id/stop
-	strategies.post("/strategies/:id/stop", (req, res) => {
-		// TODO: Connect to real StrategyManager
-		res.json({
-			success: true,
-			strategy_id: req.params.id,
-			status: "stopped",
-			message: `Strategy stopped - real connection pending`,
-		});
-	});
+	// POST /api/v1/strategies/:id/stop - Real strategy management
+	strategies.post("/strategies/:id/stop", stopStrategy);
 
-	// POST /api/v1/strategies/:id/pause
-	strategies.post("/strategies/:id/pause", (req, res) => {
-		// Pause a running strategy by ID
-		res.json({
-			message: `Pausing strategy with ID ${req.params.id} will be implemented here.`,
-		});
-	});
+	// POST /api/v1/strategies/:id/pause - Real strategy management
+	strategies.post("/strategies/:id/pause", pauseStrategy);
 
-	// POST /api/v1/strategies/:id/resume
-	strategies.post("/strategies/:id/resume", (req, res) => {
-		// Resume a paused strategy by ID
-		res.json({
-			message: `Resuming strategy with ID ${req.params.id} will be implemented here.`,
-		});
-	});
+	// POST /api/v1/strategies/:id/resume - Real strategy management
+	strategies.post("/strategies/:id/resume", resumeStrategy);
 
-	// GET /api/v1/strategies/:id/status
-	strategies.get("/strategies/status", (req, res) => {
-		// Get the status of all strategies
-		res.json({ message: "Status of all strategies will be implemented here." });
-	});
+	// GET /api/v1/strategies/status - Real strategy status
+	strategies.get("/strategies/status", getAllStrategyStatus);
 
-	// GET /api/v1/strategies/:id/status
-	strategies.get("/strategies/:id/status", (req, res) => {
-		// Get the status of a specific strategy by ID
-		res.json({
-			message: `Status of strategy with ID ${req.params.id} will be implemented here.`,
-		});
-	});
+	// GET /api/v1/strategies/:id/status - Real strategy status
+	strategies.get("/strategies/:id/status", getStrategyStatus);
 
 	// GET /api/v1/strategies/:id/status
 	strategies.get("/strategies/metrics", (req, res) => {
