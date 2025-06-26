@@ -4,50 +4,57 @@ This is the **documentation index** for the Trading Bot project. All project doc
 
 > 📋 **Note**: This is the documentation index. For the main project information, see [`../README.md`](../README.md) in the project root.
 
-## 📝 **Documentation Guidelines**
+## � **DOCUMENTATION STATUS UPDATE - June 26, 2025**
+
+**CRITICAL**: Previous documentation significantly overstated project completion status. For accurate information:
+
+- ✅ **Use**: `ACTUAL-PROJECT-STATUS.md` - Honest assessment
+- ✅ **Use**: `DEVELOPMENT-ROADMAP.md` - Realistic plan
+- ✅ **Use**: `DOCUMENTATION-STATUS.md` - Accuracy guide
+- ❌ **Ignore**: Documents in `/archive/` folder (misleading claims)
+
+## �📝 **Documentation Guidelines**
 
 ⚠️ **IMPORTANT**: All new `.md` files should be created within the `/docs` directory structure:
 
+- **Current Status** → `/docs/` (top level)
 - **Milestones & Achievements** → `/docs/milestones/`
 - **Feature Implementations** → `/docs/features/`
 - **Bug Fixes & Cleanup** → `/docs/fixes/`
+- **Archived/Misleading** → `/docs/archive/`
 
 **Do not create `.md` files in the project root** - this keeps the main directory clean and professional.
 
 ## 📁 Directory Structure
 
-### `/milestones/`
+### **📊 Current Status (ACCURATE)**
 
-Major project milestones and achievements:
+**Use these for accurate project information:**
 
-- `COMPREHENSIVE-CODE-AUDIT-JUNE-24-2025.md` - **NEW** June 24, 2025 - Complete codebase audit report
-- `CODE-CLEANUP-SUMMARY-JUNE-24-2025.md` - **NEW** June 24, 2025 - Code cleanup completion summary
-- `STRATEGY-CHART-INTEGRATION-COMPLETE.md` - June 24, 2025 - Strategy-driven indicator system complete
-- `PHASE-2-COMPLETE-REAL-INDICATORS-SIGNALS.md` - June 19, 2025 - Real indicators and signal generation
-- `WEBSOCKET-MILESTONE-COMPLETE.md` - June 18, 2025 WebSocket-Only Architecture completion
-- `WEBSOCKET-ONLY-ARCHITECTURE-COMPLETE.md` - Detailed implementation summary
-- `CURRENT-STATUS-SUMMARY.md` - Overall project status summary
+- `ACTUAL-PROJECT-STATUS.md` - ✅ **Honest assessment of what works vs what doesn't**
+- `DEVELOPMENT-ROADMAP.md` - ✅ **Realistic implementation plan**
+- `DOCUMENTATION-STATUS.md` - ✅ **Guide to documentation accuracy**
 
-### `/features/`
+### `/archive/` ❌
 
-Feature implementations and enhancements:
+**Misleading documents moved here - DO NOT USE:**
 
-- `STRATEGY-DRIVEN-INDICATOR-SYSTEM.md` - **NEW** June 24, 2025 - Complete strategy-chart integration
-- `MULTI-STRATEGY-ENGINE-ARCHITECTURE.md` - Multi-strategy system architecture and design
-- `STRATEGY-STORE-IMPLEMENTATION.md` - JSON strategy storage system
-- `STRATEGY-STORE-IMPROVEMENTS.md` - Strategy storage enhancements
-- `CHART-PERFORMANCE-OPTIMIZATIONS.md` - Chart rendering optimizations
-- `CHART-ZOOM-ENHANCEMENTS-SUMMARY.md` - Chart zoom functionality
-- `ZOOM-PRESERVATION-FINAL-IMPLEMENTATION.md` - Zoom state persistence
-- `DASHBOARD-CONSOLIDATION-SUMMARY.md` - Dashboard consolidation
-- `VALIDATION-IMPROVEMENTS.md` - Strategy validation enhancements
+Contains documents that significantly overstated completion status, claiming features were "complete" when they were only planned or partially implemented.
 
-### `/fixes/`
+### `/milestones/` ⚠️
 
-Bug fixes and cleanup efforts:
+**Use with caution - some accurate, some outdated:**
 
-- `LEGACY-FILE-CLEANUP-JUNE-20.md` - **Latest** - Removed reintroduced legacy files (June 20, 2025)
-- `CODEBASE-CLEANUP-COMPLETE.md` - Major codebase cleanup and organization
+- `WEBSOCKET-MILESTONE-COMPLETE.md` - ✅ Accurate WebSocket implementation details
+- `CODE-CLEANUP-SUMMARY-JUNE-24-2025.md` - ✅ Accurate cleanup documentation
+- Other milestone docs moved to archive for overstated claims
+
+### `/features/` ⚠️
+
+**Mixed accuracy - verify against actual code:**
+
+Implementation documentation - some features are accurately documented, others overstate actual completion status.
+
 - `WEBSOCKET-FIX-FINAL-REPORT.md` - WebSocket connectivity fixes
 - `WEBSOCKET-FIX-SUMMARY.md` - WebSocket issue resolution
 - `WEBSOCKET-CLEANUP-SUMMARY.md` - WebSocket code cleanup
