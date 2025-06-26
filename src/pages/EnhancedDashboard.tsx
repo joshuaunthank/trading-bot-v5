@@ -6,12 +6,11 @@ import ConfigModal from "../components/ConfigModal";
 import StrategyManager from "../components/StrategyManager";
 import StrategySelect from "../components/StrategySelect";
 import { useStrategies } from "../hooks/useStrategies";
-import useOhlcvWebSocket from "../hooks/useOhlcvWebSocket";
+import { useOhlcvWebSocket } from "../hooks/useWebSocket";
 import {
 	useLocalIndicators,
 	IndicatorConfig,
 } from "../hooks/useLocalIndicators";
-import { useStrategyIndicators } from "../hooks/useStrategyIndicators";
 
 interface OHLCVData {
 	timestamp: number;
@@ -20,18 +19,6 @@ interface OHLCVData {
 	close: number;
 	low: number;
 	volume: number;
-}
-
-interface DashboardStrategyIndicator {
-	id: string;
-	current_value: number;
-	values?: number[];
-}
-
-interface DashboardStrategySignal {
-	id: string;
-	side: "long" | "short";
-	active: boolean;
 }
 
 interface ConnectionStatusProps {
@@ -138,10 +125,7 @@ const EnhancedDashboard: React.FC = () => {
 	}, [symbol, timeframe]);
 
 	// Strategy data - simplified, no complex WebSocket strategy execution
-	const [indicators, setIndicators] = useState<DashboardStrategyIndicator[]>(
-		[]
-	);
-	const [signals, setSignals] = useState<DashboardStrategySignal[]>([]);
+	// Note: Strategy indicators now come through StrategySelect component instead
 
 	// OHLCV WebSocket for chart data
 	const {
@@ -154,13 +138,10 @@ const EnhancedDashboard: React.FC = () => {
 	// Calculate indicators from OHLCV data
 	const calculatedIndicators = useLocalIndicators(ohlcvData, indicatorConfigs);
 
-	// Combine with strategy indicators from WebSocket
-	const strategyIndicators = useStrategyIndicators(indicators, ohlcvData, true);
-
-	// All indicators for the chart
+	// All indicators for the chart (simplified - just calculated indicators)
 	const allChartIndicators = useMemo(() => {
-		return [...calculatedIndicators, ...strategyIndicators];
-	}, [calculatedIndicators, strategyIndicators]);
+		return calculatedIndicators;
+	}, [calculatedIndicators]);
 
 	// Track connection status for error handling
 	useEffect(() => {
