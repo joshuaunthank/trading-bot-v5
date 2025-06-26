@@ -3,6 +3,9 @@ import {
 	getAllIndicators,
 	getIndicatorTypes,
 	getIndicatorById,
+	createIndicator,
+	updateIndicator,
+	deleteIndicator,
 } from "../api-utils";
 
 const indicatorRoutes = (router: express.Router) => {
@@ -17,24 +20,14 @@ const indicatorRoutes = (router: express.Router) => {
 	// GET /api/v1/indicators/:id
 	indicators.get("/indicators/:id", getIndicatorById);
 
-	indicators.post("/indicators", (req, res) => {
-		// create new indicator
-		res.json({ message: "New indicator creation will be implemented here." });
-	});
+	// POST /api/v1/indicators
+	indicators.post("/indicators", createIndicator);
 
-	indicators.put("/indicators/:id", (req, res) => {
-		// update indicator by ID
-		res.json({
-			message: `Updating indicator with ID ${req.params.id} will be implemented here.`,
-		});
-	});
+	// PUT /api/v1/indicators/:id
+	indicators.put("/indicators/:id", updateIndicator);
 
-	indicators.delete("/indicators/:id", (req, res) => {
-		// delete indicator by ID
-		res.json({
-			message: `Deleting indicator with ID ${req.params.id} will be implemented here.`,
-		});
-	});
+	// DELETE /api/v1/indicators/:id
+	indicators.delete("/indicators/:id", deleteIndicator);
 
 	router.use("/", indicators);
 };

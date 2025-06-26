@@ -13,6 +13,12 @@ export {
 	resumeStrategy,
 	getAllStrategyStatus,
 	getStrategyStatus,
+	getAllStrategies,
+	getStrategyById,
+	createStrategy,
+	cloneStrategy,
+	updateStrategy,
+	deleteStrategy,
 	StrategyExecutionResponse,
 } from "./strategy-execution";
 
@@ -21,6 +27,9 @@ export {
 	getAllIndicators,
 	getIndicatorTypes,
 	getIndicatorById,
+	createIndicator,
+	updateIndicator,
+	deleteIndicator,
 	IndicatorResponse,
 } from "./indicator-management";
 
