@@ -255,35 +255,32 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 	};
 
 	if (!isOpen) {
-		console.log("🔥 StrategyEditor: Modal is closed (isOpen=false)");
 		return null;
 	}
 
-	console.log("🔥 StrategyEditor: Modal should be visible! Rendering...");
-
 	return (
-		<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-			<div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+		<div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+			<div className="bg-gray-900 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-700 shadow-2xl text-gray-100">
 				{/* Header */}
-				<div className="flex items-center justify-between p-6 border-b border-gray-200">
+				<div className="flex items-center justify-between p-6 border-b border-gray-800">
 					<div>
-						<h2 className="text-xl font-semibold text-gray-900">
+						<h2 className="text-xl font-semibold text-blue-300">
 							{isEditMode ? "Edit Strategy" : "Create New Strategy"}
 						</h2>
 						{strategy.name && (
-							<p className="text-sm text-gray-500 mt-1">{strategy.name}</p>
+							<p className="text-sm text-gray-400 mt-1">{strategy.name}</p>
 						)}
 					</div>
 					<button
 						onClick={onClose}
-						className="text-gray-400 hover:text-gray-600 transition-colors"
+						className="text-gray-400 hover:text-gray-200 transition-colors"
 					>
 						<X size={24} />
 					</button>
 				</div>
 
 				{/* Tabs */}
-				<div className="flex border-b border-gray-200">
+				<div className="flex border-b border-gray-800 bg-gray-900">
 					{[
 						{ id: "basic", label: "Basic Info" },
 						{ id: "indicators", label: "Indicators" },
@@ -293,10 +290,10 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 						<button
 							key={tab.id}
 							onClick={() => setActiveTab(tab.id as any)}
-							className={`px-4 py-3 font-medium text-sm ${
+							className={`px-4 py-3 font-medium text-sm transition-colors focus:outline-none ${
 								activeTab === tab.id
-									? "text-blue-600 border-b-2 border-blue-600"
-									: "text-gray-500 hover:text-gray-700"
+									? "text-blue-400 border-b-2 border-blue-400 bg-gray-900"
+									: "text-gray-400 hover:text-gray-200"
 							}`}
 						>
 							{tab.label}
@@ -305,12 +302,12 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 				</div>
 
 				{/* Content */}
-				<div className="flex-1 overflow-y-auto p-6">
+				<div className="flex-1 overflow-y-auto p-6 bg-gray-900">
 					{activeTab === "basic" && (
 						<div className="space-y-4">
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
+									<label className="block text-sm font-medium text-gray-100 mb-1">
 										Strategy Name
 									</label>
 									<input
@@ -319,12 +316,12 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 										onChange={(e) =>
 											setStrategy((prev) => ({ ...prev, name: e.target.value }))
 										}
-										className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+										className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 										placeholder="Enter strategy name"
 									/>
 								</div>
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
+									<label className="block text-sm font-medium text-gray-100 mb-1">
 										Strategy ID
 									</label>
 									<input
@@ -333,7 +330,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 										onChange={(e) =>
 											setStrategy((prev) => ({ ...prev, id: e.target.value }))
 										}
-										className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+										className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 										placeholder="strategy_id"
 										disabled={isEditMode}
 									/>
@@ -341,7 +338,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 							</div>
 
 							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-1">
+								<label className="block text-sm font-medium text-gray-100 mb-1">
 									Description
 								</label>
 								<textarea
@@ -352,7 +349,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 											description: e.target.value,
 										}))
 									}
-									className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+									className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 									rows={3}
 									placeholder="Describe your strategy..."
 								/>
@@ -360,7 +357,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
+									<label className="block text-sm font-medium text-gray-100 mb-1">
 										Symbol
 									</label>
 									<input
@@ -372,12 +369,12 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 												symbol: e.target.value,
 											}))
 										}
-										className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+										className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 										placeholder="BTC/USDT"
 									/>
 								</div>
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
+									<label className="block text-sm font-medium text-gray-100 mb-1">
 										Timeframe
 									</label>
 									<select
@@ -388,7 +385,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 												timeframe: e.target.value,
 											}))
 										}
-										className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+										className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 									>
 										{TIMEFRAMES.map((tf) => (
 											<option key={tf} value={tf}>
@@ -401,7 +398,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 
 							{/* Tags */}
 							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-1">
+								<label className="block text-sm font-medium text-gray-100 mb-1">
 									Tags
 								</label>
 								<div className="flex gap-2 mb-2">
@@ -410,7 +407,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 										value={tagInput}
 										onChange={(e) => setTagInput(e.target.value)}
 										onKeyPress={(e) => e.key === "Enter" && addTag()}
-										className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+										className="flex-1 px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 										placeholder="Add a tag..."
 									/>
 									<button
@@ -453,7 +450,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 								/>
 								<label
 									htmlFor="enabled"
-									className="text-sm font-medium text-gray-700"
+									className="text-sm font-medium text-gray-100"
 								>
 									Strategy Enabled
 								</label>
@@ -464,7 +461,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 					{activeTab === "indicators" && (
 						<div className="space-y-4">
 							<div className="flex items-center justify-between">
-								<h3 className="text-lg font-medium text-gray-900">
+								<h3 className="text-lg font-medium text-gray-100">
 									Indicators
 								</h3>
 								<button
@@ -479,10 +476,10 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 							{strategy.indicators.map((indicator, index) => (
 								<div
 									key={indicator.id}
-									className="border border-gray-200 rounded-lg p-4"
+									className="border border-gray-700 rounded-lg p-4 bg-gray-800"
 								>
 									<div className="flex items-center justify-between mb-3">
-										<h4 className="font-medium text-gray-900">
+										<h4 className="font-medium text-gray-100">
 											Indicator {index + 1}
 										</h4>
 										<button
@@ -495,7 +492,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 										<div>
-											<label className="block text-sm font-medium text-gray-700 mb-1">
+											<label className="block text-sm font-medium text-gray-100 mb-1">
 												ID
 											</label>
 											<input
@@ -504,11 +501,11 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 												onChange={(e) =>
 													updateIndicator(index, "id", e.target.value)
 												}
-												className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+												className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 											/>
 										</div>
 										<div>
-											<label className="block text-sm font-medium text-gray-700 mb-1">
+											<label className="block text-sm font-medium text-gray-100 mb-1">
 												Type
 											</label>
 											<select
@@ -521,7 +518,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 													updateIndicator(index, "type", newType);
 													updateIndicator(index, "parameters", defaultParams);
 												}}
-												className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+												className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 											>
 												{INDICATOR_TYPES.map((type) => (
 													<option key={type.value} value={type.value}>
@@ -533,7 +530,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 									</div>
 
 									<div className="mt-3">
-										<label className="block text-sm font-medium text-gray-700 mb-1">
+										<label className="block text-sm font-medium text-gray-100 mb-1">
 											Parameters (JSON)
 										</label>
 										<textarea
@@ -546,7 +543,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 													// Invalid JSON, don't update
 												}
 											}}
-											className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+											className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm text-gray-300"
 											rows={3}
 										/>
 									</div>
@@ -564,7 +561,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 					{activeTab === "signals" && (
 						<div className="space-y-4">
 							<div className="flex items-center justify-between">
-								<h3 className="text-lg font-medium text-gray-900">
+								<h3 className="text-lg font-medium text-gray-100">
 									Trading Signals
 								</h3>
 								<button
@@ -579,10 +576,10 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 							{strategy.signals.map((signal, index) => (
 								<div
 									key={signal.id}
-									className="border border-gray-200 rounded-lg p-4"
+									className="border border-gray-700 rounded-lg p-4 bg-gray-800"
 								>
 									<div className="flex items-center justify-between mb-3">
-										<h4 className="font-medium text-gray-900">
+										<h4 className="font-medium text-gray-100">
 											Signal {index + 1}
 										</h4>
 										<button
@@ -595,7 +592,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 
 									<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
 										<div>
-											<label className="block text-sm font-medium text-gray-700 mb-1">
+											<label className="block text-sm font-medium text-gray-100 mb-1">
 												ID
 											</label>
 											<input
@@ -604,11 +601,11 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 												onChange={(e) =>
 													updateSignal(index, "id", e.target.value)
 												}
-												className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+												className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 											/>
 										</div>
 										<div>
-											<label className="block text-sm font-medium text-gray-700 mb-1">
+											<label className="block text-sm font-medium text-gray-100 mb-1">
 												Type
 											</label>
 											<select
@@ -616,14 +613,14 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 												onChange={(e) =>
 													updateSignal(index, "type", e.target.value)
 												}
-												className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+												className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 											>
 												<option value="entry">Entry</option>
 												<option value="exit">Exit</option>
 											</select>
 										</div>
 										<div>
-											<label className="block text-sm font-medium text-gray-700 mb-1">
+											<label className="block text-sm font-medium text-gray-100 mb-1">
 												Side
 											</label>
 											<select
@@ -631,7 +628,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 												onChange={(e) =>
 													updateSignal(index, "side", e.target.value)
 												}
-												className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+												className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 											>
 												<option value="long">Long</option>
 												<option value="short">Short</option>
@@ -640,7 +637,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 									</div>
 
 									<div className="mb-3">
-										<label className="block text-sm font-medium text-gray-700 mb-1">
+										<label className="block text-sm font-medium text-gray-100 mb-1">
 											Expression
 										</label>
 										<input
@@ -649,13 +646,13 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 											onChange={(e) =>
 												updateSignal(index, "expression", e.target.value)
 											}
-											className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+											className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-gray-300"
 											placeholder="e.g., rsi_14 < 30 && close > ema_20"
 										/>
 									</div>
 
 									<div>
-										<label className="block text-sm font-medium text-gray-700 mb-1">
+										<label className="block text-sm font-medium text-gray-100 mb-1">
 											Description
 										</label>
 										<input
@@ -664,7 +661,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 											onChange={(e) =>
 												updateSignal(index, "description", e.target.value)
 											}
-											className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+											className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 											placeholder="Describe this signal..."
 										/>
 									</div>
@@ -681,13 +678,13 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 
 					{activeTab === "risk" && (
 						<div className="space-y-4">
-							<h3 className="text-lg font-medium text-gray-900">
+							<h3 className="text-lg font-medium text-gray-100">
 								Risk Management
 							</h3>
 
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
+									<label className="block text-sm font-medium text-gray-100 mb-1">
 										Position Size Type
 									</label>
 									<select
@@ -701,14 +698,14 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 												},
 											}))
 										}
-										className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+										className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 									>
 										<option value="fixed">Fixed Amount</option>
 										<option value="percent_equity">Percent of Equity</option>
 									</select>
 								</div>
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
+									<label className="block text-sm font-medium text-gray-100 mb-1">
 										Risk Per Trade (%)
 									</label>
 									<input
@@ -723,14 +720,14 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 												},
 											}))
 										}
-										className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+										className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 										min="0.1"
 										max="10"
 										step="0.1"
 									/>
 								</div>
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
+									<label className="block text-sm font-medium text-gray-100 mb-1">
 										Stop Loss (%)
 									</label>
 									<input
@@ -745,14 +742,14 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 												},
 											}))
 										}
-										className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+										className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 										min="0.1"
 										max="20"
 										step="0.1"
 									/>
 								</div>
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
+									<label className="block text-sm font-medium text-gray-100 mb-1">
 										Take Profit (%)
 									</label>
 									<input
@@ -767,14 +764,14 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 												},
 											}))
 										}
-										className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+										className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 										min="0.1"
 										max="50"
 										step="0.1"
 									/>
 								</div>
 								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
+									<label className="block text-sm font-medium text-gray-100 mb-1">
 										Max Drawdown (%)
 									</label>
 									<input
@@ -789,7 +786,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 												},
 											}))
 										}
-										className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+										className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 										min="1"
 										max="50"
 										step="1"
@@ -810,7 +807,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 									/>
 									<label
 										htmlFor="trailing_stop"
-										className="text-sm font-medium text-gray-700"
+										className="text-sm font-medium text-gray-100"
 									>
 										Use Trailing Stop
 									</label>
@@ -821,16 +818,16 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 				</div>
 
 				{/* Footer */}
-				<div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+				<div className="flex items-center justify-end gap-3 p-6 border-t border-gray-800 bg-gray-900">
 					<button
 						onClick={onClose}
-						className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+						className="px-4 py-2 text-gray-300 border border-gray-700 rounded-md hover:bg-gray-800"
 					>
 						Cancel
 					</button>
 					<button
 						onClick={handleSave}
-						className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+						className="flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-600 text-white rounded-md"
 					>
 						<Save size={16} />
 						{isEditMode ? "Save Changes" : "Create Strategy"}

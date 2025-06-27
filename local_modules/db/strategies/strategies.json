@@ -1,110 +1,158 @@
 [
-	{
-		"id": "enhanced_rsi_ema_strategy",
-		"name": "Enhanced RSI + EMA Strategy",
-		"description": "Advanced strategy combining RSI oversold/overbought conditions with EMA trend confirmation",
-		"category": "trend-momentum",
-		"risk_level": "medium",
-		"complexity": "intermediate",
-		"tags": ["rsi", "ema", "trend-following", "mean-reversion"],
-		"timeframes": ["1h", "4h"],
-		"created_at": "2025-01-21T12:00:00Z",
-		"last_updated": "2025-01-21T12:00:00Z",
-		"performance": {
-			"backtested": true,
-			"win_rate": 0.68,
-			"avg_return": 0.024,
-			"max_drawdown": 0.15
-		}
-	},
-	{
-		"id": "simple_ema_test",
-		"name": "Simple EMA Test Strategy",
-		"description": "A basic strategy using only EMA indicators for testing and learning",
-		"category": "trend-following",
-		"risk_level": "low",
-		"complexity": "beginner",
-		"tags": ["simple", "test", "ema"],
-		"timeframes": ["1h", "4h", "1d"],
-		"created_at": "2025-06-26T00:00:00Z",
-		"last_updated": "2025-06-26T00:00:00Z",
-		"performance": {
-			"backtested": false,
-			"win_rate": null,
-			"avg_return": null,
-			"max_drawdown": null
-		}
-	},
-	{
-		"id": "conservative_ema_rsi_protected",
-		"name": "Conservative EMA-RSI with Protection",
-		"description": "Conservative strategy using EMA crossovers and RSI confirmation with overtrading prevention",
-		"category": "trend-momentum",
-		"risk_level": "low",
-		"complexity": "intermediate",
-		"tags": ["conservative", "trend-following", "protected", "ema", "rsi"],
-		"timeframes": ["1h", "4h"],
-		"created_at": "2025-06-26T00:00:00Z",
-		"last_updated": "2025-06-26T00:00:00Z",
-		"performance": {
-			"backtested": false,
-			"win_rate": null,
-			"avg_return": null,
-			"max_drawdown": null
-		}
-	},
-	{
-		"id": "conservative_ema_rsi_v2",
-		"name": "Conservative EMA-RSI V2",
-		"description": "Improved version of conservative EMA-RSI strategy with enhanced risk management",
-		"category": "trend-momentum",
-		"risk_level": "low",
-		"complexity": "intermediate",
-		"tags": ["conservative", "trend-following", "ema", "rsi", "v2"],
-		"timeframes": ["1h", "4h"],
-		"created_at": "2025-06-26T00:00:00Z",
-		"last_updated": "2025-06-26T00:00:00Z",
-		"performance": {
-			"backtested": false,
-			"win_rate": null,
-			"avg_return": null,
-			"max_drawdown": null
-		}
-	},
-	{
-		"id": "arima_macd_lag",
-		"name": "ARIMA MACD Lag Strategy",
-		"description": "Advanced strategy combining ARIMA time series analysis with MACD momentum indicators",
-		"category": "statistical-momentum",
-		"risk_level": "high",
-		"complexity": "advanced",
-		"tags": ["arima", "macd", "statistical", "advanced"],
-		"timeframes": ["1h", "4h"],
-		"created_at": "2025-06-26T00:00:00Z",
-		"last_updated": "2025-06-26T00:00:00Z",
-		"performance": {
-			"backtested": false,
-			"win_rate": null,
-			"avg_return": null,
-			"max_drawdown": null
-		}
-	},
-	{
-		"id": "test1",
-		"name": "Test Strategy 1",
-		"description": "Basic test strategy for development and debugging purposes",
-		"category": "test",
-		"risk_level": "low",
-		"complexity": "beginner",
-		"tags": ["test", "development", "debug"],
-		"timeframes": ["1h"],
-		"created_at": "2025-06-26T00:00:00Z",
-		"last_updated": "2025-06-26T00:00:00Z",
-		"performance": {
-			"backtested": false,
-			"win_rate": null,
-			"avg_return": null,
-			"max_drawdown": null
-		}
-	}
+  {
+    "id": "enhanced_rsi_ema_strategy",
+    "name": "Enhanced RSI + EMA Strategy",
+    "description": "Advanced strategy combining RSI oversold/overbought conditions with EMA trend confirmation",
+    "category": "trend-momentum",
+    "risk_level": "medium",
+    "complexity": "intermediate",
+    "tags": [
+      "rsi",
+      "ema",
+      "trend-following",
+      "mean-reversion"
+    ],
+    "timeframes": [
+      "1h",
+      "4h"
+    ],
+    "created_at": "2025-01-21T12:00:00Z",
+    "last_updated": "2025-01-21T12:00:00Z",
+    "performance": {
+      "backtested": true,
+      "win_rate": 0.68,
+      "avg_return": 0.024,
+      "max_drawdown": 0.15
+    }
+  },
+  {
+    "id": "simple_ema_test",
+    "name": "Simple EMA Test Strategy",
+    "description": "A basic strategy using only EMA indicators for testing and learning",
+    "category": "trend-following",
+    "risk_level": "low",
+    "complexity": "beginner",
+    "tags": [
+      "simple",
+      "test",
+      "ema"
+    ],
+    "timeframes": [
+      "1h",
+      "4h",
+      "1d"
+    ],
+    "created_at": "2025-06-26T00:00:00Z",
+    "last_updated": "2025-06-26T00:00:00Z",
+    "performance": {
+      "backtested": false,
+      "win_rate": null,
+      "avg_return": null,
+      "max_drawdown": null
+    }
+  },
+  {
+    "id": "conservative_ema_rsi_protected",
+    "name": "Conservative EMA-RSI with Protection",
+    "description": "Conservative strategy using EMA crossovers and RSI confirmation with overtrading prevention",
+    "category": "trend-momentum",
+    "risk_level": "low",
+    "complexity": "intermediate",
+    "tags": [
+      "conservative",
+      "trend-following",
+      "protected",
+      "ema",
+      "rsi"
+    ],
+    "timeframes": [
+      "1h",
+      "4h"
+    ],
+    "created_at": "2025-06-26T00:00:00Z",
+    "last_updated": "2025-06-26T00:00:00Z",
+    "performance": {
+      "backtested": false,
+      "win_rate": null,
+      "avg_return": null,
+      "max_drawdown": null
+    }
+  },
+  {
+    "id": "conservative_ema_rsi_v2",
+    "name": "Conservative EMA-RSI V2",
+    "description": "Improved version of conservative EMA-RSI strategy with enhanced risk management",
+    "category": "trend-momentum",
+    "risk_level": "low",
+    "complexity": "intermediate",
+    "tags": [
+      "conservative",
+      "trend-following",
+      "ema",
+      "rsi",
+      "v2"
+    ],
+    "timeframes": [
+      "1h",
+      "4h"
+    ],
+    "created_at": "2025-06-26T00:00:00Z",
+    "last_updated": "2025-06-26T00:00:00Z",
+    "performance": {
+      "backtested": false,
+      "win_rate": null,
+      "avg_return": null,
+      "max_drawdown": null
+    }
+  },
+  {
+    "id": "arima_macd_lag",
+    "name": "ARIMA MACD Lag Strategy",
+    "description": "Advanced strategy combining ARIMA time series analysis with MACD momentum indicators",
+    "category": "statistical-momentum",
+    "risk_level": "high",
+    "complexity": "advanced",
+    "tags": [
+      "arima",
+      "macd",
+      "statistical",
+      "advanced"
+    ],
+    "timeframes": [
+      "1h",
+      "4h"
+    ],
+    "created_at": "2025-06-26T00:00:00Z",
+    "last_updated": "2025-06-26T00:00:00Z",
+    "performance": {
+      "backtested": false,
+      "win_rate": null,
+      "avg_return": null,
+      "max_drawdown": null
+    }
+  },
+  {
+    "id": "test1",
+    "name": "Test Strategy 1",
+    "description": "Basic test strategy for development and debugging purposes",
+    "category": "test",
+    "risk_level": "low",
+    "complexity": "beginner",
+    "tags": [
+      "test",
+      "development",
+      "debug"
+    ],
+    "timeframes": [
+      "1h"
+    ],
+    "created_at": "2025-06-26T00:00:00Z",
+    "last_updated": "2025-06-26T00:00:00Z",
+    "performance": {
+      "backtested": false,
+      "win_rate": null,
+      "avg_return": null,
+      "max_drawdown": null
+    }
+  }
 ]
