@@ -24,7 +24,8 @@ interface ChartPanelProps {
 	loading?: boolean;
 	indicators: CalculatedIndicator[];
 	panelType: "price" | "oscillator" | "volume";
-	height: string;
+	// height: string;
+	heightPx?: number; // <-- add this
 	showPrice?: boolean; // For price panel
 	zoomState?: any; // Shared zoom state across panels
 	onZoomChange?: (zoomState: any) => void;
@@ -37,7 +38,8 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 	loading = false,
 	indicators = [],
 	panelType,
-	height,
+	// height,
+	heightPx, // <-- add this
 	showPrice = false,
 	zoomState,
 	onZoomChange,
@@ -579,7 +581,7 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 	}, []);
 
 	return (
-		<div className={`bg-gray-800 rounded-lg shadow-lg p-4 ${height}`}>
+		<div className={`bg-gray-700 rounded-lg shadow-lg p-4`}>
 			{/* Panel header */}
 			<div className="flex justify-between items-center mb-2">
 				<h4 className="text-sm font-medium text-gray-300">
@@ -592,7 +594,15 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 				{loading && <ChartSpinner size="small" />}
 			</div>
 
-			<div className="relative h-full">
+			{/* Chart area: set height here, accounting for padding (p-4 = 32px vertical) */}
+			<div
+				className="relative w-full"
+				style={
+					panelType === "price" && heightPx
+						? { minHeight: heightPx - 32, height: heightPx - 32 }
+						: {}
+				}
+			>
 				{loading ? (
 					<div className="flex h-full justify-center items-center">
 						<ChartSpinner size="small" />

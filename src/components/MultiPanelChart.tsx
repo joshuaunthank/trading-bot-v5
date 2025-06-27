@@ -22,6 +22,16 @@ interface MultiPanelChartProps {
 	onTimeframeChange?: (timeframe: string) => void;
 }
 
+// Utility to get responsive chart height
+function getResponsiveChartHeight() {
+	if (typeof window !== "undefined") {
+		if (window.innerWidth >= 1024) return 520;
+		if (window.innerWidth >= 768) return 400;
+		return 300;
+	}
+	return 350;
+}
+
 const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 	data,
 	symbol,
@@ -33,6 +43,24 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 	const [sharedZoomState, setSharedZoomState] = useState<any>(null);
 	const [isZoomed, setIsZoomed] = useState(false);
 	const timeframes = ["1m", "5m", "15m", "1h", "4h", "1d"];
+
+	// Responsive chart height for price panel
+	const getResponsiveChartHeight = () => {
+		if (typeof window !== "undefined") {
+			if (window.innerWidth >= 1024) return 520;
+			if (window.innerWidth >= 768) return 400;
+			return 300;
+		}
+		return 350;
+	};
+	const [chartHeight, setChartHeight] = useState(getResponsiveChartHeight());
+	React.useEffect(() => {
+		function handleResize() {
+			setChartHeight(getResponsiveChartHeight());
+		}
+		window.addEventListener("resize", handleResize);
+		return () => window.removeEventListener("resize", handleResize);
+	}, []);
 
 	// Categorize indicators by type
 	const categorizedIndicators = categorizeIndicators(indicators);
@@ -56,7 +84,7 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 	};
 
 	return (
-		<div className="bg-gray-900 rounded-lg shadow-lg p-4 h-[700px]">
+		<div className="bg-gray-800 rounded-lg shadow-lg p-4">
 			{/* Chart Header */}
 			<div className="flex justify-between items-center mb-4">
 				<div className="flex items-center space-x-2">
@@ -105,8 +133,8 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 			</div>
 
 			{/* Chart Panels */}
-			<div className="space-y-2 h-[620px]">
-				{/* Price Panel - Always visible */}
+			<div className="space-y-2">
+				{/* Price Panel - Always visible, now with explicit heightPx prop */}
 				<ChartPanel
 					data={data}
 					symbol={symbol}
@@ -114,10 +142,10 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 					loading={loading}
 					indicators={categorizedIndicators.price}
 					panelType="price"
-					height={getPanelHeight("price", hasOscillators, hasVolume)}
 					showPrice={true}
 					zoomState={sharedZoomState}
 					onZoomChange={handleZoomChange}
+					heightPx={chartHeight}
 				/>
 
 				{/* Oscillator Panel - Only if oscillators exist */}
@@ -129,7 +157,6 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 						loading={loading}
 						indicators={categorizedIndicators.oscillator}
 						panelType="oscillator"
-						height={getPanelHeight("oscillator", hasOscillators, hasVolume)}
 						showPrice={false}
 						zoomState={sharedZoomState}
 						onZoomChange={handleZoomChange}
@@ -145,7 +172,6 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 						loading={loading}
 						indicators={categorizedIndicators.volume}
 						panelType="volume"
-						height={getPanelHeight("volume", hasOscillators, hasVolume)}
 						showPrice={false}
 						zoomState={sharedZoomState}
 						onZoomChange={handleZoomChange}
@@ -161,7 +187,6 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 						loading={loading}
 						indicators={[]}
 						panelType="volume"
-						height="h-[100px]"
 						showPrice={false}
 						zoomState={sharedZoomState}
 						onZoomChange={handleZoomChange}

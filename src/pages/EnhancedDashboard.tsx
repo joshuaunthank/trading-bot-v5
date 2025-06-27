@@ -490,7 +490,7 @@ const EnhancedDashboard: React.FC = () => {
 						/>
 					</div>
 
-					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+					<div className="mb-4">
 						<MultiPanelChart
 							data={ohlcvData}
 							symbol={symbol}
@@ -498,7 +498,8 @@ const EnhancedDashboard: React.FC = () => {
 							loading={loading}
 							indicators={allChartIndicators}
 						/>
-
+					</div>
+					<div className="">
 						<TableView
 							data={ohlcvData.slice(-10).reverse()} // Show last 10 candles (newest first for table display)
 							loading={loading}
