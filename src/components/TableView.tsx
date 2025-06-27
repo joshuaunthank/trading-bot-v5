@@ -119,7 +119,7 @@ const TableView: React.FC<TableViewProps> = ({
 				<div className="text-center text-gray-400 py-8">No data available</div>
 			) : (
 				<table className="w-full text-sm text-left text-gray-300">
-					<thead className="text-xs uppercase bg-gray-700 sticky top-0">
+					<thead className="text-xs uppercase bg-gray-700 sticky top-[-20px]">
 						<tr>
 							<th
 								className={`px-4 py-3 cursor-pointer hover:bg-gray-600 ${getClassNamesFor(

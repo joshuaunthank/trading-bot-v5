@@ -501,7 +501,7 @@ const EnhancedDashboard: React.FC = () => {
 					</div>
 					<div className="">
 						<TableView
-							data={ohlcvData.slice(-10).reverse()} // Show last 10 candles (newest first for table display)
+							data={ohlcvData.slice().reverse()} // Show all candles, newest first
 							loading={loading}
 							symbol={symbol}
 							timeframe={timeframe}

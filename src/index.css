@@ -52,3 +52,8 @@ code {
 	opacity: 0;
 	transition: opacity 200ms;
 }
+
+/* Make the top (live) row in tables italic for visual distinction */
+tbody tr:first-child td {
+	font-style: italic;
+}
