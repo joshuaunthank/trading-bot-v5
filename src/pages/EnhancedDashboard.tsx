@@ -5,6 +5,7 @@ import SummaryView from "../components/SummaryView";
 import ConfigModal from "../components/ConfigModal";
 import StrategyManager from "../components/StrategyManager";
 import StrategySelect from "../components/StrategySelect";
+import StrategyEditor from "../components/strategy/StrategyEditor";
 import { useStrategies } from "../hooks/useStrategies";
 import { useOhlcvWebSocket } from "../hooks/useWebSocket";
 import {
@@ -109,6 +110,13 @@ const EnhancedDashboard: React.FC = () => {
 	const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 	const [activeTab, setActiveTab] = useState<"chart" | "manager">("chart"); // Start with chart tab
 
+	// Strategy Editor state
+	const [isStrategyEditorOpen, setIsStrategyEditorOpen] = useState(false);
+	const [editingStrategyId, setEditingStrategyId] = useState<string | null>(
+		null
+	);
+	const [editingStrategy, setEditingStrategy] = useState<any>(null);
+
 	// Indicator system state
 	const [indicatorConfigs, setIndicatorConfigs] = useState<IndicatorConfig[]>(
 		[]
@@ -121,6 +129,7 @@ const EnhancedDashboard: React.FC = () => {
 		strategies: availableStrategies,
 		loading: strategiesLoading,
 		error: strategiesError,
+		loadStrategies,
 	} = useStrategies();
 
 	// Simple symbol and timeframe state - no complex strategy execution needed
@@ -342,6 +351,72 @@ const EnhancedDashboard: React.FC = () => {
 		[]
 	);
 
+	// Strategy Editor handlers
+	const handleCreateStrategy = useCallback(() => {
+		console.log("🔥 CREATE STRATEGY CLICKED!");
+		setEditingStrategyId(null);
+		setEditingStrategy(null);
+		setIsStrategyEditorOpen(true);
+		console.log("🔥 Modal state set to:", true);
+	}, []);
+
+	const handleEditStrategy = useCallback(async (strategyId: string) => {
+		console.log("🔥 EDIT STRATEGY CLICKED!", strategyId);
+		try {
+			// Fetch the full strategy data
+			const response = await fetch(`/api/v1/strategies/${strategyId}`);
+			if (response.ok) {
+				const strategy = await response.json();
+				setEditingStrategyId(strategyId);
+				setEditingStrategy(strategy);
+				setIsStrategyEditorOpen(true);
+				console.log("🔥 Modal state set to:", true, "with strategy:", strategy);
+			} else {
+				console.error("Failed to fetch strategy for editing");
+			}
+		} catch (error) {
+			console.error("Error fetching strategy:", error);
+		}
+	}, []);
+
+	const handleSaveStrategy = useCallback(
+		async (strategyData: any) => {
+			try {
+				const url = editingStrategyId
+					? `/api/v1/strategies/${editingStrategyId}`
+					: "/api/v1/strategies";
+				const method = editingStrategyId ? "PUT" : "POST";
+
+				const response = await fetch(url, {
+					method,
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(strategyData),
+				});
+
+				if (response.ok) {
+					setIsStrategyEditorOpen(false);
+					setEditingStrategyId(null);
+					setEditingStrategy(null);
+					// Refresh strategies list
+					await loadStrategies();
+				} else {
+					console.error("Failed to save strategy");
+				}
+			} catch (error) {
+				console.error("Error saving strategy:", error);
+			}
+		},
+		[editingStrategyId, loadStrategies]
+	);
+
+	const handleCloseStrategyEditor = useCallback(() => {
+		setIsStrategyEditorOpen(false);
+		setEditingStrategyId(null);
+		setEditingStrategy(null);
+	}, []);
+
 	// Summary data
 	const summaryData = calculateSummaryData();
 
@@ -408,6 +483,8 @@ const EnhancedDashboard: React.FC = () => {
 							selectedStrategyId={selectedIndicatorStrategyId}
 							onStrategySelect={setSelectedIndicatorStrategyId}
 							onIndicatorsChange={handleStrategyIndicatorsChange}
+							onCreateStrategy={handleCreateStrategy}
+							onEditStrategy={handleEditStrategy}
 							loading={strategiesLoading}
 							error={strategiesError}
 						/>
@@ -441,6 +518,15 @@ const EnhancedDashboard: React.FC = () => {
 				onSave={handleSaveConfig}
 				strategyId=""
 				title="Trading Configuration"
+			/>
+
+			{/* Strategy Editor modal */}
+			<StrategyEditor
+				isOpen={isStrategyEditorOpen}
+				onClose={handleCloseStrategyEditor}
+				onSave={handleSaveStrategy}
+				strategyId={editingStrategyId}
+				existingStrategy={editingStrategy}
 			/>
 		</div>
 	);

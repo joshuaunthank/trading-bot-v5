@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { Plus, Edit } from "lucide-react";
 import { IndicatorConfig, IndicatorType } from "../hooks/useLocalIndicators";
 import {
 	strategyService,
@@ -11,6 +12,8 @@ interface StrategySelectProps {
 	selectedStrategyId: string | null;
 	onStrategySelect: (strategyId: string | null) => void;
 	onIndicatorsChange: (indicators: IndicatorConfig[]) => void;
+	onCreateStrategy?: () => void;
+	onEditStrategy?: (strategyId: string) => void;
 	loading?: boolean;
 	error?: string | null;
 }
@@ -20,6 +23,8 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 	selectedStrategyId,
 	onStrategySelect,
 	onIndicatorsChange,
+	onCreateStrategy,
+	onEditStrategy,
 	loading = false,
 	error = null,
 }) => {
@@ -207,6 +212,31 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 							</option>
 						))}
 					</select>
+
+					{/* Create New Strategy Button */}
+					{onCreateStrategy && (
+						<button
+							onClick={onCreateStrategy}
+							className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors flex items-center gap-1"
+							title="Create New Strategy"
+						>
+							<Plus size={16} />
+							<span className="hidden sm:inline">Create</span>
+						</button>
+					)}
+
+					{/* Edit Strategy Button */}
+					{selectedStrategyId && onEditStrategy && (
+						<button
+							onClick={() => onEditStrategy(selectedStrategyId)}
+							className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors flex items-center gap-1"
+							title="Edit Strategy"
+						>
+							<Edit size={16} />
+							<span className="hidden sm:inline">Edit</span>
+						</button>
+					)}
+
 					{selectedStrategyId && (
 						<button
 							onClick={() => onStrategySelect(null)}

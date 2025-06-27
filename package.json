@@ -15,20 +15,17 @@
 		"test:manual": "echo \"Running manual tests...\" && node tests/manual/test-indicator-library.mjs && node tests/manual/test-simple-indicators.js"
 	},
 	"devDependencies": {
-		"@tailwindcss/postcss": "^4.1.8",
 		"@types/bcrypt": "^5.0.2",
 		"@types/express": "^5.0.2",
 		"@types/react": "^19.1.6",
 		"@types/react-dom": "^19.1.5",
 		"@vitejs/plugin-react": "^4.5.0",
-		"autoprefixer": "^10.4.21",
 		"ccxt": "^4.4.88",
 		"concurrently": "^8.2.2",
 		"cors": "*",
 		"dotenv": "^16.5.0",
 		"express": "*",
-		"postcss": "^8.5.4",
-		"tailwindcss": "^4.1.8",
+		"postcss": "^8.5.6",
 		"technicalindicators": "^3.1.0",
 		"typescript": "~5.8.3",
 		"uws": "^200.0.0",
@@ -36,6 +33,7 @@
 		"wait-on": "^8.0.3"
 	},
 	"dependencies": {
+		"@tailwindcss/vite": "^4.1.11",
 		"@types/chart.js": "^2.9.41",
 		"@types/cors": "*",
 		"@types/jsonwebtoken": "^9.0.9",
@@ -51,10 +49,13 @@
 		"formidable": "^3.5.4",
 		"jsonwebtoken": "^9.0.2",
 		"jstat": "^1.9.6",
+		"lucide-react": "^0.523.0",
 		"pg": "^8.16.0",
 		"react": "^19.1.0",
+		"react-chartjs-2": "^5.3.0",
 		"react-dom": "^19.1.0",
 		"react-router-dom": "^6.30.1",
+		"tailwindcss": "^4.1.11",
 		"ts-node": "*",
 		"typescript": "*",
 		"ws": "^8.18.2"
