@@ -799,8 +799,8 @@ async function startWatchLoop(
 					try {
 						if (ws.readyState === WsWebSocket.OPEN) {
 							const config = clientConfigs.get(ws);
-							let indicatorResults = {};
-							// Always use the full formattedDataForIndicators for indicator calculation
+							let indicatorResults: Record<string, any[]> = {};
+							let indicatorUpdateType: "full" | "incremental" = updateType;
 							if (
 								config &&
 								config.indicators &&
@@ -822,11 +822,29 @@ async function startWatchLoop(
 											(indicatorResults = result.results || {}),
 									} as any;
 									await calculateIndicators(req, res);
+
+									// For incremental, only send the latest value for each indicator
+									if (updateType === "incremental" && indicatorResults) {
+										const latestIndicators: Record<string, any[]> = {};
+										for (const key of Object.keys(indicatorResults)) {
+											const arr = indicatorResults[key];
+											if (Array.isArray(arr) && arr.length > 0) {
+												latestIndicators[key] = [arr[arr.length - 1]];
+											} else {
+												latestIndicators[key] = [];
+											}
+										}
+										indicatorResults = latestIndicators;
+										indicatorUpdateType = "incremental";
+									} else {
+										indicatorUpdateType = "full";
+									}
 								} catch (e) {
-									indicatorResults = { error: "Indicator calculation failed" };
+									indicatorResults = {
+										error: ["Indicator calculation failed"],
+									};
 								}
 							}
-							// For incremental update, send only the latest candle in data, but indicators are calculated on all
 							const dataToSend =
 								updateType === "incremental"
 									? [formattedData[formattedData.length - 1]]
@@ -840,6 +858,7 @@ async function startWatchLoop(
 									data: dataToSend,
 									timestamp: Date.now(),
 									indicators: indicatorResults,
+									indicatorUpdateType,
 								})
 							);
 						}
