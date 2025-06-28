@@ -91,11 +91,11 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 	strategyId,
 	existingStrategy,
 }) => {
-	console.log("🔥 StrategyEditor rendered with props:", {
-		isOpen,
-		strategyId,
-		existingStrategy,
-	});
+	// console.log("🔥 StrategyEditor rendered with props:", {
+	// 	isOpen,
+	// 	strategyId,
+	// 	existingStrategy,
+	// });
 
 	const [strategy, setStrategy] = useState<StrategyData>({
 		id: "",

@@ -319,9 +319,9 @@ export class StrategyManager extends EventEmitter {
 			);
 		}
 
-		if (!config.meta?.version) {
-			throw new Error("Strategy config missing version in meta");
-		}
+		// if (!config.meta?.version) {
+		// 	throw new Error("Strategy config missing version in meta");
+		// }
 
 		// Additional validation can be added here
 	}

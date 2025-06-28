@@ -46,6 +46,7 @@ export interface StrategyRisk {
 }
 
 export interface DetailedStrategy {
+	status: string;
 	id: string;
 	name: string;
 	description: string;

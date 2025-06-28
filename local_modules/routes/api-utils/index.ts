@@ -31,6 +31,7 @@ export {
 	updateIndicator,
 	deleteIndicator,
 	IndicatorResponse,
+	calculateIndicators,
 } from "./indicator-management";
 
 // Performance tracking utilities

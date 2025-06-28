@@ -43,14 +43,14 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ className }) => {
 				strategyList.map(async (strategy: any) => {
 					try {
 						const statusResponse = await fetch(
-							`/api/v1/strategies/manager/${strategy.id}/status`
+							`/api/v1/strategies/${strategy.id}/status`
 						);
 						const statusData = statusResponse.ok
 							? await statusResponse.json()
 							: { status: "idle" };
 
 						const metricsResponse = await fetch(
-							`/api/v1/strategies/manager/${strategy.id}/metrics`
+							`/api/v1/strategies/${strategy.id}/metrics`
 						);
 						const metricsData = metricsResponse.ok
 							? await metricsResponse.json()

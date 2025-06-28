@@ -9,6 +9,17 @@
 import { Request, Response } from "express";
 import * as fs from "fs";
 import * as path from "path";
+import {
+	calculatedSMA,
+	calculatedEMA,
+	calculatedRSI,
+	calculatedMACD,
+	calculatedATR,
+	calculatedBollingerBands,
+	calculatedVWAP,
+	calculatedCCI,
+	calculatedADX,
+} from "./indicator-calculations";
 
 const indicatorsPath = path.join(__dirname, "../../db/indicators");
 
@@ -261,6 +272,124 @@ export function deleteIndicator(req: Request, res: Response): void {
 			success: false,
 			error: "Failed to delete indicator",
 		} as IndicatorResponse);
+	}
+}
+
+export function getStrategyIndicators(req: Request, res: Response): void {
+	const strategyId = req.params.id;
+
+	try {
+		const strategyPath = path.join(
+			__dirname,
+			"../../db/strategies",
+			`${strategyId}.json`
+		);
+
+		if (!fs.existsSync(strategyPath)) {
+			res.status(404).json({
+				success: false,
+				error: `Strategy '${strategyId}' not found`,
+			} as IndicatorResponse);
+			return;
+		}
+
+		const strategyConfig = JSON.parse(fs.readFileSync(strategyPath, "utf8"));
+		const indicators = strategyConfig.indicators || [];
+
+		res.json({
+			success: true,
+			indicators: indicators,
+		} as IndicatorResponse);
+	} catch (error) {
+		console.error(
+			`Error getting indicators for strategy ${strategyId}:`,
+			error
+		);
+		res.status(500).json({
+			success: false,
+			error: "Failed to get strategy indicators",
+		} as IndicatorResponse);
+	}
+}
+
+// Map of indicator calculation functions
+const indicatorFunctionMap: Record<string, Function> = {
+	sma: calculatedSMA,
+	ema: calculatedEMA,
+	rsi: calculatedRSI,
+	macd: calculatedMACD,
+	atr: calculatedATR,
+	bollingerbands: calculatedBollingerBands,
+	vwap: calculatedVWAP,
+	cci: calculatedCCI,
+	adx: calculatedADX,
+};
+
+/**
+ * Calculate indicators dynamically based on request
+ */
+export function calculateIndicators(req: Request, res: Response): void {
+	try {
+		const { indicators, ohlcv } = req.body;
+		if (!Array.isArray(indicators) || !ohlcv) {
+			res
+				.status(400)
+				.json({ success: false, error: "Missing indicators or ohlcv data" });
+			return;
+		}
+
+		const results: Record<string, any> = {};
+		for (const ind of indicators) {
+			const type = ind.type?.toLowerCase();
+			const params = ind.params || {};
+			const calcFn = indicatorFunctionMap[type];
+			let result;
+			try {
+				let args: any[] = [];
+				if (!calcFn) {
+					result = { error: `Unknown indicator type: ${type}` };
+				} else {
+					// Dynamically build argument list based on function signature
+					switch (type) {
+						case "sma":
+						case "ema":
+						case "rsi":
+							args = [ohlcv.close, params.period];
+							break;
+						case "macd":
+							args = [
+								ohlcv.close,
+								params.shortPeriod,
+								params.longPeriod,
+								params.signalPeriod,
+							];
+							break;
+						case "atr":
+						case "cci":
+						case "adx":
+							args = [ohlcv, params.period];
+							break;
+						case "bollingerbands":
+							args = [ohlcv.close, params.period, params.stdDev];
+							break;
+						case "vwap":
+							args = [ohlcv];
+							break;
+						default:
+							args = [];
+					}
+					result = calcFn(...args);
+				}
+			} catch (err) {
+				result = { error: `Calculation error for ${type}: ${err}` };
+			}
+			results[type] = result;
+		}
+		res.json({ success: true, results });
+	} catch (error) {
+		res
+			.status(500)
+			.json({ success: false, error: "Failed to calculate indicators" });
 	}
 }
 

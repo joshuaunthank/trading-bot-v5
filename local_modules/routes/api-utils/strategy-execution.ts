@@ -45,6 +45,8 @@ export async function startStrategy(
 
 		const strategyConfig = JSON.parse(fs.readFileSync(strategyPath, "utf8"));
 
+		console.log(strategyConfig);
+
 		console.log(
 			`[Strategy API] Starting strategy: ${strategyConfig.name} with real indicators`
 		);

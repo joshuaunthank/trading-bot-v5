@@ -101,7 +101,7 @@ export class StrategyInstance extends EventEmitter {
 
 			// Initialize strategy components
 			await this.initializeIndicators();
-			await this.initializeModels();
+			// await this.initializeModels();
 
 			console.log(`[Strategy Instance] Started: ${this.config.name}`);
 			this.emit("started", { id: this.config.id });

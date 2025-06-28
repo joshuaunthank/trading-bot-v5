@@ -1,0 +1,48 @@
+{
+	"id": "test2",
+	"name": "Test2",
+	"description": "test 2",
+	"symbol": "BTC/USDT",
+	"timeframe": "1h",
+	"enabled": true,
+	"status": "stopped",
+	"tags": ["test"],
+	"indicators": [
+		{
+			"id": "indicator_1751078483994",
+			"type": "rsi",
+			"parameters": {
+				"period": 14
+			}
+		},
+		{
+			"id": "indicator_1751078489393",
+			"type": "sma",
+			"parameters": {
+				"period": 26,
+				"source": "close"
+			}
+		},
+		{
+			"id": "indicator_1751078495643",
+			"type": "sma",
+			"parameters": {
+				"period": 14,
+				"source": "close"
+			}
+		}
+	],
+	"signals": [],
+	"risk": {
+		"position_size_type": "percent_equity",
+		"risk_per_trade": 2,
+		"stop_loss_percent": 1.5,
+		"take_profit_percent": 3,
+		"trailing_stop": false,
+		"max_drawdown_percent": 10
+	},
+	"meta": {
+		"created_at": "2025-06-28T02:41:59.008Z",
+		"last_updated": "2025-06-28T02:41:59.008Z"
+	}
+}

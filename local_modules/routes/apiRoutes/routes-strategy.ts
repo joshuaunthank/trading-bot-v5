@@ -19,11 +19,14 @@ import {
 const strategyRoutes = (router: express.Router) => {
 	const strategies = express.Router();
 
-	// GET /api/v1/strategies
+	// GET /api/v1/strategies - Get all strategies
 	strategies.get("/strategies", getAllStrategies);
 
-	// GET /api/v1/strategies/:id
+	// GET /api/v1/strategies/:id - Get specific strategy by ID
 	strategies.get("/strategies/:id", getStrategyById);
+
+	// GET /api/v1/strategies/:id/indicators - Get indicators for a specific strategy
+	// strategies.get("/strategies/:id/indicators", getStrategyIndicators);
 
 	// POST /api/v1/strategies - Create new strategy
 	strategies.post("/strategies", createStrategy);

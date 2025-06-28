@@ -398,6 +398,40 @@ const EnhancedDashboard: React.FC = () => {
 		}
 	}, []);
 
+	const startStrategy = useCallback(async (strategyId: string) => {
+		console.log("🔥 START STRATEGY CLICKED!", strategyId);
+		try {
+			const response = await fetch(`/api/v1/strategies/${strategyId}/start`, {
+				method: "POST",
+			});
+
+			if (response.ok) {
+				console.log(`Strategy ${strategyId} started successfully`);
+			} else {
+				console.error(`Failed to start strategy ${strategyId}`);
+			}
+		} catch (error) {
+			console.error("Error starting strategy:", error);
+		}
+	}, []);
+
+	const stopStrategy = useCallback(async (strategyId: string) => {
+		console.log("🔥 STOP STRATEGY CLICKED!", strategyId);
+		try {
+			const response = await fetch(`/api/v1/strategies/${strategyId}/stop`, {
+				method: "POST",
+			});
+
+			if (response.ok) {
+				console.log(`Strategy ${strategyId} stopped successfully`);
+			} else {
+				console.error(`Failed to stop strategy ${strategyId}`);
+			}
+		} catch (error) {
+			console.error("Error stopping strategy:", error);
+		}
+	}, []);
+
 	const handleSaveStrategy = useCallback(
 		async (strategyData: any) => {
 			try {
@@ -505,6 +539,8 @@ const EnhancedDashboard: React.FC = () => {
 							onCreateStrategy={handleCreateStrategy}
 							onEditStrategy={handleEditStrategy}
 							onDeleteStrategy={handleDeleteStrategy}
+							onStartStrategy={startStrategy}
+							onStopStrategy={stopStrategy}
 							loading={strategiesLoading}
 							error={strategiesError}
 						/>

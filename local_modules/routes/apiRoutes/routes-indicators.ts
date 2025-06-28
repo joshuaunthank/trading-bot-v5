@@ -6,6 +6,7 @@ import {
 	createIndicator,
 	updateIndicator,
 	deleteIndicator,
+	calculateIndicators,
 } from "../api-utils";
 
 const indicatorRoutes = (router: express.Router) => {
@@ -28,6 +29,9 @@ const indicatorRoutes = (router: express.Router) => {
 
 	// DELETE /api/v1/indicators/:id
 	indicators.delete("/indicators/:id", deleteIndicator);
+
+	// POST /api/v1/indicators/calculate
+	indicators.post("/indicators/calculate", calculateIndicators);
 
 	router.use("/", indicators);
 };

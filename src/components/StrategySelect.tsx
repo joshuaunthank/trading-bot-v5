@@ -15,6 +15,8 @@ interface StrategySelectProps {
 	onCreateStrategy?: () => void;
 	onEditStrategy?: (strategyId: string) => void;
 	onDeleteStrategy?: (strategyId: string) => void;
+	onStartStrategy?: (strategyId: string) => void;
+	onStopStrategy?: (strategyId: string) => void;
 	loading?: boolean;
 	error?: string | null;
 }
@@ -27,6 +29,8 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 	onCreateStrategy,
 	onEditStrategy,
 	onDeleteStrategy,
+	onStartStrategy,
+	onStopStrategy,
 	loading = false,
 	error = null,
 }) => {
@@ -54,6 +58,8 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 			setStrategyError(null);
 
 			const detailed = await strategyService.getDetailedStrategy(strategyId);
+			console.log("Fetched detailed strategy:", detailed);
+
 			setDetailedStrategy(detailed);
 		} catch (err) {
 			console.error("Error fetching detailed strategy:", err);
@@ -340,6 +346,30 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 								</div>
 							</div>
 						</>
+					)}
+
+					{/* Start and Stop strategy controls with single button which checks if the strategy is already running and updates once start/stop are clicked */}
+					{!strategyLoading && detailedStrategy && (
+						<div className="mt-4 flex items-center gap-2">
+							{JSON.stringify(detailedStrategy)}
+							{detailedStrategy.status === "running" ? (
+								<button
+									onClick={() => onStopStrategy?.(detailedStrategy.id)}
+									className="px-3 py-1 bg-red-700 hover:bg-red-600 text-white rounded text-xs"
+									title="Stop Strategy"
+								>
+									Stop Strategy
+								</button>
+							) : (
+								<button
+									onClick={() => onStartStrategy?.(detailedStrategy.id)}
+									className="px-3 py-1 bg-green-700 hover:bg-green-600 text-white rounded text-xs"
+									title="Start Strategy"
+								>
+									Start Strategy
+								</button>
+							)}
+						</div>
 					)}
 
 					{!strategyLoading && !detailedStrategy && strategyError && (
