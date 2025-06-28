@@ -4,6 +4,8 @@ import { WebSocketServer, WebSocket as WsWebSocket } from "ws";
 import * as http from "http";
 import { strategyManager } from "./StrategyManager";
 import { OHLCVCandle } from "../types/index";
+import { calculateIndicators } from "../routes/api-utils/indicator-management";
+import { IndicatorConfig } from "../routes/api-utils/indicator-management";
 
 // CCXT Pro Exchange instance with proper configuration
 let exchange: any | null = null;
@@ -34,6 +36,13 @@ const subscriptions = new Map<
 		lastSentCandle?: { timestamp: number; close: number; volume: number }; // Track last sent candle for incremental updates
 		cachedFullDataset?: OHLCVCandle[]; // Cache full dataset for immediate response
 	}
+>();
+
+// --- SESSION CONFIGURATION FOR INDICATOR/STRATEGY STREAMING ---
+// Map to store per-client config: indicators and strategies
+const clientConfigs = new Map<
+	WsWebSocket,
+	{ indicators: IndicatorConfig[]; strategies: string[] }
 >();
 
 // Function to get historical OHLCV data using CCXT Pro
@@ -270,6 +279,9 @@ function handleOhlcvConnection(
 		`[OHLCV WS] Added client ${clientId} to ${subscriptionKey}. Total clients: ${subscription.clients.size}`
 	);
 
+	// Initialize client config
+	clientConfigs.set(ws, { indicators: [], strategies: [] });
+
 	// Send initial connection confirmation
 	try {
 		const connectionMessage: any = {
@@ -336,10 +348,23 @@ function handleOhlcvConnection(
 		);
 	}
 
-	ws.on("message", (msg) => {
+	ws.on("message", async (msg) => {
 		try {
 			const data = JSON.parse(msg.toString());
 			console.log(`[OHLCV WS] Message from client ${clientId}:`, data);
+
+			// Handle indicator/strategy config registration
+			if (data.type === "config") {
+				const indicators = Array.isArray(data.indicators)
+					? data.indicators
+					: [];
+				const strategies = Array.isArray(data.strategies)
+					? data.strategies
+					: [];
+				clientConfigs.set(ws, { indicators, strategies });
+				ws.send(JSON.stringify({ type: "config-ack", success: true }));
+				return;
+			}
 
 			// Handle strategy subscription changes
 			if (data.type === "subscribe-strategy" && data.strategyId) {
@@ -439,6 +464,8 @@ function handleOhlcvConnection(
 				);
 			}
 		}
+
+		clientConfigs.delete(ws); // Clean up config on disconnect
 	});
 
 	ws.on("error", (error) => {
@@ -459,6 +486,8 @@ function handleOhlcvConnection(
 				}
 			}
 		}
+
+		clientConfigs.delete(ws); // Clean up config on error
 	});
 }
 
@@ -679,6 +708,45 @@ async function startWatchLoop(
 						.sort((a, b) => a.timestamp - b.timestamp); // Sort oldest first for consistent frontend handling
 				}
 
+				// --- NEW: Always build full dataset for indicator calculation ---
+				let formattedDataForIndicators: OHLCVCandle[];
+				if (updateType === "full") {
+					formattedDataForIndicators = formattedData;
+				} else {
+					// For incremental, get the full dataset from cache or ohlcv
+					if (
+						subscription.cachedFullDataset &&
+						subscription.cachedFullDataset.length > 0
+					) {
+						formattedDataForIndicators =
+							subscription.cachedFullDataset as OHLCVCandle[];
+					} else {
+						// Fallback: try to reconstruct from ex.ohlcvs or ohlcv
+						try {
+							const ex = getExchange();
+							const cachedOhlcv =
+								ex.ohlcvs && ex.ohlcvs[symbol] && ex.ohlcvs[symbol][timeframe];
+							if (cachedOhlcv && cachedOhlcv.length > 0) {
+								formattedDataForIndicators = cachedOhlcv.map(
+									([timestamp, open, high, low, close, volume]: any[]) => ({
+										timestamp,
+										open,
+										high,
+										low,
+										close,
+										volume,
+									})
+								);
+							} else {
+								// As a last resort, use ohlcv (may be only latest candle)
+								formattedDataForIndicators = formattedData;
+							}
+						} catch (e) {
+							formattedDataForIndicators = formattedData;
+						}
+					}
+				}
+
 				// Track the latest candle for next update comparison
 				if (formattedData.length > 0) {
 					const latestCandle = formattedData[formattedData.length - 1]; // Last item is newest in chronological order
@@ -726,10 +794,54 @@ async function startWatchLoop(
 					}
 				}
 
-				subscription.clients.forEach((ws) => {
+				// --- Per-client indicator calculation and streaming ---
+				subscription.clients.forEach(async (ws) => {
 					try {
 						if (ws.readyState === WsWebSocket.OPEN) {
-							ws.send(JSON.stringify(message));
+							const config = clientConfigs.get(ws);
+							let indicatorResults = {};
+							// Always use the full formattedDataForIndicators for indicator calculation
+							if (
+								config &&
+								config.indicators &&
+								formattedDataForIndicators.length > 0
+							) {
+								const ohlcv = {
+									close: formattedDataForIndicators.map((c) => c.close),
+									high: formattedDataForIndicators.map((c) => c.high),
+									low: formattedDataForIndicators.map((c) => c.low),
+									open: formattedDataForIndicators.map((c) => c.open),
+									volume: formattedDataForIndicators.map((c) => c.volume),
+								};
+								try {
+									const req = {
+										body: { indicators: config.indicators, ohlcv },
+									} as any;
+									const res = {
+										json: (result: any) =>
+											(indicatorResults = result.results || {}),
+									} as any;
+									await calculateIndicators(req, res);
+								} catch (e) {
+									indicatorResults = { error: "Indicator calculation failed" };
+								}
+							}
+							// For incremental update, send only the latest candle in data, but indicators are calculated on all
+							const dataToSend =
+								updateType === "incremental"
+									? [formattedData[formattedData.length - 1]]
+									: formattedData;
+							ws.send(
+								JSON.stringify({
+									type: "ohlcv",
+									symbol,
+									timeframe,
+									updateType,
+									data: dataToSend,
+									timestamp: Date.now(),
+									indicators: indicatorResults,
+								})
+							);
 						}
 					} catch (e) {
 						console.error(`[Main WS] Error sending data to client:`, e);
