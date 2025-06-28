@@ -6,7 +6,7 @@ interface ChartSpinnerProps {
 	className?: string;
 }
 
-const ChartSpinner: React.FC<ChartSpinnerProps> = ({
+const Loader: React.FC<ChartSpinnerProps> = ({
 	size = "medium",
 	color = "currentColor",
 	className = "",
@@ -43,4 +43,4 @@ const ChartSpinner: React.FC<ChartSpinnerProps> = ({
 	);
 };
 
-export default ChartSpinner;
+export default Loader;

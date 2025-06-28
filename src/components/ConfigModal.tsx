@@ -92,7 +92,7 @@ const ConfigModal: React.FC<ConfigModalProps> = ({
 
 	// Use portal to render modal outside of normal DOM hierarchy
 	return createPortal(
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 bg-opacity-75 p-4">
 			<div className="relative w-full max-w-md bg-gray-800 rounded-lg shadow-lg p-6">
 				<button
 					className="absolute top-4 right-4 text-gray-400 hover:text-white"

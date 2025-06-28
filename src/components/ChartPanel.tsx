@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { Chart, registerables } from "chart.js";
 import zoomPlugin from "chartjs-plugin-zoom";
 import "chartjs-adapter-date-fns";
-import ChartSpinner from "./ChartSpinner";
+import Loader from "./Loader";
 import { CalculatedIndicator } from "../hooks/useLocalIndicators";
 
 // Register Chart.js components and plugins
@@ -591,7 +591,6 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 						? "Oscillators"
 						: "Volume"}
 				</h4>
-				{loading && <ChartSpinner size="small" />}
 			</div>
 
 			{/* Chart area: set height here, accounting for padding (p-4 = 32px vertical) */}
@@ -605,7 +604,7 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 			>
 				{loading ? (
 					<div className="flex h-full justify-center items-center">
-						<ChartSpinner size="small" />
+						<Loader size="large" />
 					</div>
 				) : data.length === 0 ? (
 					<div className="flex h-full justify-center items-center text-gray-400 text-sm">

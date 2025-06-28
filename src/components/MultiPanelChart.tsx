@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import ChartPanel from "./ChartPanel";
-import ChartSpinner from "./ChartSpinner";
+import Loader from "./Loader";
 import { CalculatedIndicator } from "../hooks/useLocalIndicators";
 import { categorizeIndicators, getPanelHeight } from "./ChartPanelUtils";
 
@@ -91,7 +91,7 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 					<h3 className="text-lg font-semibold text-white">
 						{symbol} - {timeframe}
 					</h3>
-					{loading && <ChartSpinner />}
+					{loading && <Loader size="small" />}
 				</div>
 				<div className="flex space-x-4">
 					{/* Zoom Reset Button */}

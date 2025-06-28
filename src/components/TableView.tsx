@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import ChartSpinner from "./ChartSpinner";
+import Loader from "./Loader";
 
 interface OHLCVData {
 	timestamp: number;
@@ -107,13 +107,13 @@ const TableView: React.FC<TableViewProps> = ({
 							{symbol} - {timeframe} Data
 						</h3>
 					)}
-					{loading && <ChartSpinner size="small" />}
+					{loading && <Loader size="small" />}
 				</div>
 			</div>
 
 			{loading && data.length === 0 ? (
 				<div className="flex justify-center items-center h-32">
-					<ChartSpinner size="large" />
+					<Loader size="large" />
 				</div>
 			) : data.length === 0 ? (
 				<div className="text-center text-gray-400 py-8">No data available</div>

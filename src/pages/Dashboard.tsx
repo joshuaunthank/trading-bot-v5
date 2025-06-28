@@ -3,7 +3,7 @@ import MultiPanelChart from "../components/MultiPanelChart";
 import TableView from "../components/TableView";
 import SummaryView from "../components/SummaryView";
 import ConfigModal from "../components/ConfigModal";
-import StrategyManager from "../components/StrategyManager";
+import StrategyManager from "../components/strategy/StrategyManager";
 import StrategySelect from "../components/StrategySelect";
 import StrategyEditor from "../components/strategy/StrategyEditor";
 import { useStrategies } from "../hooks/useStrategies";
@@ -307,6 +307,8 @@ const EnhancedDashboard: React.FC = () => {
 
 		// Simple indicator data - no strategy indicators for now
 		const strategyIndicators: Record<string, number | number[]> = {};
+
+		console.log("🔥 Current Price", latestCandle.close);
 
 		return {
 			symbol,
