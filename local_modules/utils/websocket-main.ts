@@ -823,7 +823,9 @@ async function startWatchLoop(
 									} as any;
 									await calculateIndicators(req, res);
 
-									// For incremental, only send the latest value for each indicator
+									const indicatorNames = config.indicators
+										.map((i) => i.type)
+										.join(", ");
 									if (updateType === "incremental" && indicatorResults) {
 										const latestIndicators: Record<string, any[]> = {};
 										for (const key of Object.keys(indicatorResults)) {
@@ -836,8 +838,14 @@ async function startWatchLoop(
 										}
 										indicatorResults = latestIndicators;
 										indicatorUpdateType = "incremental";
+										console.log(
+											`[Indicators] Sending incremental indicator update: [${indicatorNames}]`
+										);
 									} else {
 										indicatorUpdateType = "full";
+										console.log(
+											`[Indicators] Calculating and sending full historical indicator arrays: [${indicatorNames}]`
+										);
 									}
 								} catch (e) {
 									indicatorResults = {
