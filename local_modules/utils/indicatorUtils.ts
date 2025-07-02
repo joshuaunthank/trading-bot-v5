@@ -2,6 +2,56 @@ import { EMA, MACD, RSI, BollingerBands, ATR, SMA } from "technicalindicators";
 
 // Indicator and array conversion helpers for trading strategies
 
+// Backend equivalent of frontend's alignIndicatorData for chart overlay alignment
+export interface IndicatorValue {
+	x: number; // timestamp
+	y: number | null; // value (null for missing/NaN values that Chart.js should skip)
+}
+
+/**
+ * Align indicator calculation results with OHLCV timestamps for chart overlays.
+ * This ensures indicator arrays have the same length as OHLCV data with null values
+ * for periods where the indicator hasn't calculated yet.
+ *
+ * @param values - Raw indicator calculation results
+ * @param timestamps - OHLCV timestamp array to align with
+ * @param startIndex - Index where indicator calculation begins (0-based)
+ * @returns Array of {x: timestamp, y: value|null} for chart overlays
+ */
+export function alignIndicatorData(
+	values: number[],
+	timestamps: number[],
+	startIndex: number = 0
+): IndicatorValue[] {
+	const result: IndicatorValue[] = [];
+
+	// Fill initial null values before startIndex
+	for (let i = 0; i < startIndex; i++) {
+		result.push({ x: timestamps[i], y: null });
+	}
+
+	// Add calculated values
+	for (let i = 0; i < values.length; i++) {
+		const timestampIndex = startIndex + i;
+		if (timestampIndex < timestamps.length) {
+			result.push({
+				x: timestamps[timestampIndex],
+				y: isNaN(values[i]) ? null : values[i],
+			});
+		}
+	}
+
+	// Fill remaining timestamps if needed
+	while (result.length < timestamps.length) {
+		result.push({
+			x: timestamps[result.length],
+			y: null,
+		});
+	}
+
+	return result;
+}
+
 /**
  * Convert an array of mixed values to a number[] (NaN filtered out).
  */

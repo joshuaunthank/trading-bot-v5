@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CalculatedIndicator, IndicatorValue } from "./useLocalIndicators";
+import { CalculatedIndicator, IndicatorValue } from "../types/indicators";
 
 interface StrategyIndicator {
 	id: string;

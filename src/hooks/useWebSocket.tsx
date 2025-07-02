@@ -94,6 +94,26 @@ export function useWebSocket(config: WebSocketConfig): WebSocketResult {
 	const connect = useCallback(() => {
 		if (!isMountedRef.current) return;
 
+		// Don't connect if already connected to the same URL
+		if (
+			wsRef.current &&
+			wsRef.current.readyState === WebSocket.OPEN &&
+			wsRef.current.url === url
+		) {
+			if (process.env.NODE_ENV === "development") {
+				console.log(`[WebSocket] Already connected to ${url}`);
+			}
+			return;
+		}
+
+		// Don't connect if currently connecting
+		if (wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING) {
+			if (process.env.NODE_ENV === "development") {
+				console.log(`[WebSocket] Already connecting to ${url}`);
+			}
+			return;
+		}
+
 		// Clear any existing timeouts
 		if (reconnectTimeoutRef.current) {
 			clearTimeout(reconnectTimeoutRef.current);
@@ -169,36 +189,52 @@ export function useWebSocket(config: WebSocketConfig): WebSocketResult {
 
 				if (process.env.NODE_ENV === "development") {
 					console.log(
-						`[WebSocket] Connection closed (code: ${event.code}, reason: ${event.reason})`
+						`[WebSocket] Connection closed (code: ${event.code}, reason: ${
+							event.reason || "no reason"
+						})`
 					);
 				}
 
 				updateStatus("disconnected");
 
-				// Attempt reconnection if not max attempts reached
-				if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-					const nextAttempt = reconnectAttemptsRef.current + 1;
-					setReconnectAttempts(nextAttempt);
-					reconnectAttemptsRef.current = nextAttempt;
-
+				// Don't reconnect for normal closures or if we're exceeding max attempts
+				// Code 1005 indicates no status received (common when server closes immediately)
+				if (
+					event.code === 1000 || // Normal closure
+					event.code === 1001 || // Going away
+					event.code === 1005 || // No status received (server closed immediately)
+					reconnectAttemptsRef.current >= maxReconnectAttempts
+				) {
 					if (process.env.NODE_ENV === "development") {
 						console.log(
-							`[WebSocket] Scheduling reconnection attempt ${nextAttempt}/${maxReconnectAttempts} in ${reconnectInterval}ms`
+							`[WebSocket] Not attempting reconnection (code: ${event.code})`
 						);
 					}
-					updateStatus("reconnecting");
-
-					reconnectTimeoutRef.current = setTimeout(() => {
-						if (isMountedRef.current) {
-							connect();
-						}
-					}, reconnectInterval);
-				} else {
-					if (process.env.NODE_ENV === "development") {
-						console.log(`[WebSocket] Max reconnection attempts reached`);
-					}
-					handleError(new Error("Max reconnection attempts reached"));
+					return;
 				}
+
+				// Exponential backoff for reconnection attempts
+				const nextAttempt = reconnectAttemptsRef.current + 1;
+				setReconnectAttempts(nextAttempt);
+				reconnectAttemptsRef.current = nextAttempt;
+
+				const delay = Math.min(
+					reconnectInterval * Math.pow(2, nextAttempt - 1),
+					30000
+				);
+
+				if (process.env.NODE_ENV === "development") {
+					console.log(
+						`[WebSocket] Scheduling reconnection attempt ${nextAttempt}/${maxReconnectAttempts} in ${delay}ms`
+					);
+				}
+				updateStatus("reconnecting");
+
+				reconnectTimeoutRef.current = setTimeout(() => {
+					if (isMountedRef.current) {
+						connect();
+					}
+				}, delay);
 			};
 		} catch (error) {
 			handleError(
@@ -249,22 +285,55 @@ export function useWebSocket(config: WebSocketConfig): WebSocketResult {
 		[handleError]
 	);
 
-	// Auto-connect on mount
+	// Auto-connect on mount and reconnect when URL changes
 	useEffect(() => {
-		connect();
+		// Don't reconnect if we're already connected to the same URL
+		if (
+			wsRef.current &&
+			wsRef.current.readyState === WebSocket.OPEN &&
+			wsRef.current.url === url
+		) {
+			if (process.env.NODE_ENV === "development") {
+				console.log(
+					`[WebSocket] Already connected to ${url}, skipping reconnect`
+				);
+			}
+			return;
+		}
+
+		if (process.env.NODE_ENV === "development") {
+			console.log(
+				`[WebSocket] URL changed or initial mount, will connect to: ${url}`
+			);
+		}
+
+		// Disconnect from previous URL first
+		disconnect();
+
+		// Small delay to ensure proper cleanup of previous connection
+		const timer = setTimeout(() => {
+			if (
+				isMountedRef.current &&
+				(!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN)
+			) {
+				if (process.env.NODE_ENV === "development") {
+					console.log(`[WebSocket] Connecting to: ${url}`);
+				}
+				connect();
+			}
+		}, 200); // Increased delay to prevent rapid reconnections
 
 		return () => {
-			isMountedRef.current = false;
-			disconnect();
+			clearTimeout(timer);
 		};
-	}, [connect, disconnect]);
+	}, [url]); // Only depend on URL, not connect/disconnect functions
 
-	// Cleanup on unmount
+	// Cleanup on unmount only
 	useEffect(() => {
 		return () => {
 			isMountedRef.current = false;
 		};
-	}, []);
+	}, []); // Empty dependency array - only runs on unmount
 
 	return {
 		send,

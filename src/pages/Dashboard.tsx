@@ -7,12 +7,7 @@ import StrategyManager from "../components/strategy/StrategyManager";
 import StrategySelect from "../components/StrategySelect";
 import StrategyEditor from "../components/strategy/StrategyEditor";
 import { useStrategies } from "../hooks/useStrategies";
-import { useOhlcvWebSocket } from "../hooks/useWebSocket";
-import {
-	useLocalIndicators,
-	IndicatorConfig,
-} from "../hooks/useLocalIndicators";
-import { useStrategyIndicators } from "../hooks/useStrategyIndicators";
+import { useOhlcvWithIndicators } from "../hooks/useOhlcvWithIndicators";
 
 interface OHLCVData {
 	timestamp: number;
@@ -117,10 +112,26 @@ const EnhancedDashboard: React.FC = () => {
 	);
 	const [editingStrategy, setEditingStrategy] = useState<any>(null);
 
-	// Indicator system state
-	const [indicatorConfigs, setIndicatorConfigs] = useState<IndicatorConfig[]>(
+	// Legacy indicator system - being phased out in favor of backend calculations
+	const [legacyIndicatorConfigs, setLegacyIndicatorConfigs] = useState<any[]>(
 		[]
 	);
+
+	// Helper function to get indicator colors
+	const getIndicatorColor = useCallback((indicatorId: string) => {
+		const colorMap: Record<string, string> = {
+			sma: "#3B82F6",
+			ema: "#10B981",
+			rsi: "#F59E0B",
+			macd: "#8B5CF6",
+			bb_upper: "#EF4444",
+			bb_middle: "#6B7280",
+			bb_lower: "#EF4444",
+			stoch_k: "#EC4899",
+			stoch_d: "#06B6D4",
+		};
+		return colorMap[indicatorId] || "#6B7280";
+	}, []);
 
 	// Strategy selection for indicator management
 	const [selectedIndicatorStrategyId, setSelectedIndicatorStrategyId] =
@@ -147,24 +158,27 @@ const EnhancedDashboard: React.FC = () => {
 	);
 	const [signals, setSignals] = useState<DashboardStrategySignal[]>([]);
 
-	// OHLCV WebSocket for chart data
+	// OHLCV + Backend Indicators WebSocket - unified data source
 	const {
 		latestCandle,
 		fullDataset,
+		indicators: backendIndicators,
 		connectionStatus: ohlcvConnectionStatus,
 		reconnect: reconnectOhlcvWs,
-	} = useOhlcvWebSocket(symbol, timeframe);
+		setStrategy,
+	} = useOhlcvWithIndicators(symbol, timeframe, selectedIndicatorStrategyId);
 
-	// Calculate indicators from OHLCV data
-	const calculatedIndicators = useLocalIndicators(ohlcvData, indicatorConfigs);
-
-	// Combine with strategy indicators from WebSocket
-	const strategyIndicators = useStrategyIndicators(indicators, ohlcvData, true);
-
-	// All indicators for the chart
+	// Convert backend indicators to chart format for compatibility
 	const allChartIndicators = useMemo(() => {
-		return [...calculatedIndicators, ...strategyIndicators];
-	}, [calculatedIndicators, strategyIndicators]);
+		return backendIndicators.map((indicator) => ({
+			id: indicator.id,
+			name: indicator.name,
+			type: indicator.type as any, // Cast to satisfy CalculatedIndicator interface
+			data: indicator.data,
+			color: getIndicatorColor(indicator.id),
+			yAxisID: "y1", // Default to secondary y-axis, can be customized per indicator
+		}));
+	}, [backendIndicators, getIndicatorColor]);
 
 	// Track connection status for error handling
 	useEffect(() => {
@@ -337,21 +351,15 @@ const EnhancedDashboard: React.FC = () => {
 		setIsConfigModalOpen(false);
 	}, []);
 
-	// Handler for updating indicator configurations
-	const handleUpdateIndicators = useCallback(
-		(newConfigs: IndicatorConfig[]) => {
-			setIndicatorConfigs(newConfigs);
-		},
-		[]
-	);
+	// Handler for updating indicator configurations (legacy - to be removed)
+	const handleUpdateIndicators = useCallback((newConfigs: any[]) => {
+		setLegacyIndicatorConfigs(newConfigs);
+	}, []);
 
-	// Handler for strategy-based indicator changes
-	const handleStrategyIndicatorsChange = useCallback(
-		(indicators: IndicatorConfig[]) => {
-			setIndicatorConfigs(indicators);
-		},
-		[]
-	);
+	// Handler for strategy-based indicator changes (legacy - to be removed)
+	const handleStrategyIndicatorsChange = useCallback((indicators: any[]) => {
+		setLegacyIndicatorConfigs(indicators);
+	}, []);
 
 	// Strategy Editor handlers
 	const handleCreateStrategy = useCallback(() => {

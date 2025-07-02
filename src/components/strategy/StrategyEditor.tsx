@@ -43,6 +43,13 @@ interface StrategyData {
 	indicators: IndicatorData[];
 	signals: SignalData[];
 	risk: RiskData;
+	ml_models: any[]; // Add ML models support
+	postprocessing: any[]; // Add postprocessing support
+	metadata: {
+		version: string;
+		created: string;
+		author: string;
+	};
 }
 
 const INDICATOR_TYPES = [
@@ -115,6 +122,13 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 			trailing_stop: false,
 			max_drawdown_percent: 10,
 		},
+		ml_models: [],
+		postprocessing: [],
+		metadata: {
+			version: "1.0",
+			created: new Date().toISOString(),
+			author: "user",
+		},
 	});
 
 	const [activeTab, setActiveTab] = useState<
@@ -148,6 +162,13 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 						take_profit_percent: 3,
 						trailing_stop: false,
 						max_drawdown_percent: 10,
+					},
+					ml_models: [],
+					postprocessing: [],
+					metadata: {
+						version: "1.0",
+						created: new Date().toISOString(),
+						author: "user",
 					},
 				});
 			}

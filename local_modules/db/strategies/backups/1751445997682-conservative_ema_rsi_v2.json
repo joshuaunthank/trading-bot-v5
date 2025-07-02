@@ -2,6 +2,14 @@
   "id": "conservative_ema_rsi_v2",
   "name": "Conservative EMA-RSI with Overtrading Protection",
   "description": "A conservative strategy using EMA crossovers and RSI confirmation with built-in overtrading prevention",
+  "symbol": "BTC/USDT",
+  "timeframe": "1h",
+  "enabled": true,
+  "tags": [
+    "conservative",
+    "trend-following",
+    "protected"
+  ],
   "indicators": [
     {
       "id": "ema_fast",
@@ -190,17 +198,33 @@
       ]
     }
   ],
-  "risk_management": {
-    "max_position_size": 0.1,
-    "stop_loss_percentage": 0.02,
-    "take_profit_percentage": 0.05
+  "risk": {
+    "position_size_type": "percentage",
+    "risk_per_trade": 2,
+    "stop_loss_percent": 2.5,
+    "take_profit_percent": 5,
+    "trailing_stop": true,
+    "max_drawdown_percent": 10,
+    "overtrading_protection": {
+      "enabled": true,
+      "signal_cooldown_minutes": 30,
+      "max_trades_per_hour": 2,
+      "max_trades_per_day": 8,
+      "min_time_between_entries": 900,
+      "min_time_between_exits": 300,
+      "signal_strength_threshold": 0.65,
+      "volume_spike_detection": {
+        "enabled": true,
+        "min_volume_multiplier": 1.2
+      }
+    }
   },
-  "ml_models": [],
-  "postprocessing": [],
-  "metadata": {
-    "version": "1.0",
-    "created": "2025-07-02T08:46:37.682Z",
-    "author": "system"
-  },
-  "last_updated": "2025-07-02T08:46:37.682Z"
+  "meta": {
+    "version": "2.0.0",
+    "created": "2025-06-23T00:00:00Z",
+    "updated": "2025-06-23T00:00:00Z",
+    "author": "Trading Bot V5",
+    "tested": true,
+    "description_long": "This strategy uses EMA crossovers as the primary signal with RSI confirmation to avoid extreme conditions. It includes comprehensive overtrading protection with cooldowns, frequency limits, and signal strength filtering to maintain consistent performance and reduce transaction costs."
+  }
 }

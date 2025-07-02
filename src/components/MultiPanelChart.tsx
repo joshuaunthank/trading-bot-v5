@@ -1,17 +1,8 @@
 import React, { useState } from "react";
 import ChartPanel from "./ChartPanel";
 import Loader from "./Loader";
-import { CalculatedIndicator } from "../hooks/useLocalIndicators";
+import { CalculatedIndicator, OHLCVData } from "../types/indicators";
 import { categorizeIndicators, getPanelHeight } from "./ChartPanelUtils";
-
-interface OHLCVData {
-	timestamp: number;
-	open: number;
-	high: number;
-	close: number;
-	low: number;
-	volume: number;
-}
 
 interface MultiPanelChartProps {
 	data: OHLCVData[];
@@ -171,21 +162,6 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 						timeframe={timeframe}
 						loading={loading}
 						indicators={categorizedIndicators.volume}
-						panelType="volume"
-						showPrice={false}
-						zoomState={sharedZoomState}
-						onZoomChange={handleZoomChange}
-					/>
-				)}
-
-				{/* Always show volume chart if no volume indicators but we want to see volume */}
-				{!hasVolume && (
-					<ChartPanel
-						data={data}
-						symbol={symbol}
-						timeframe={timeframe}
-						loading={loading}
-						indicators={[]}
 						panelType="volume"
 						showPrice={false}
 						zoomState={sharedZoomState}

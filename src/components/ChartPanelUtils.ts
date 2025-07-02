@@ -1,5 +1,5 @@
 import React from "react";
-import { CalculatedIndicator } from "../hooks/useLocalIndicators";
+import { CalculatedIndicator } from "../types/indicators";
 
 interface OHLCVData {
 	timestamp: number;

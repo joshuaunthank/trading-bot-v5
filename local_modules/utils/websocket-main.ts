@@ -6,6 +6,10 @@ import { strategyManager } from "./StrategyManager";
 import { OHLCVCandle } from "../types/index";
 import { calculateIndicators } from "../routes/api-utils/indicator-management";
 import { IndicatorConfig } from "../routes/api-utils/indicator-management";
+import {
+	calculateStrategyIndicators,
+	calculateStrategyIndicatorsIncremental,
+} from "./strategyIndicators";
 
 // CCXT Pro Exchange instance with proper configuration
 let exchange: any | null = null;
@@ -38,12 +42,9 @@ const subscriptions = new Map<
 	}
 >();
 
-// --- SESSION CONFIGURATION FOR INDICATOR/STRATEGY STREAMING ---
-// Map to store per-client config: indicators and strategies
-const clientConfigs = new Map<
-	WsWebSocket,
-	{ indicators: IndicatorConfig[]; strategies: string[] }
->();
+// --- SESSION CONFIGURATION FOR STRATEGY-BASED STREAMING ---
+// Map to store per-client strategy ID for indicator calculations
+const clientConfigs = new Map<WsWebSocket, { strategyId: string | null }>();
 
 // Function to get historical OHLCV data using CCXT Pro
 export async function getOHLCVData(
@@ -280,7 +281,7 @@ function handleOhlcvConnection(
 	);
 
 	// Initialize client config
-	clientConfigs.set(ws, { indicators: [], strategies: [] });
+	clientConfigs.set(ws, { strategyId: null });
 
 	// Send initial connection confirmation
 	try {
@@ -353,16 +354,20 @@ function handleOhlcvConnection(
 			const data = JSON.parse(msg.toString());
 			console.log(`[OHLCV WS] Message from client ${clientId}:`, data);
 
-			// Handle indicator/strategy config registration
-			if (data.type === "config") {
-				const indicators = Array.isArray(data.indicators)
-					? data.indicators
-					: [];
-				const strategies = Array.isArray(data.strategies)
-					? data.strategies
-					: [];
-				clientConfigs.set(ws, { indicators, strategies });
-				ws.send(JSON.stringify({ type: "config-ack", success: true }));
+			// Handle strategy config registration
+			if (data.type === "config" && data.strategyId) {
+				const config = clientConfigs.get(ws);
+				if (config) {
+					config.strategyId = data.strategyId;
+					clientConfigs.set(ws, config);
+				}
+				ws.send(
+					JSON.stringify({
+						type: "config-ack",
+						success: true,
+						strategyId: data.strategyId,
+					})
+				);
 				return;
 			}
 
@@ -794,69 +799,63 @@ async function startWatchLoop(
 					}
 				}
 
-				// --- Per-client indicator calculation and streaming ---
+				// --- Strategy-based indicator calculation and streaming ---
 				subscription.clients.forEach(async (ws) => {
 					try {
 						if (ws.readyState === WsWebSocket.OPEN) {
 							const config = clientConfigs.get(ws);
-							let indicatorResults: Record<string, any[]> = {};
+							let indicatorResults: any = {};
 							let indicatorUpdateType: "full" | "incremental" = updateType;
+
+							// Calculate indicators if strategy is selected
 							if (
 								config &&
-								config.indicators &&
+								config.strategyId &&
 								formattedDataForIndicators.length > 0
 							) {
-								const ohlcv = {
-									close: formattedDataForIndicators.map((c) => c.close),
-									high: formattedDataForIndicators.map((c) => c.high),
-									low: formattedDataForIndicators.map((c) => c.low),
-									open: formattedDataForIndicators.map((c) => c.open),
-									volume: formattedDataForIndicators.map((c) => c.volume),
-								};
 								try {
-									const req = {
-										body: { indicators: config.indicators, ohlcv },
-									} as any;
-									const res = {
-										json: (result: any) =>
-											(indicatorResults = result.results || {}),
-									} as any;
-									await calculateIndicators(req, res);
-
-									const indicatorNames = config.indicators
-										.map((i) => i.type)
-										.join(", ");
-									if (updateType === "incremental" && indicatorResults) {
-										const latestIndicators: Record<string, any[]> = {};
-										for (const key of Object.keys(indicatorResults)) {
-											const arr = indicatorResults[key];
-											if (Array.isArray(arr) && arr.length > 0) {
-												latestIndicators[key] = [arr[arr.length - 1]];
-											} else {
-												latestIndicators[key] = [];
-											}
-										}
-										indicatorResults = latestIndicators;
+									if (updateType === "incremental") {
+										// For incremental updates, get only latest values
+										indicatorResults = calculateStrategyIndicatorsIncremental(
+											config.strategyId,
+											formattedDataForIndicators
+										);
 										indicatorUpdateType = "incremental";
 										console.log(
-											`[Indicators] Sending incremental indicator update: [${indicatorNames}]`
+											`[Indicators] Sending incremental indicators for strategy: ${config.strategyId}`
 										);
 									} else {
+										// For full updates, get complete historical arrays
+										const fullResults = calculateStrategyIndicators(
+											config.strategyId,
+											formattedDataForIndicators
+										);
+
+										// Convert to format expected by frontend
+										indicatorResults = {};
+										for (const result of fullResults) {
+											indicatorResults[result.id] = result.data;
+										}
+
 										indicatorUpdateType = "full";
 										console.log(
-											`[Indicators] Calculating and sending full historical indicator arrays: [${indicatorNames}]`
+											`[Indicators] Calculating and sending full indicators for strategy: ${config.strategyId}`
 										);
 									}
 								} catch (e) {
-									indicatorResults = {
-										error: ["Indicator calculation failed"],
-									};
+									console.error(
+										`[Indicators] Error calculating indicators for strategy ${config.strategyId}:`,
+										e
+									);
+									indicatorResults = { error: "Indicator calculation failed" };
 								}
 							}
+
 							const dataToSend =
 								updateType === "incremental"
 									? [formattedData[formattedData.length - 1]]
 									: formattedData;
+
 							ws.send(
 								JSON.stringify({
 									type: "ohlcv",
@@ -867,6 +866,7 @@ async function startWatchLoop(
 									timestamp: Date.now(),
 									indicators: indicatorResults,
 									indicatorUpdateType,
+									strategyId: config?.strategyId || null,
 								})
 							);
 						}

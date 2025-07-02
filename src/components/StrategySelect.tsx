@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Plus, Edit, Trash2 } from "lucide-react";
-import { IndicatorConfig, IndicatorType } from "../hooks/useLocalIndicators";
+import { IndicatorConfig, IndicatorType } from "../types/indicators";
 import {
 	strategyService,
 	StrategySummary,
@@ -40,10 +40,10 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 	const [strategyLoading, setStrategyLoading] = useState(false);
 	const [strategyError, setStrategyError] = useState<string | null>(null);
 
-	// Find selected strategy summary
-	const selectedStrategySummary = strategies.find(
-		(s) => s.id === selectedStrategyId
-	);
+	// Find selected strategy summary - safely handle undefined/non-array strategies
+	const selectedStrategySummary = Array.isArray(strategies)
+		? strategies.find((s) => s.id === selectedStrategyId)
+		: undefined;
 
 	// Fetch detailed strategy data when strategy is selected
 	const fetchDetailedStrategy = useCallback(async (strategyId: string) => {
@@ -130,7 +130,9 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 					const config: IndicatorConfig = {
 						id: indicator.id,
 						type: mappedType,
+						name: `${mappedType} (${indicator.parameters.period || 14})`, // Generate name from type and period
 						enabled: true,
+						isEnabled: true, // Required property
 						period: indicator.parameters.period || 14, // Default period
 						parameters: {},
 					};
@@ -214,15 +216,16 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 						disabled={loading || strategyLoading}
 					>
 						<option value="">No strategy selected</option>
-						{strategies.map((strategy) => (
-							<option
-								key={strategy.id}
-								value={strategy.id}
-								className="bg-gray-900 text-gray-100"
-							>
-								{strategy.name}
-							</option>
-						))}
+						{Array.isArray(strategies) &&
+							strategies.map((strategy) => (
+								<option
+									key={strategy.id}
+									value={strategy.id}
+									className="bg-gray-900 text-gray-100"
+								>
+									{strategy.name}
+								</option>
+							))}
 					</select>
 
 					{/* Create New Strategy Button */}

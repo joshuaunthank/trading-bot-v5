@@ -3,19 +3,10 @@ import { Chart, registerables } from "chart.js";
 import zoomPlugin from "chartjs-plugin-zoom";
 import "chartjs-adapter-date-fns";
 import Loader from "./Loader";
-import { CalculatedIndicator } from "../hooks/useLocalIndicators";
+import { CalculatedIndicator, OHLCVData } from "../types/indicators";
 
 // Register Chart.js components and plugins
 Chart.register(...registerables, zoomPlugin);
-
-interface OHLCVData {
-	timestamp: number;
-	open: number;
-	high: number;
-	close: number;
-	low: number;
-	volume: number;
-}
 
 interface ChartPanelProps {
 	data: OHLCVData[];
