@@ -4,23 +4,26 @@
   "description": "Uses MACD + RSI to forecast returns and place trades.",
   "indicators": [
     {
-      "MOMENTUM": {
-        "description": "MOMENTUM Indicator",
-        "params": [
-          {
-            "name": "period",
-            "default": 14,
-            "type": "number",
-            "color": "#ffcd56"
-          },
-          {
-            "name": "price",
-            "default": "close",
-            "type": "string",
-            "color": "#4bc0c0"
-          }
-        ]
-      }
+      "id": "rsi_14",
+      "name": "RSI",
+      "type": "momentum",
+      "source": "close",
+      "parameters": {
+        "period": 14
+      },
+      "modifiers": {
+        "lag": {
+          "enabled": true,
+          "period": 1
+        },
+        "normalize": {
+          "enabled": false
+        }
+      },
+      "output_fields": [
+        "rsi"
+      ],
+      "enabled": true
     }
   ],
   "signals": [
@@ -61,12 +64,5 @@
     "created": "2025-07-02T08:46:37.680Z",
     "author": "system"
   },
-  "last_updated": "2025-07-02T08:46:37.680Z",
-  "models": [],
-  "performance": {
-    "backtested": false,
-    "win_rate": null,
-    "avg_return": null,
-    "max_drawdown": null
-  }
+  "last_updated": "2025-07-02T08:46:37.680Z"
 }

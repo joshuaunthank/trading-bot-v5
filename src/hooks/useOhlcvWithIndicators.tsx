@@ -53,6 +53,21 @@ export function useOhlcvWithIndicators(
 	timeframe: string,
 	strategyId: string | null = null
 ): OHLCVWithIndicatorsResult {
+	// Helper function to infer indicator type from ID
+	const getIndicatorTypeFromId = (id: string): string => {
+		const lowerId = id.toLowerCase();
+		if (lowerId.includes("rsi")) return "rsi";
+		if (lowerId.includes("macd")) return "macd";
+		if (lowerId.includes("ema")) return "ema";
+		if (lowerId.includes("sma")) return "sma";
+		if (lowerId.includes("volume")) return "volume";
+		if (lowerId.includes("bb") || lowerId.includes("bollinger")) return "bb";
+		if (lowerId.includes("atr")) return "atr";
+		if (lowerId.includes("cci")) return "cci";
+		if (lowerId.includes("adx")) return "adx";
+		return "unknown";
+	};
+
 	// OHLCV State
 	const [latestCandle, setLatestCandle] = useState<OHLCVCandle | null>(null);
 	const [fullDataset, setFullDataset] = useState<OHLCVCandle[]>([]);
@@ -155,13 +170,21 @@ export function useOhlcvWithIndicators(
 						for (const [indicatorId, indicatorData] of Object.entries(
 							data.indicators
 						)) {
-							if (Array.isArray(indicatorData)) {
-								indicatorResults.push({
+							// Check if indicatorData is an object with data array (backend format)
+							if (
+								indicatorData &&
+								typeof indicatorData === "object" &&
+								"data" in indicatorData &&
+								Array.isArray((indicatorData as any).data)
+							) {
+								const backendIndicator = indicatorData as any;
+								const result = {
 									id: indicatorId,
-									name: indicatorId, // Backend should provide name, fallback to ID
-									type: "unknown", // Backend should provide type
-									data: indicatorData as IndicatorValue[],
-								});
+									name: backendIndicator.name || indicatorId,
+									type: backendIndicator.type || "unknown",
+									data: backendIndicator.data as IndicatorValue[],
+								};
+								indicatorResults.push(result);
 							}
 						}
 
@@ -170,7 +193,7 @@ export function useOhlcvWithIndicators(
 							`[OHLCV+Indicators] Updated ${indicatorResults.length} indicators (full)`
 						);
 					} else if (data.indicatorUpdateType === "incremental") {
-						// Incremental indicator update - update latest values
+						// Incremental indicator update - update latest values or create new indicators
 						setIndicators((prev) => {
 							const updated = [...prev];
 
@@ -211,6 +234,16 @@ export function useOhlcvWithIndicators(
 										...existingIndicator,
 										data: newData,
 									};
+								} else if (latestValue && typeof latestValue === "object") {
+									// Create new indicator if it doesn't exist
+									const inferredType = getIndicatorTypeFromId(indicatorId);
+									const newIndicator: BackendIndicatorResult = {
+										id: indicatorId,
+										name: indicatorId, // Use ID as name for now
+										type: inferredType, // Infer type from ID
+										data: [latestValue as IndicatorValue],
+									};
+									updated.push(newIndicator);
 								}
 							}
 

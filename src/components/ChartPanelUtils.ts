@@ -33,6 +33,7 @@ export const categorizeIndicators = (indicators: CalculatedIndicator[]) => {
 
 	indicators.forEach((indicator) => {
 		const type = indicator.type.toLowerCase();
+		const id = indicator.id.toLowerCase();
 
 		// Oscillators that should be in their own panel (0-100 range typically)
 		if (
@@ -41,15 +42,20 @@ export const categorizeIndicators = (indicators: CalculatedIndicator[]) => {
 			type.includes("stoch") ||
 			type.includes("cci") ||
 			type.includes("williams") ||
-			type.includes("momentum")
+			type.includes("momentum") ||
+			id.includes("rsi") ||
+			id.includes("macd")
 		) {
 			categories.oscillator.push(indicator);
 		}
-		// Volume indicators
+		// Volume indicators (check both type and ID for volume-related indicators)
 		else if (
 			type.includes("volume") ||
 			type.includes("obv") ||
-			type.includes("ad")
+			type.includes("ad") ||
+			id.includes("volume") ||
+			// Handle cases like "volume_sma" where ID contains volume but type is SMA
+			(id.includes("volume") && (type.includes("sma") || type.includes("ema")))
 		) {
 			categories.volume.push(indicator);
 		}

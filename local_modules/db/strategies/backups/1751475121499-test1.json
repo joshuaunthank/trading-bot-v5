@@ -1,0 +1,62 @@
+{
+  "id": "test1",
+  "name": "Test Strategy 1",
+  "description": "A simple test strategy with basic indicators",
+  "indicators": [
+    {
+      "id": "rsi_14",
+      "name": "RSI",
+      "type": "momentum",
+      "source": "close",
+      "parameters": {
+        "period": 14
+      },
+      "output_fields": [
+        "rsi"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "sma_20",
+      "name": "SMA 20",
+      "type": "trend",
+      "source": "close",
+      "parameters": {
+        "period": 20
+      },
+      "output_fields": [
+        "sma"
+      ],
+      "enabled": true
+    }
+  ],
+  "signals": [
+    {
+      "id": "entry_long_signal",
+      "type": "entry",
+      "side": "long",
+      "expression": "forecast > 0.5",
+      "description": "Enter long when forecast is positive"
+    },
+    {
+      "id": "exit_long_signal",
+      "type": "exit",
+      "side": "long",
+      "expression": "forecast < 0",
+      "description": "Exit long when forecast turns negative"
+    }
+  ],
+  "risk_management": {
+    "max_position_size": 0.1,
+    "stop_loss_percentage": 0.02,
+    "take_profit_percentage": 0.05
+  },
+  "ml_models": [],
+  "postprocessing": [],
+  "metadata": {
+    "version": "1.0",
+    "created": "2025-07-02T08:46:37.685Z",
+    "author": "system"
+  },
+  "last_updated": "2025-07-02T08:46:37.685Z"
+}

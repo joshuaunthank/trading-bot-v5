@@ -43,7 +43,6 @@ export interface IndicatorConfig {
 	smooth?: number;
 	stdDev?: number;
 	isEnabled: boolean;
-	enabled?: boolean; // Legacy compatibility
 	parameters?: any; // Dynamic parameters for different indicator types
 }
 

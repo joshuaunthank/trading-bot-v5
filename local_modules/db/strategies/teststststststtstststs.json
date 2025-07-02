@@ -4,20 +4,57 @@
   "description": "",
   "indicators": [
     {
-      "id": "indicator_1751115671991",
-      "type": "macd",
-      "parameters": {
-        "fastPeriod": 12,
-        "slowPeriod": 26,
-        "signalPeriod": 9
-      }
-    },
-    {
-      "id": "indicator_1751115676605",
-      "type": "bb",
-      "parameters": {
-        "period": 20,
-        "stdDev": 2
+      "MACD": {
+        "description": "Moving Average Convergence Divergence",
+        "params": [
+          {
+            "name": "fastPeriod",
+            "default": 12,
+            "type": "number",
+            "color": "#ff6384"
+          },
+          {
+            "name": "slowPeriod",
+            "default": 26,
+            "type": "number",
+            "color": "#36a2eb"
+          },
+          {
+            "name": "signalPeriod",
+            "default": 9,
+            "type": "number",
+            "color": "#9966ff"
+          },
+          {
+            "name": "price",
+            "default": "close",
+            "type": "string",
+            "color": "#4bc0c0"
+          }
+        ]
+      },
+      "BB": {
+        "description": "Bollinger Bands",
+        "params": [
+          {
+            "name": "period",
+            "default": 20,
+            "type": "number",
+            "color": "#ffcd56"
+          },
+          {
+            "name": "stdDev",
+            "default": 2,
+            "type": "number",
+            "color": "#c9cbcf"
+          },
+          {
+            "name": "price",
+            "default": "close",
+            "type": "string",
+            "color": "#4bc0c0"
+          }
+        ]
       }
     }
   ],
@@ -34,5 +71,12 @@
     "created": "2025-07-02T08:46:37.688Z",
     "author": "system"
   },
-  "last_updated": "2025-07-02T08:46:37.688Z"
+  "last_updated": "2025-07-02T08:46:37.688Z",
+  "models": [],
+  "performance": {
+    "backtested": false,
+    "win_rate": null,
+    "avg_return": null,
+    "max_drawdown": null
+  }
 }

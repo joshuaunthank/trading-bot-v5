@@ -4,85 +4,43 @@
   "description": "Advanced strategy combining RSI oversold/overbought conditions with EMA trend confirmation",
   "indicators": [
     {
-      "RSI": {
-        "description": "Relative Strength Index",
-        "params": [
-          {
-            "name": "period",
-            "default": 14,
-            "type": "number",
-            "color": "#F59E0B"
-          },
-          {
-            "name": "price",
-            "default": "close",
-            "type": "string",
-            "color": "#4bc0c0"
-          }
-        ]
-      },
-      "EMA": {
-        "description": "Exponential Moving Average",
-        "params": [
-          {
-            "name": "period",
-            "default": 20,
-            "type": "number",
-            "color": "#10B981"
-          },
-          {
-            "name": "price",
-            "default": "close",
-            "type": "string",
-            "color": "#4bc0c0"
-          }
-        ]
-      },
-      "MACD": {
-        "description": "Moving Average Convergence Divergence",
-        "params": [
-          {
-            "name": "fastPeriod",
-            "default": 12,
-            "type": "number",
-            "color": "#ff6384"
-          },
-          {
-            "name": "slowPeriod",
-            "default": 26,
-            "type": "number",
-            "color": "#36a2eb"
-          },
-          {
-            "name": "signalPeriod",
-            "default": 9,
-            "type": "number",
-            "color": "#9966ff"
-          },
-          {
-            "name": "price",
-            "default": "close",
-            "type": "string",
-            "color": "#4bc0c0"
-          }
-        ]
-      },
-      "BOLLINGER": {
-        "description": "BOLLINGER Indicator",
-        "params": [
-          {
-            "name": "period",
-            "default": 20,
-            "type": "number",
-            "color": "#ffcd56"
-          },
-          {
-            "name": "price",
-            "default": "close",
-            "type": "string",
-            "color": "#4bc0c0"
-          }
-        ]
+      "id": "rsi_14",
+      "type": "rsi",
+      "parameters": {
+        "period": 14
+      }
+    },
+    {
+      "id": "ema_20",
+      "type": "ema",
+      "parameters": {
+        "period": 20,
+        "source": "close"
+      }
+    },
+    {
+      "id": "ema_50",
+      "type": "ema",
+      "parameters": {
+        "period": 50,
+        "source": "close"
+      }
+    },
+    {
+      "id": "macd_default",
+      "type": "macd",
+      "parameters": {
+        "fastPeriod": 12,
+        "slowPeriod": 26,
+        "signalPeriod": 9
+      }
+    },
+    {
+      "id": "bb_20",
+      "type": "bollinger",
+      "parameters": {
+        "period": 20,
+        "stdDev": 2
       }
     }
   ],
@@ -239,12 +197,5 @@
     "created": "2025-07-02T08:46:37.683Z",
     "author": "system"
   },
-  "last_updated": "2025-07-02T08:46:37.683Z",
-  "models": [],
-  "performance": {
-    "backtested": false,
-    "win_rate": null,
-    "avg_return": null,
-    "max_drawdown": null
-  }
+  "last_updated": "2025-07-02T08:46:37.683Z"
 }

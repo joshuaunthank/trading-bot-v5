@@ -4,26 +4,39 @@
   "description": "test 2",
   "indicators": [
     {
-      "id": "indicator_1751078483994",
-      "type": "rsi",
-      "parameters": {
-        "period": 14
-      }
-    },
-    {
-      "id": "indicator_1751078489393",
-      "type": "sma",
-      "parameters": {
-        "period": 26,
-        "source": "close"
-      }
-    },
-    {
-      "id": "indicator_1751078495643",
-      "type": "sma",
-      "parameters": {
-        "period": 14,
-        "source": "close"
+      "RSI": {
+        "description": "Relative Strength Index",
+        "params": [
+          {
+            "name": "period",
+            "default": 14,
+            "type": "number",
+            "color": "#F59E0B"
+          },
+          {
+            "name": "price",
+            "default": "close",
+            "type": "string",
+            "color": "#4bc0c0"
+          }
+        ]
+      },
+      "SMA": {
+        "description": "Simple Moving Average",
+        "params": [
+          {
+            "name": "period",
+            "default": 26,
+            "type": "number",
+            "color": "#3B82F6"
+          },
+          {
+            "name": "price",
+            "default": "close",
+            "type": "string",
+            "color": "#4bc0c0"
+          }
+        ]
       }
     }
   ],
@@ -40,5 +53,12 @@
     "created": "2025-07-02T08:46:37.686Z",
     "author": "system"
   },
-  "last_updated": "2025-07-02T08:46:37.686Z"
+  "last_updated": "2025-07-02T08:46:37.686Z",
+  "models": [],
+  "performance": {
+    "backtested": false,
+    "win_rate": null,
+    "avg_return": null,
+    "max_drawdown": null
+  }
 }

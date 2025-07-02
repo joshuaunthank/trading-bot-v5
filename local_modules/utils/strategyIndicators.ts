@@ -18,16 +18,31 @@ import {
 	calculatedATR,
 	calculatedCCI,
 	calculatedADX,
+	calculatedVWAP,
 } from "../routes/api-utils/indicator-calculations";
 
-export interface StrategyIndicatorConfig {
+export interface IndicatorParam {
+	name: string;
+	default: any;
+	type: string;
+	color: string;
+}
+
+export interface IndicatorDefinition {
+	description: string;
+	params: IndicatorParam[];
+}
+
+export interface StrategyIndicatorGroup {
+	[indicatorName: string]: IndicatorDefinition;
+}
+
+export interface ProcessedIndicator {
 	id: string;
+	name: string;
 	type: string;
 	parameters: Record<string, any>;
-	name?: string;
-	source?: string;
-	output_fields?: string[];
-	enabled?: boolean;
+	color: string;
 }
 
 export interface OHLCVData {
@@ -59,6 +74,7 @@ const indicatorCalculators: Record<string, Function> = {
 	atr: calculatedATR,
 	cci: calculatedCCI,
 	adx: calculatedADX,
+	vwap: calculatedVWAP,
 };
 
 /**
@@ -86,30 +102,149 @@ export function loadStrategy(strategyId: string): any | null {
 }
 
 /**
- * Get indicator configurations for a strategy
+ * Get processed indicators for a strategy (new format only)
  */
 export function getStrategyIndicators(
 	strategyId: string
-): StrategyIndicatorConfig[] {
+): ProcessedIndicator[] {
 	const strategy = loadStrategy(strategyId);
-	if (!strategy || !strategy.indicators) {
+	if (
+		!strategy ||
+		!strategy.indicators ||
+		!Array.isArray(strategy.indicators)
+	) {
 		return [];
 	}
 
-	return strategy.indicators.filter(
-		(indicator: any) => indicator.enabled !== false // Include enabled indicators (default to true if not specified)
-	);
+	return processIndicatorsFromNewFormat(strategy.indicators);
+}
+
+/**
+ * Process indicators from the new comprehensive format
+ */
+function processIndicatorsFromNewFormat(
+	indicators: StrategyIndicatorGroup[]
+): ProcessedIndicator[] {
+	const processed: ProcessedIndicator[] = [];
+
+	indicators.forEach((indicatorGroup) => {
+		Object.keys(indicatorGroup).forEach((indicatorName) => {
+			const definition = indicatorGroup[indicatorName];
+
+			// Extract parameters with defaults
+			const parameters: Record<string, any> = {};
+			let primaryColor = "#6B7280"; // Default color
+
+			if (definition.params) {
+				definition.params.forEach((param) => {
+					parameters[param.name] = param.default;
+					// Use the first color we find as primary
+					if (param.color && primaryColor === "#6B7280") {
+						primaryColor = param.color;
+					}
+				});
+			}
+
+			// Map indicator names to calculator types
+			const type = mapIndicatorNameToCalculatorType(indicatorName);
+			if (!type) {
+				console.warn(
+					`[Strategy] No calculator mapping for indicator: ${indicatorName}`
+				);
+				return;
+			}
+
+			// Generate descriptive ID
+			const id = generateIndicatorId(indicatorName, parameters);
+
+			processed.push({
+				id,
+				name: definition.description,
+				type,
+				parameters,
+				color: primaryColor,
+			});
+		});
+	});
+
+	return processed;
+}
+
+/**
+ * Map indicator names to backend calculator types
+ */
+function mapIndicatorNameToCalculatorType(
+	indicatorName: string
+): string | null {
+	const mapping: Record<string, string> = {
+		RSI: "rsi",
+		MACD: "macd",
+		BB: "bb",
+		SMA: "sma",
+		EMA: "ema",
+		ATR: "atr",
+		CCI: "cci",
+		ADX: "adx",
+		VWAP: "vwap",
+		STOCH: "stoch",
+		OBV: "obv",
+		WILLIAMS_R: "williams",
+		MFI: "mfi",
+		PSAR: "sar",
+		AD: "ad",
+	};
+
+	return mapping[indicatorName] || null;
+}
+
+/**
+ * Generate descriptive indicator ID
+ */
+function generateIndicatorId(
+	indicatorName: string,
+	parameters: Record<string, any>
+): string {
+	switch (indicatorName) {
+		case "RSI":
+			return `RSI_${parameters.period || 14}`;
+		case "MACD":
+			return `MACD_${parameters.fastPeriod || 12}_${
+				parameters.slowPeriod || 26
+			}_${parameters.signalPeriod || 9}`;
+		case "BB":
+			return `BB_${parameters.period || 20}_${parameters.stdDev || 2}`;
+		case "SMA":
+			return `SMA_${parameters.period || 20}`;
+		case "EMA":
+			return `EMA_${parameters.period || 20}`;
+		case "ATR":
+			return `ATR_${parameters.period || 14}`;
+		case "CCI":
+			return `CCI_${parameters.period || 20}`;
+		case "ADX":
+			return `ADX_${parameters.period || 14}`;
+		case "STOCH":
+			return `STOCH_${parameters.kPeriod || 14}_${parameters.dPeriod || 3}`;
+		case "VWAP":
+			return "VWAP";
+		case "OBV":
+			return "OBV";
+		case "AD":
+			return "AD";
+		default:
+			return `${indicatorName}_${parameters.period || "default"}`;
+	}
 }
 
 /**
  * Calculate a single indicator with proper alignment
  */
 function calculateSingleIndicator(
-	config: StrategyIndicatorConfig,
+	indicator: ProcessedIndicator,
 	ohlcvData: OHLCVData[]
 ): CalculatedIndicatorResult | null {
 	try {
-		const type = config.type.toLowerCase();
+		const type = indicator.type.toLowerCase();
 		const calculator = indicatorCalculators[type];
 
 		if (!calculator) {
@@ -118,7 +253,7 @@ function calculateSingleIndicator(
 		}
 
 		const timestamps = ohlcvData.map((d) => d.timestamp);
-		const period = config.parameters?.period || 14;
+		const period = indicator.parameters?.period || 14;
 		let calculatedValues: number[] = [];
 		let startIndex = 0;
 
@@ -135,26 +270,21 @@ function calculateSingleIndicator(
 
 			case "macd": {
 				const closes = ohlcvData.map((d) => d.close);
-				const fastPeriod = config.parameters?.fastPeriod || 12;
-				const slowPeriod = config.parameters?.slowPeriod || 26;
-				const signalPeriod = config.parameters?.signalPeriod || 9;
+				const fastPeriod = indicator.parameters?.fastPeriod || 12;
+				const slowPeriod = indicator.parameters?.slowPeriod || 26;
+				const signalPeriod = indicator.parameters?.signalPeriod || 9;
 
 				const result = calculator(closes, fastPeriod, slowPeriod, signalPeriod);
-
-				// For MACD, return the main MACD line (could be extended to return signal and histogram)
 				calculatedValues = result.macd || [];
 				startIndex = slowPeriod - 1;
 				break;
 			}
 
-			case "bb":
-			case "bollingerbands": {
+			case "bb": {
 				const closes = ohlcvData.map((d) => d.close);
-				const stdDev = config.parameters?.stdDev || 2;
+				const stdDev = indicator.parameters?.stdDev || 2;
 
 				const result = calculator(closes, period, stdDev);
-
-				// For Bollinger Bands, return the middle line (could be extended to return upper/lower)
 				calculatedValues = result.middle || [];
 				startIndex = period - 1;
 				break;
@@ -174,6 +304,19 @@ function calculateSingleIndicator(
 				break;
 			}
 
+			case "vwap": {
+				const vwapFormat = ohlcvData.map((d) => ({
+					high: d.high,
+					low: d.low,
+					close: d.close,
+					volume: d.volume,
+				}));
+
+				calculatedValues = calculator(vwapFormat);
+				startIndex = 0;
+				break;
+			}
+
 			default:
 				console.warn(`[Indicators] Unhandled indicator type: ${type}`);
 				return null;
@@ -187,14 +330,14 @@ function calculateSingleIndicator(
 		);
 
 		return {
-			id: config.id,
-			name: config.name || `${config.type.toUpperCase()}(${period})`,
-			type: config.type,
+			id: indicator.id,
+			name: indicator.name,
+			type: indicator.type,
 			data: alignedData,
 		};
 	} catch (error) {
 		console.error(
-			`[Indicators] Error calculating ${config.type} for ${config.id}:`,
+			`[Indicators] Error calculating ${indicator.type} for ${indicator.id}:`,
 			error
 		);
 		return null;
@@ -222,9 +365,14 @@ export function calculateStrategyIndicators(
 	const results: CalculatedIndicatorResult[] = [];
 
 	for (const indicator of indicators) {
-		const result = calculateSingleIndicator(indicator, ohlcvData);
-		if (result) {
-			results.push(result);
+		// Only calculate if we have a calculator for this type
+		if (indicatorCalculators[indicator.type]) {
+			const result = calculateSingleIndicator(indicator, ohlcvData);
+			if (result) {
+				results.push(result);
+			}
+		} else {
+			console.warn(`[Indicators] No calculator for type: ${indicator.type}`);
 		}
 	}
 
@@ -246,7 +394,21 @@ export function calculateStrategyIndicatorsIncremental(
 
 	for (const result of fullResults) {
 		// Get the latest non-null value
-		const latestValue = result.data[result.data.length - 1];
+		let latestValue: IndicatorValue | null = null;
+
+		// Search backwards to find the latest non-null value
+		for (let i = result.data.length - 1; i >= 0; i--) {
+			if (result.data[i].y !== null) {
+				latestValue = result.data[i];
+				break;
+			}
+		}
+
+		// If no non-null value found, use the last element anyway
+		if (!latestValue) {
+			latestValue = result.data[result.data.length - 1];
+		}
+
 		incrementalResults[result.id] = latestValue;
 	}
 

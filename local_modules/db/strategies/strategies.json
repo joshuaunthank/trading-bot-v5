@@ -1,51 +1,113 @@
 [
-	{
-		"id": "arima_macd_lag",
-		"name": "Arima MacD Lag Strategy",
-		"description": "Uses MACD + RSI to forecast returns and place trades.",
-		"status": "inactive",
-		"last_updated": "2025-07-02T08:46:37.680Z"
-	},
-	{
-		"id": "conservative_ema_rsi_v2",
-		"name": "Conservative EMA-RSI with Overtrading Protection",
-		"description": "A conservative strategy using EMA crossovers and RSI confirmation with built-in overtrading prevention",
-		"status": "inactive",
-		"last_updated": "2025-07-02T08:46:37.681Z"
-	},
-	{
-		"id": "enhanced_rsi_ema_strategy",
-		"name": "Enhanced RSI + EMA Strategy",
-		"description": "Advanced strategy combining RSI oversold/overbought conditions with EMA trend confirmation",
-		"status": "inactive",
-		"last_updated": "2025-07-02T08:46:37.683Z"
-	},
-	{
-		"id": "simple_ema_test",
-		"name": "Simple EMA Test Strategy",
-		"description": "A basic strategy using only EMA indicators for testing",
-		"status": "inactive",
-		"last_updated": "2025-07-02T08:46:37.684Z"
-	},
-	{
-		"id": "test1",
-		"name": "Test Strategy 1",
-		"description": "A simple test strategy with basic indicators",
-		"status": "inactive",
-		"last_updated": "2025-07-02T08:46:37.685Z"
-	},
-	{
-		"id": "test2",
-		"name": "Test2",
-		"description": "test 2",
-		"status": "inactive",
-		"last_updated": "2025-07-02T08:46:37.686Z"
-	},
-	{
-		"id": "teststststststtstststs",
-		"name": "teststststststtstststs",
-		"description": "",
-		"status": "inactive",
-		"last_updated": "2025-07-02T08:46:37.688Z"
-	}
+  {
+    "id": "arima_macd_lag",
+    "name": "Arima MacD Lag Strategy",
+    "description": "Uses MACD + RSI to forecast returns and place trades.",
+    "status": "inactive",
+    "last_updated": "2025-07-02T08:46:37.680Z"
+  },
+  {
+    "id": "conservative_ema_rsi_v2",
+    "name": "Conservative EMA-RSI with Overtrading Protection",
+    "description": "A conservative strategy using EMA crossovers and RSI confirmation with built-in overtrading prevention",
+    "status": "inactive",
+    "last_updated": "2025-07-02T08:46:37.681Z"
+  },
+  {
+    "id": "enhanced_rsi_ema_strategy",
+    "name": "Enhanced RSI + EMA Strategy",
+    "description": "Advanced strategy combining RSI oversold/overbought conditions with EMA trend confirmation",
+    "status": "inactive",
+    "last_updated": "2025-07-02T08:46:37.683Z"
+  },
+  {
+    "id": "simple_ema_test",
+    "name": "Simple EMA Test Strategy",
+    "description": "A basic strategy using only EMA indicators for testing",
+    "status": "inactive",
+    "last_updated": "2025-07-02T08:46:37.684Z"
+  },
+  {
+    "id": "test1",
+    "name": "Test Strategy 1",
+    "description": "A simple test strategy with basic indicators",
+    "status": "inactive",
+    "last_updated": "2025-07-02T08:46:37.685Z"
+  },
+  {
+    "id": "test2",
+    "name": "Test2",
+    "description": "test 2",
+    "status": "inactive",
+    "last_updated": "2025-07-02T08:46:37.686Z"
+  },
+  {
+    "id": "teststststststtstststs",
+    "name": "teststststststtstststs",
+    "description": "",
+    "status": "inactive",
+    "last_updated": "2025-07-02T08:46:37.688Z"
+  },
+  {
+    "id": "test_all_indicators",
+    "name": "Test all indicators",
+    "description": "",
+    "category": "custom",
+    "risk_level": "medium",
+    "complexity": "intermediate",
+    "tags": [],
+    "timeframes": [
+      "1h"
+    ],
+    "created_at": "2025-07-02T11:11:21.115Z",
+    "last_updated": "2025-07-02T11:11:21.115Z",
+    "performance": {
+      "backtested": false,
+      "win_rate": null,
+      "avg_return": null,
+      "max_drawdown": null
+    }
+  },
+  {
+    "id": "test_hello_world",
+    "name": "Test hello world",
+    "description": "test",
+    "category": "custom",
+    "risk_level": "medium",
+    "complexity": "intermediate",
+    "tags": [
+      "test"
+    ],
+    "timeframes": [
+      "1h"
+    ],
+    "created_at": "2025-07-02T13:55:17.494Z",
+    "last_updated": "2025-07-02T13:55:17.494Z",
+    "performance": {
+      "backtested": false,
+      "win_rate": null,
+      "avg_return": null,
+      "max_drawdown": null
+    }
+  },
+  {
+    "id": "test_new_format",
+    "name": "Test New Format Strategy",
+    "description": "Testing the new indicator format",
+    "category": "custom",
+    "risk_level": "medium",
+    "complexity": "intermediate",
+    "tags": [],
+    "timeframes": [
+      "1h"
+    ],
+    "created_at": "2025-07-02T17:09:46.767Z",
+    "last_updated": "2025-07-02T17:09:46.767Z",
+    "performance": {
+      "backtested": false,
+      "win_rate": null,
+      "avg_return": null,
+      "max_drawdown": null
+    }
+  }
 ]

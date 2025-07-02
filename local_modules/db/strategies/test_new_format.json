@@ -1,0 +1,60 @@
+{
+  "id": "test_new_format",
+  "name": "Test New Format Strategy",
+  "description": "Testing the new indicator format",
+  "symbol": "BTC/USDT",
+  "timeframe": "1h",
+  "indicators": [
+    {
+      "BB": {
+        "description": "Bollinger Bands",
+        "params": [
+          {
+            "name": "period",
+            "default": 20,
+            "type": "number",
+            "color": "#9bf7c7"
+          },
+          {
+            "name": "stdDev",
+            "default": 2,
+            "type": "number",
+            "color": "#c9cbcf"
+          },
+          {
+            "name": "price",
+            "default": "close",
+            "type": "string",
+            "color": "#4bc0c0"
+          }
+        ]
+      }
+    },
+    {
+      "RSI": {
+        "description": "Relative Strength Index",
+        "params": [
+          {
+            "name": "period",
+            "default": 14,
+            "type": "number",
+            "color": "#f70700"
+          },
+          {
+            "name": "price",
+            "default": "close",
+            "type": "string",
+            "color": "#be0100"
+          }
+        ]
+      }
+    }
+  ],
+  "meta": {
+    "created_at": "2025-07-02T17:09:46.767Z",
+    "last_updated": "2025-07-02T18:07:49.601Z"
+  },
+  "tags": [],
+  "signals": [],
+  "enabled": true
+}

@@ -1,0 +1,44 @@
+{
+  "id": "test2",
+  "name": "Test2",
+  "description": "test 2",
+  "indicators": [
+    {
+      "id": "indicator_1751078483994",
+      "type": "rsi",
+      "parameters": {
+        "period": 14
+      }
+    },
+    {
+      "id": "indicator_1751078489393",
+      "type": "sma",
+      "parameters": {
+        "period": 26,
+        "source": "close"
+      }
+    },
+    {
+      "id": "indicator_1751078495643",
+      "type": "sma",
+      "parameters": {
+        "period": 14,
+        "source": "close"
+      }
+    }
+  ],
+  "signals": [],
+  "risk_management": {
+    "max_position_size": 0.1,
+    "stop_loss_percentage": 0.02,
+    "take_profit_percentage": 0.05
+  },
+  "ml_models": [],
+  "postprocessing": [],
+  "metadata": {
+    "version": "1.0",
+    "created": "2025-07-02T08:46:37.686Z",
+    "author": "system"
+  },
+  "last_updated": "2025-07-02T08:46:37.686Z"
+}

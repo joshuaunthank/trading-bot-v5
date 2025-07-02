@@ -825,16 +825,21 @@ async function startWatchLoop(
 											`[Indicators] Sending incremental indicators for strategy: ${config.strategyId}`
 										);
 									} else {
-										// For full updates, get complete historical arrays
+										// For full updates, get complete historical arrays with metadata
 										const fullResults = calculateStrategyIndicators(
 											config.strategyId,
 											formattedDataForIndicators
 										);
 
-										// Convert to format expected by frontend
+										// Convert to format expected by frontend - include full metadata
 										indicatorResults = {};
 										for (const result of fullResults) {
-											indicatorResults[result.id] = result.data;
+											indicatorResults[result.id] = {
+												id: result.id,
+												name: result.name,
+												type: result.type,
+												data: result.data,
+											};
 										}
 
 										indicatorUpdateType = "full";

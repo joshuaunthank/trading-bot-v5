@@ -4,30 +4,40 @@
   "description": "A simple test strategy with basic indicators",
   "indicators": [
     {
-      "id": "rsi_14",
-      "name": "RSI",
-      "type": "momentum",
-      "source": "close",
-      "parameters": {
-        "period": 14
+      "MOMENTUM": {
+        "description": "MOMENTUM Indicator",
+        "params": [
+          {
+            "name": "period",
+            "default": 14,
+            "type": "number",
+            "color": "#ffcd56"
+          },
+          {
+            "name": "price",
+            "default": "close",
+            "type": "string",
+            "color": "#4bc0c0"
+          }
+        ]
       },
-      "output_fields": [
-        "rsi"
-      ],
-      "enabled": true
-    },
-    {
-      "id": "sma_20",
-      "name": "SMA 20",
-      "type": "trend",
-      "source": "close",
-      "parameters": {
-        "period": 20
-      },
-      "output_fields": [
-        "sma"
-      ],
-      "enabled": true
+      "TREND": {
+        "description": "TREND Indicator",
+        "params": [
+          {
+            "name": "period",
+            "default": 20,
+            "type": "number",
+            "color": "#ffcd56"
+          },
+          {
+            "name": "price",
+            "default": "close",
+            "type": "string",
+            "color": "#4bc0c0"
+          }
+        ]
+      }
     }
   ],
   "signals": [
@@ -58,5 +68,12 @@
     "created": "2025-07-02T08:46:37.685Z",
     "author": "system"
   },
-  "last_updated": "2025-07-02T08:46:37.685Z"
+  "last_updated": "2025-07-02T08:46:37.685Z",
+  "models": [],
+  "performance": {
+    "backtested": false,
+    "win_rate": null,
+    "avg_return": null,
+    "max_drawdown": null
+  }
 }

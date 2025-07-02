@@ -9,10 +9,20 @@ interface StrategyEditorProps {
 	existingStrategy?: StrategyData | null;
 }
 
-interface IndicatorData {
-	id: string;
-	type: string;
-	parameters: Record<string, any>;
+interface IndicatorParam {
+	name: string;
+	default: any;
+	type: "number" | "string";
+	color: string;
+}
+
+interface IndicatorConfig {
+	description: string;
+	params: IndicatorParam[];
+}
+
+interface NewIndicatorData {
+	[key: string]: IndicatorConfig;
 }
 
 interface SignalData {
@@ -40,7 +50,7 @@ interface StrategyData {
 	timeframe: string;
 	enabled: boolean;
 	tags: string[];
-	indicators: IndicatorData[];
+	indicators: NewIndicatorData[];
 	signals: SignalData[];
 	risk: RiskData;
 	ml_models: any[]; // Add ML models support
@@ -52,30 +62,207 @@ interface StrategyData {
 	};
 }
 
-const INDICATOR_TYPES = [
-	{ value: "rsi", label: "RSI", defaultParams: { period: 14 } },
-	{
-		value: "ema",
-		label: "EMA",
-		defaultParams: { period: 20, source: "close" },
+const INDICATOR_TEMPLATES: Record<string, IndicatorConfig> = {
+	RSI: {
+		description: "Relative Strength Index",
+		params: [
+			{
+				name: "period",
+				default: 14,
+				type: "number",
+				color: "#ffcd56",
+			},
+			{
+				name: "price",
+				default: "close",
+				type: "string",
+				color: "#4bc0c0",
+			},
+		],
 	},
-	{
-		value: "sma",
-		label: "SMA",
-		defaultParams: { period: 20, source: "close" },
+	MACD: {
+		description: "Moving Average Convergence Divergence",
+		params: [
+			{
+				name: "fastPeriod",
+				default: 12,
+				type: "number",
+				color: "#ff6384",
+			},
+			{
+				name: "slowPeriod",
+				default: 26,
+				type: "number",
+				color: "#36a2eb",
+			},
+			{
+				name: "signalPeriod",
+				default: 9,
+				type: "number",
+				color: "#9966ff",
+			},
+			{
+				name: "price",
+				default: "close",
+				type: "string",
+				color: "#4bc0c0",
+			},
+		],
 	},
-	{
-		value: "macd",
-		label: "MACD",
-		defaultParams: { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
+	BB: {
+		description: "Bollinger Bands",
+		params: [
+			{
+				name: "period",
+				default: 20,
+				type: "number",
+				color: "#ffcd56",
+			},
+			{
+				name: "stdDev",
+				default: 2,
+				type: "number",
+				color: "#c9cbcf",
+			},
+			{
+				name: "price",
+				default: "close",
+				type: "string",
+				color: "#4bc0c0",
+			},
+		],
 	},
-	{
-		value: "bb",
-		label: "Bollinger Bands",
-		defaultParams: { period: 20, stdDev: 2 },
+	SMA: {
+		description: "Simple Moving Average",
+		params: [
+			{
+				name: "period",
+				default: 20,
+				type: "number",
+				color: "#ffcd56",
+			},
+			{
+				name: "price",
+				default: "close",
+				type: "string",
+				color: "#4bc0c0",
+			},
+		],
 	},
-	{ value: "atr", label: "ATR", defaultParams: { period: 14 } },
-];
+	EMA: {
+		description: "Exponential Moving Average",
+		params: [
+			{
+				name: "period",
+				default: 20,
+				type: "number",
+				color: "#ffcd56",
+			},
+			{
+				name: "price",
+				default: "close",
+				type: "string",
+				color: "#4bc0c0",
+			},
+		],
+	},
+	ATR: {
+		description: "Average True Range",
+		params: [
+			{
+				name: "period",
+				default: 14,
+				type: "number",
+				color: "#ffcd56",
+			},
+		],
+	},
+	STOCH: {
+		description: "Stochastic Oscillator",
+		params: [
+			{
+				name: "kPeriod",
+				default: 14,
+				type: "number",
+				color: "#ff6384",
+			},
+			{
+				name: "dPeriod",
+				default: 3,
+				type: "number",
+				color: "#36a2eb",
+			},
+			{
+				name: "smooth",
+				default: 3,
+				type: "number",
+				color: "#9966ff",
+			},
+		],
+	},
+	WILLIAMS_R: {
+		description: "Williams %R",
+		params: [
+			{
+				name: "period",
+				default: 14,
+				type: "number",
+				color: "#ffcd56",
+			},
+		],
+	},
+	CCI: {
+		description: "Commodity Channel Index",
+		params: [
+			{
+				name: "period",
+				default: 20,
+				type: "number",
+				color: "#ffcd56",
+			},
+		],
+	},
+	MFI: {
+		description: "Money Flow Index",
+		params: [
+			{
+				name: "period",
+				default: 14,
+				type: "number",
+				color: "#ffcd56",
+			},
+		],
+	},
+	PSAR: {
+		description: "Parabolic SAR",
+		params: [
+			{
+				name: "acceleration",
+				default: 0.02,
+				type: "number",
+				color: "#ff6384",
+			},
+			{
+				name: "maximum",
+				default: 0.2,
+				type: "number",
+				color: "#36a2eb",
+			},
+		],
+	},
+	OBV: {
+		description: "On Balance Volume",
+		params: [],
+	},
+	AD: {
+		description: "Accumulation/Distribution Line",
+		params: [],
+	},
+	VWAP: {
+		description: "Volume Weighted Average Price",
+		params: [],
+	},
+};
 
 const TIMEFRAMES = [
 	"1m",
@@ -142,7 +329,17 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 	useEffect(() => {
 		if (isOpen) {
 			if (isEditMode && existingStrategy) {
-				setStrategy(existingStrategy);
+				// Ensure all required fields are present with defaults
+				setStrategy({
+					...existingStrategy,
+					tags: existingStrategy.tags || [],
+					indicators: existingStrategy.indicators || [],
+					signals: existingStrategy.signals || [],
+					enabled:
+						existingStrategy.enabled !== undefined
+							? existingStrategy.enabled
+							: true,
+				});
 			} else {
 				// Reset for create mode
 				setStrategy({
@@ -197,10 +394,13 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 	};
 
 	const addIndicator = () => {
-		const newIndicator: IndicatorData = {
-			id: `indicator_${Date.now()}`,
-			type: "rsi",
-			parameters: { period: 14 },
+		const indicatorType = Object.keys(INDICATOR_TEMPLATES)[0]; // Default to first indicator
+		const template = INDICATOR_TEMPLATES[indicatorType];
+		const newIndicator: NewIndicatorData = {
+			[indicatorType]: {
+				description: template.description,
+				params: template.params.map((param) => ({ ...param })), // Deep copy
+			},
 		};
 		setStrategy((prev) => ({
 			...prev,
@@ -208,16 +408,44 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 		}));
 	};
 
-	const updateIndicator = (
+	const updateIndicatorType = (index: number, newType: string) => {
+		const template = INDICATOR_TEMPLATES[newType];
+		const newIndicator: NewIndicatorData = {
+			[newType]: {
+				description: template.description,
+				params: template.params.map((param) => ({ ...param })), // Deep copy with defaults
+			},
+		};
+
+		setStrategy((prev) => ({
+			...prev,
+			indicators: prev.indicators.map((ind, i) =>
+				i === index ? newIndicator : ind
+			),
+		}));
+	};
+
+	const updateIndicatorParam = (
 		index: number,
-		field: keyof IndicatorData,
+		paramIndex: number,
 		value: any
 	) => {
 		setStrategy((prev) => ({
 			...prev,
-			indicators: prev.indicators.map((ind, i) =>
-				i === index ? { ...ind, [field]: value } : ind
-			),
+			indicators: prev.indicators.map((ind, i) => {
+				if (i !== index) return ind;
+
+				const indicatorKey = Object.keys(ind)[0];
+				const updatedIndicator = { ...ind };
+				const currentParams = updatedIndicator[indicatorKey].params || [];
+				updatedIndicator[indicatorKey] = {
+					...updatedIndicator[indicatorKey],
+					params: currentParams.map((param, pIdx) =>
+						pIdx === paramIndex ? { ...param, default: value } : param
+					),
+				};
+				return updatedIndicator;
+			}),
 		}));
 	};
 
@@ -259,10 +487,11 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 	};
 
 	const addTag = () => {
-		if (tagInput.trim() && !strategy.tags.includes(tagInput.trim())) {
+		const currentTags = strategy.tags || [];
+		if (tagInput.trim() && !currentTags.includes(tagInput.trim())) {
 			setStrategy((prev) => ({
 				...prev,
-				tags: [...prev.tags, tagInput.trim()],
+				tags: [...(prev.tags || []), tagInput.trim()],
 			}));
 			setTagInput("");
 		}
@@ -271,7 +500,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 	const removeTag = (tag: string) => {
 		setStrategy((prev) => ({
 			...prev,
-			tags: prev.tags.filter((t) => t !== tag),
+			tags: (prev.tags || []).filter((t) => t !== tag),
 		}));
 	};
 
@@ -439,7 +668,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 									</button>
 								</div>
 								<div className="flex flex-wrap gap-2">
-									{strategy.tags.map((tag, index) => (
+									{(strategy.tags || []).map((tag, index) => (
 										<span
 											key={index}
 											className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm"
@@ -494,82 +723,118 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 								</button>
 							</div>
 
-							{strategy.indicators.map((indicator, index) => (
-								<div
-									key={indicator.id}
-									className="border border-gray-700 rounded-lg p-4 bg-gray-800"
-								>
-									<div className="flex items-center justify-between mb-3">
-										<h4 className="font-medium text-gray-100">
-											Indicator {index + 1}
-										</h4>
-										<button
-											onClick={() => removeIndicator(index)}
-											className="text-red-600 hover:text-red-800"
-										>
-											<Trash2 size={16} />
-										</button>
-									</div>
+							{strategy.indicators.map((indicator, index) => {
+								const indicatorKey = Object.keys(indicator)[0];
+								const indicatorConfig = indicator[indicatorKey];
 
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div>
-											<label className="block text-sm font-medium text-gray-100 mb-1">
-												ID
-											</label>
-											<input
-												type="text"
-												value={indicator.id}
-												onChange={(e) =>
-													updateIndicator(index, "id", e.target.value)
-												}
-												className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
-											/>
+								return (
+									<div
+										key={`${indicatorKey}_${index}`}
+										className="border border-gray-700 rounded-lg p-4 bg-gray-800"
+									>
+										<div className="flex items-center justify-between mb-3">
+											<h4 className="font-medium text-gray-100">
+												{indicatorKey} - {indicatorConfig.description}
+											</h4>
+											<button
+												onClick={() => removeIndicator(index)}
+												className="text-red-600 hover:text-red-800"
+											>
+												<Trash2 size={16} />
+											</button>
 										</div>
-										<div>
+
+										<div className="mb-4">
 											<label className="block text-sm font-medium text-gray-100 mb-1">
-												Type
+												Indicator Type
 											</label>
 											<select
-												value={indicator.type}
-												onChange={(e) => {
-													const newType = e.target.value;
-													const defaultParams =
-														INDICATOR_TYPES.find((t) => t.value === newType)
-															?.defaultParams || {};
-													updateIndicator(index, "type", newType);
-													updateIndicator(index, "parameters", defaultParams);
-												}}
+												value={indicatorKey}
+												onChange={(e) =>
+													updateIndicatorType(index, e.target.value)
+												}
 												className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
 											>
-												{INDICATOR_TYPES.map((type) => (
-													<option key={type.value} value={type.value}>
-														{type.label}
+												{Object.keys(INDICATOR_TEMPLATES).map((type) => (
+													<option key={type} value={type}>
+														{type} - {INDICATOR_TEMPLATES[type].description}
 													</option>
 												))}
 											</select>
 										</div>
-									</div>
 
-									<div className="mt-3">
-										<label className="block text-sm font-medium text-gray-100 mb-1">
-											Parameters (JSON)
-										</label>
-										<textarea
-											value={JSON.stringify(indicator.parameters, null, 2)}
-											onChange={(e) => {
-												try {
-													const params = JSON.parse(e.target.value);
-													updateIndicator(index, "parameters", params);
-												} catch (err) {
-													// Invalid JSON, don't update
-												}
-											}}
-											className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm text-gray-300"
-											rows={3}
-										/>
+										<div className="space-y-3">
+											<h5 className="text-sm font-medium text-gray-100">
+												Parameters
+											</h5>
+											{(indicatorConfig.params || []).map(
+												(param, paramIndex) => (
+													<div
+														key={param.name}
+														className="grid grid-cols-1 md:grid-cols-3 gap-4"
+													>
+														<div>
+															<label className="block text-xs font-medium text-gray-300 mb-1">
+																{param.name}
+															</label>
+														</div>
+														<div>
+															<input
+																type={
+																	param.type === "number" ? "number" : "text"
+																}
+																value={param.default}
+																onChange={(e) => {
+																	const value =
+																		param.type === "number"
+																			? parseFloat(e.target.value) ||
+																			  param.default
+																			: e.target.value;
+																	updateIndicatorParam(
+																		index,
+																		paramIndex,
+																		value
+																	);
+																}}
+																className="w-full px-2 py-1 border border-gray-700 rounded text-xs text-gray-300"
+															/>
+														</div>
+														<div className="flex items-center gap-2">
+															<div
+																className="w-4 h-4 rounded border border-gray-600"
+																style={{ backgroundColor: param.color }}
+															></div>
+															<input
+																type="color"
+																value={param.color}
+																onChange={(e) => {
+																	const updatedIndicator = { ...indicator };
+																	const key = Object.keys(updatedIndicator)[0];
+																	if (
+																		updatedIndicator[key].params &&
+																		updatedIndicator[key].params[paramIndex]
+																	) {
+																		updatedIndicator[key].params[
+																			paramIndex
+																		].color = e.target.value;
+																	}
+																	setStrategy((prev) => ({
+																		...prev,
+																		indicators: prev.indicators.map((ind, i) =>
+																			i === index ? updatedIndicator : ind
+																		),
+																	}));
+																}}
+																className="w-8 h-6 border border-gray-700 rounded cursor-pointer"
+															/>
+														</div>
+													</div>
+												)
+											)}
+										</div>
 									</div>
-								</div>
-							))}
+								);
+							})}
 
 							{strategy.indicators.length === 0 && (
 								<div className="text-center py-8 text-gray-500">

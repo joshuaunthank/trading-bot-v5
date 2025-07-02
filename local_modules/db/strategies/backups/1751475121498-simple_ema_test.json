@@ -4,23 +4,28 @@
   "description": "A basic strategy using only EMA indicators for testing",
   "indicators": [
     {
-      "EMA": {
-        "description": "Exponential Moving Average",
-        "params": [
-          {
-            "name": "period",
-            "default": 12,
-            "type": "number",
-            "color": "#b61a03"
-          },
-          {
-            "name": "price",
-            "default": "close",
-            "type": "string",
-            "color": "#4bc0c0"
-          }
-        ]
-      }
+      "id": "ema_fast",
+      "name": "Fast EMA",
+      "type": "EMA",
+      "source": "close",
+      "parameters": {
+        "period": 12
+      },
+      "output_fields": [
+        "ema_12"
+      ]
+    },
+    {
+      "id": "ema_slow",
+      "name": "Slow EMA",
+      "type": "EMA",
+      "source": "close",
+      "parameters": {
+        "period": 26
+      },
+      "output_fields": [
+        "ema_26"
+      ]
     }
   ],
   "signals": [
@@ -67,17 +72,5 @@
     "created": "2025-07-02T08:46:37.684Z",
     "author": "system"
   },
-  "last_updated": "2025-07-02T08:46:37.684Z",
-  "models": [],
-  "performance": {
-    "backtested": false,
-    "win_rate": null,
-    "avg_return": null,
-    "max_drawdown": null
-  },
-  "tags": [],
-  "enabled": true,
-  "meta": {
-    "last_updated": "2025-07-02T17:41:32.279Z"
-  }
+  "last_updated": "2025-07-02T08:46:37.684Z"
 }

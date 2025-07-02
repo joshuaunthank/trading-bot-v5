@@ -553,7 +553,7 @@ export function getAllStrategies(req: Request, res: Response): void {
 }
 
 /**
- * Get a specific strategy by ID
+ * Get a specific strategy by ID - returns new format directly
  */
 export function getStrategyById(req: Request, res: Response): void {
 	const strategyId = req.params.id;
@@ -570,6 +570,8 @@ export function getStrategyById(req: Request, res: Response): void {
 		}
 
 		const strategy = JSON.parse(fs.readFileSync(strategyPath, "utf8"));
+
+		// Return strategy directly in new format - no transformation
 		res.json(strategy);
 	} catch (error) {
 		console.error(`Error reading strategy ${strategyId}:`, error);

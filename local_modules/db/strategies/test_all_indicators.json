@@ -1,0 +1,427 @@
+{
+	"id": "test_all_indicators",
+	"name": "Test all indicators",
+	"description": "",
+	"symbol": "BTC/USDT",
+	"timeframe": "1h",
+	"status": "active",
+	"tags": ["test"],
+	"indicators": [
+		{
+			"RSI": {
+				"description": "Relative Strength Index",
+				"params": [
+					{
+						"name": "period",
+						"default": 14,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "price",
+						"default": "close",
+						"type": "string",
+						"color": "#4bc0c0"
+					}
+				]
+			},
+			"MACD": {
+				"description": "Moving Average Convergence Divergence",
+				"params": [
+					{
+						"name": "fastPeriod",
+						"default": 12,
+						"type": "number",
+						"color": "#ff6384"
+					},
+					{
+						"name": "slowPeriod",
+						"default": 26,
+						"type": "number",
+						"color": "#36a2eb"
+					},
+					{
+						"name": "signalPeriod",
+						"default": 9,
+						"type": "number",
+						"color": "#9966ff"
+					},
+					{
+						"name": "price",
+						"default": "close",
+						"type": "string",
+						"color": "#4bc0c0"
+					}
+				]
+			},
+			"BB": {
+				"description": "Bollinger Bands",
+				"params": [
+					{
+						"name": "period",
+						"default": 20,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "stdDev",
+						"default": 2,
+						"type": "number",
+						"color": "#c9cbcf"
+					},
+					{
+						"name": "price",
+						"default": "close",
+						"type": "string",
+						"color": "#4bc0c0"
+					}
+				]
+			},
+			"SMA": {
+				"description": "Simple Moving Average",
+				"params": [
+					{
+						"name": "period",
+						"default": 20,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "price",
+						"default": "close",
+						"type": "string",
+						"color": "#4bc0c0"
+					}
+				]
+			},
+			"EMA": {
+				"description": "Exponential Moving Average",
+				"params": [
+					{
+						"name": "period",
+						"default": 20,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "price",
+						"default": "close",
+						"type": "string",
+						"color": "#4bc0c0"
+					}
+				]
+			},
+			"WMA": {
+				"description": "Weighted Moving Average",
+				"params": [
+					{
+						"name": "period",
+						"default": 20,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "price",
+						"default": "close",
+						"type": "string",
+						"color": "#4bc0c0"
+					}
+				]
+			},
+			"Volume": {
+				"description": "Raw Volume or On-Balance Volume",
+				"params": [
+					{
+						"name": "type",
+						"default": "raw",
+						"type": "string",
+						"color": "#c9cbcf"
+					}
+				]
+			},
+			"OBV": {
+				"description": "On-Balance Volume",
+				"params": [
+					{
+						"name": "price",
+						"default": "close",
+						"type": "string",
+						"color": "#4bc0c0"
+					}
+				]
+			},
+			"ATR": {
+				"description": "Average True Range",
+				"params": [
+					{
+						"name": "period",
+						"default": 14,
+						"type": "number",
+						"color": "#ffcd56"
+					}
+				]
+			},
+			"ADX": {
+				"description": "Average Directional Index",
+				"params": [
+					{
+						"name": "period",
+						"default": 14,
+						"type": "number",
+						"color": "#ffcd56"
+					}
+				]
+			},
+			"Stochastic": {
+				"description": "Stochastic Oscillator",
+				"params": [
+					{
+						"name": "kPeriod",
+						"default": 14,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "dPeriod",
+						"default": 3,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "smoothK",
+						"default": 3,
+						"type": "number",
+						"color": "#c9cbcf"
+					}
+				]
+			},
+			"CCI": {
+				"description": "Commodity Channel Index",
+				"params": [
+					{
+						"name": "period",
+						"default": 20,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "price",
+						"default": "typical",
+						"type": "string",
+						"color": "#4bc0c0"
+					}
+				]
+			},
+			"MFI": {
+				"description": "Money Flow Index",
+				"params": [
+					{
+						"name": "period",
+						"default": 14,
+						"type": "number",
+						"color": "#ffcd56"
+					}
+				]
+			},
+			"SAR": {
+				"description": "Parabolic SAR",
+				"params": [
+					{
+						"name": "step",
+						"default": 0.02,
+						"type": "number",
+						"color": "#c9cbcf"
+					},
+					{
+						"name": "max",
+						"default": 0.2,
+						"type": "number",
+						"color": "#c9cbcf"
+					}
+				]
+			},
+			"ROC": {
+				"description": "Rate of Change",
+				"params": [
+					{
+						"name": "period",
+						"default": 12,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "price",
+						"default": "close",
+						"type": "string",
+						"color": "#4bc0c0"
+					}
+				]
+			},
+			"TSI": {
+				"description": "True Strength Index",
+				"params": [
+					{
+						"name": "longPeriod",
+						"default": 25,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "shortPeriod",
+						"default": 13,
+						"type": "number",
+						"color": "#ffcd56"
+					}
+				]
+			},
+			"TRIX": {
+				"description": "Triple Exponential Average",
+				"params": [
+					{
+						"name": "period",
+						"default": 15,
+						"type": "number",
+						"color": "#ffcd56"
+					}
+				]
+			},
+			"KeltnerChannel": {
+				"description": "Keltner Channel",
+				"params": [
+					{
+						"name": "period",
+						"default": 20,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "multiplier",
+						"default": 2,
+						"type": "number",
+						"color": "#c9cbcf"
+					},
+					{
+						"name": "price",
+						"default": "close",
+						"type": "string",
+						"color": "#4bc0c0"
+					}
+				]
+			},
+			"Donchian": {
+				"description": "Donchian Channel",
+				"params": [
+					{
+						"name": "period",
+						"default": 20,
+						"type": "number",
+						"color": "#ffcd56"
+					}
+				]
+			},
+			"Ichimoku": {
+				"description": "Ichimoku Cloud",
+				"params": [
+					{
+						"name": "conversionPeriod",
+						"default": 9,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "basePeriod",
+						"default": 26,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "leadingSpanBPeriod",
+						"default": 52,
+						"type": "number",
+						"color": "#ffcd56"
+					}
+				]
+			},
+			"VWAP": {
+				"description": "Volume Weighted Average Price",
+				"params": [
+					{
+						"name": "session",
+						"default": "daily",
+						"type": "string",
+						"color": "#c9cbcf"
+					}
+				]
+			},
+			"PPO": {
+				"description": "Percentage Price Oscillator",
+				"params": [
+					{
+						"name": "fastPeriod",
+						"default": 12,
+						"type": "number",
+						"color": "#ff6384"
+					},
+					{
+						"name": "slowPeriod",
+						"default": 26,
+						"type": "number",
+						"color": "#36a2eb"
+					},
+					{
+						"name": "signalPeriod",
+						"default": 9,
+						"type": "number",
+						"color": "#9966ff"
+					}
+				]
+			},
+			"UltimateOscillator": {
+				"description": "Ultimate Oscillator",
+				"params": [
+					{
+						"name": "shortPeriod",
+						"default": 7,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "mediumPeriod",
+						"default": 14,
+						"type": "number",
+						"color": "#ffcd56"
+					},
+					{
+						"name": "longPeriod",
+						"default": 28,
+						"type": "number",
+						"color": "#ffcd56"
+					}
+				]
+			}
+		}
+	],
+	"signals": [],
+	"models": [],
+	"performance": {
+		"backtested": false,
+		"win_rate": null,
+		"avg_return": null,
+		"max_drawdown": null
+	},
+	"risk_management": {
+		"position_size_type": "percent_equity",
+		"risk_per_trade": 2,
+		"stop_loss_percent": 1.5,
+		"take_profit_percent": 3,
+		"trailing_stop": false,
+		"max_drawdown_percent": 10
+	},
+	"ml_models": [],
+	"postprocessing": [],
+	"metadata": {
+		"version": "1.0",
+		"created": "2025-07-02T11:10:41.069Z",
+		"author": "user"
+	}
+}

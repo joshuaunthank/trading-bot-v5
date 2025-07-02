@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Plus, Edit, Trash2 } from "lucide-react";
-import { IndicatorConfig, IndicatorType } from "../types/indicators";
 import {
 	strategyService,
 	StrategySummary,
@@ -11,7 +10,6 @@ interface StrategySelectProps {
 	strategies: StrategySummary[];
 	selectedStrategyId: string | null;
 	onStrategySelect: (strategyId: string | null) => void;
-	onIndicatorsChange: (indicators: IndicatorConfig[]) => void;
 	onCreateStrategy?: () => void;
 	onEditStrategy?: (strategyId: string) => void;
 	onDeleteStrategy?: (strategyId: string) => void;
@@ -25,7 +23,6 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 	strategies,
 	selectedStrategyId,
 	onStrategySelect,
-	onIndicatorsChange,
 	onCreateStrategy,
 	onEditStrategy,
 	onDeleteStrategy,
@@ -81,106 +78,6 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 			setStrategyError(null);
 		}
 	}, [selectedStrategyId, fetchDetailedStrategy]);
-
-	// Map strategy indicator types to our IndicatorType
-	const mapStrategyIndicatorType = (
-		strategyType: string
-	): IndicatorType | null => {
-		switch (strategyType.toLowerCase()) {
-			case "rsi":
-				return "RSI";
-			case "ema":
-				return "EMA";
-			case "sma":
-				return "SMA";
-			case "macd":
-				return "MACD";
-			case "bollinger":
-			case "bb":
-				return "BB";
-			case "stoch":
-			case "stochastic":
-				return "STOCH";
-			case "adx":
-				return "ADX";
-			case "cci":
-				return "CCI";
-			case "williams":
-			case "williamsr":
-				return "WILLIAMS";
-			case "atr":
-				return "ATR";
-			case "obv":
-				return "OBV";
-			default:
-				return null;
-		}
-	};
-
-	// Convert strategy indicators to IndicatorConfig format
-	const convertStrategyToIndicators = useCallback(
-		(strategy: DetailedStrategy): IndicatorConfig[] => {
-			if (!strategy.indicators) return [];
-
-			return strategy.indicators
-				.map((indicator) => {
-					const mappedType = mapStrategyIndicatorType(indicator.type);
-					if (!mappedType) return null;
-
-					const config: IndicatorConfig = {
-						id: indicator.id,
-						type: mappedType,
-						name: `${mappedType} (${indicator.parameters.period || 14})`, // Generate name from type and period
-						enabled: true,
-						isEnabled: true, // Required property
-						period: indicator.parameters.period || 14, // Default period
-						parameters: {},
-					};
-
-					// Map specific parameters based on indicator type
-					switch (mappedType) {
-						case "MACD":
-							config.parameters = {
-								fastPeriod: indicator.parameters.fastPeriod || 12,
-								slowPeriod: indicator.parameters.slowPeriod || 26,
-								signalPeriod: indicator.parameters.signalPeriod || 9,
-							};
-							break;
-						case "BB":
-							config.parameters = {
-								stdDev: indicator.parameters.stdDev || 2,
-							};
-							config.period = indicator.parameters.period || 20;
-							break;
-						case "STOCH":
-							config.parameters = {
-								kPeriod: indicator.parameters.kPeriod || 14,
-								dPeriod: indicator.parameters.dPeriod || 3,
-							};
-							break;
-						default:
-							// For simple indicators, just use the period
-							config.period = indicator.parameters.period || 14;
-							break;
-					}
-
-					return config;
-				})
-				.filter((config): config is IndicatorConfig => config !== null);
-		},
-		[]
-	);
-
-	// Apply indicators when detailed strategy data is loaded
-	useEffect(() => {
-		if (detailedStrategy) {
-			const indicators = convertStrategyToIndicators(detailedStrategy);
-			onIndicatorsChange(indicators);
-		} else {
-			// Clear indicators when no strategy is selected
-			onIndicatorsChange([]);
-		}
-	}, [detailedStrategy, onIndicatorsChange, convertStrategyToIndicators]);
 
 	return (
 		<div className="bg-gray-800 rounded-lg border border-gray-700 p-5 mt-2">
@@ -333,16 +230,17 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 										>
 											<div>
 												<span className="font-semibold text-gray-100">
-													{indicator.type.toUpperCase()}
+													{indicator.type?.toUpperCase() || "UNKNOWN"}
 												</span>
 												<span className="text-gray-400 ml-2">
-													({indicator.id})
+													({indicator.id || "N/A"})
 												</span>
 											</div>
 											<div className="text-gray-400">
-												{Object.entries(indicator.parameters)
-													.map(([key, value]) => `${key}: ${value}`)
-													.join(", ")}
+												{indicator.parameters &&
+													Object.entries(indicator.parameters)
+														.map(([key, value]) => `${key}: ${value}`)
+														.join(", ")}
 											</div>
 										</div>
 									))}
@@ -354,7 +252,7 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 					{/* Start and Stop strategy controls with single button which checks if the strategy is already running and updates once start/stop are clicked */}
 					{!strategyLoading && detailedStrategy && (
 						<div className="mt-4 flex items-center gap-2">
-							{JSON.stringify(detailedStrategy)}
+							{/* {JSON.stringify(detailedStrategy)} */}
 							{detailedStrategy.status === "running" ? (
 								<button
 									onClick={() => onStopStrategy?.(detailedStrategy.id)}

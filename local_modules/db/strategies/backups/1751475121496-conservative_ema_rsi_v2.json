@@ -4,57 +4,52 @@
   "description": "A conservative strategy using EMA crossovers and RSI confirmation with built-in overtrading prevention",
   "indicators": [
     {
-      "EMA": {
-        "description": "Exponential Moving Average",
-        "params": [
-          {
-            "name": "period",
-            "default": 12,
-            "type": "number",
-            "color": "#10B981"
-          },
-          {
-            "name": "price",
-            "default": "close",
-            "type": "string",
-            "color": "#4bc0c0"
-          }
-        ]
+      "id": "ema_fast",
+      "name": "Fast EMA",
+      "type": "EMA",
+      "source": "close",
+      "parameters": {
+        "period": 12
       },
-      "RSI": {
-        "description": "Relative Strength Index",
-        "params": [
-          {
-            "name": "period",
-            "default": 14,
-            "type": "number",
-            "color": "#F59E0B"
-          },
-          {
-            "name": "price",
-            "default": "close",
-            "type": "string",
-            "color": "#4bc0c0"
-          }
-        ]
+      "output_fields": [
+        "ema_12"
+      ]
+    },
+    {
+      "id": "ema_slow",
+      "name": "Slow EMA",
+      "type": "EMA",
+      "source": "close",
+      "parameters": {
+        "period": 26
       },
-      "SMA": {
-        "description": "Simple Moving Average",
-        "params": [
-          {
-            "name": "period",
-            "default": 20,
-            "type": "number",
-            "color": "#3B82F6"
-          },
-          {
-            "name": "price",
-            "default": "volume",
-            "type": "string",
-            "color": "#4bc0c0"
-          }
-        ]
-      }
+      "output_fields": [
+        "ema_26"
+      ]
+    },
+    {
+      "id": "rsi",
+      "name": "RSI",
+      "type": "RSI",
+      "source": "close",
+      "parameters": {
+        "period": 14
+      },
+      "output_fields": [
+        "rsi_14"
+      ]
+    },
+    {
+      "id": "volume_sma",
+      "name": "Volume SMA",
+      "type": "SMA",
+      "source": "volume",
+      "parameters": {
+        "period": 20
+      },
+      "output_fields": [
+        "volume_sma_20"
+      ]
     }
   ],
   "signals": [
@@ -207,12 +202,5 @@
     "created": "2025-07-02T08:46:37.682Z",
     "author": "system"
   },
-  "last_updated": "2025-07-02T08:46:37.682Z",
-  "models": [],
-  "performance": {
-    "backtested": false,
-    "win_rate": null,
-    "avg_return": null,
-    "max_drawdown": null
-  }
+  "last_updated": "2025-07-02T08:46:37.682Z"
 }

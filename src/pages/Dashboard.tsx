@@ -112,11 +112,6 @@ const EnhancedDashboard: React.FC = () => {
 	);
 	const [editingStrategy, setEditingStrategy] = useState<any>(null);
 
-	// Legacy indicator system - being phased out in favor of backend calculations
-	const [legacyIndicatorConfigs, setLegacyIndicatorConfigs] = useState<any[]>(
-		[]
-	);
-
 	// Helper function to get indicator colors
 	const getIndicatorColor = useCallback((indicatorId: string) => {
 		const colorMap: Record<string, string> = {
@@ -135,7 +130,7 @@ const EnhancedDashboard: React.FC = () => {
 
 	// Strategy selection for indicator management
 	const [selectedIndicatorStrategyId, setSelectedIndicatorStrategyId] =
-		useState<string | null>(null);
+		useState<string | null>(null); // No default strategy selected
 	const {
 		strategies: availableStrategies,
 		loading: strategiesLoading,
@@ -170,7 +165,7 @@ const EnhancedDashboard: React.FC = () => {
 
 	// Convert backend indicators to chart format for compatibility
 	const allChartIndicators = useMemo(() => {
-		return backendIndicators.map((indicator) => ({
+		const converted = backendIndicators.map((indicator) => ({
 			id: indicator.id,
 			name: indicator.name,
 			type: indicator.type as any, // Cast to satisfy CalculatedIndicator interface
@@ -178,6 +173,8 @@ const EnhancedDashboard: React.FC = () => {
 			color: getIndicatorColor(indicator.id),
 			yAxisID: "y1", // Default to secondary y-axis, can be customized per indicator
 		}));
+
+		return converted;
 	}, [backendIndicators, getIndicatorColor]);
 
 	// Track connection status for error handling
@@ -349,16 +346,6 @@ const EnhancedDashboard: React.FC = () => {
 	const handleSaveConfig = useCallback((config: any) => {
 		// TODO: Implement config save to API
 		setIsConfigModalOpen(false);
-	}, []);
-
-	// Handler for updating indicator configurations (legacy - to be removed)
-	const handleUpdateIndicators = useCallback((newConfigs: any[]) => {
-		setLegacyIndicatorConfigs(newConfigs);
-	}, []);
-
-	// Handler for strategy-based indicator changes (legacy - to be removed)
-	const handleStrategyIndicatorsChange = useCallback((indicators: any[]) => {
-		setLegacyIndicatorConfigs(indicators);
 	}, []);
 
 	// Strategy Editor handlers
@@ -545,7 +532,6 @@ const EnhancedDashboard: React.FC = () => {
 							strategies={availableStrategies}
 							selectedStrategyId={selectedIndicatorStrategyId}
 							onStrategySelect={setSelectedIndicatorStrategyId}
-							onIndicatorsChange={handleStrategyIndicatorsChange}
 							onCreateStrategy={handleCreateStrategy}
 							onEditStrategy={handleEditStrategy}
 							onDeleteStrategy={handleDeleteStrategy}
