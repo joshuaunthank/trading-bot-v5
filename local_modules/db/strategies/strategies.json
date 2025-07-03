@@ -109,5 +109,27 @@
       "avg_return": null,
       "max_drawdown": null
     }
+  },
+  {
+    "id": "test_col",
+    "name": "test col",
+    "description": "",
+    "category": "custom",
+    "risk_level": "medium",
+    "complexity": "intermediate",
+    "tags": [
+      "test"
+    ],
+    "timeframes": [
+      "1h"
+    ],
+    "created_at": "2025-07-03T01:33:54.811Z",
+    "last_updated": "2025-07-03T01:33:54.811Z",
+    "performance": {
+      "backtested": false,
+      "win_rate": null,
+      "avg_return": null,
+      "max_drawdown": null
+    }
   }
 ]

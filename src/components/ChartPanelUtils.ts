@@ -43,8 +43,24 @@ export const categorizeIndicators = (indicators: CalculatedIndicator[]) => {
 			type.includes("cci") ||
 			type.includes("williams") ||
 			type.includes("momentum") ||
+			type.includes("atr") ||
+			type.includes("adx") ||
+			type.includes("mfi") ||
+			type.includes("roc") ||
+			type.includes("tsi") ||
+			type.includes("trix") ||
+			type.includes("ppo") ||
+			type.includes("ultimate") ||
 			id.includes("rsi") ||
-			id.includes("macd")
+			id.includes("macd") ||
+			id.includes("atr") ||
+			id.includes("adx") ||
+			id.includes("mfi") ||
+			id.includes("roc") ||
+			id.includes("tsi") ||
+			id.includes("trix") ||
+			id.includes("ppo") ||
+			id.includes("ultimate")
 		) {
 			categories.oscillator.push(indicator);
 		}

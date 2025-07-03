@@ -9,7 +9,7 @@ import {
 interface StrategySelectProps {
 	strategies: StrategySummary[];
 	selectedStrategyId: string | null;
-	onStrategySelect: (strategyId: string | null) => void;
+	onStrategySelect: (strategyId: string | null, detailedStrategy?: any) => void;
 	onCreateStrategy?: () => void;
 	onEditStrategy?: (strategyId: string) => void;
 	onDeleteStrategy?: (strategyId: string) => void;
@@ -42,11 +42,21 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 		? strategies.find((s) => s.id === selectedStrategyId)
 		: undefined;
 
+	// Helper function to count total indicators in the new format
+	const getTotalIndicatorCount = (indicators: any[]): number => {
+		if (!Array.isArray(indicators)) return 0;
+		return indicators.reduce((total, group) => {
+			return total + Object.keys(group).length;
+		}, 0);
+	};
+
 	// Fetch detailed strategy data when strategy is selected
 	const fetchDetailedStrategy = useCallback(async (strategyId: string) => {
 		if (!strategyId) {
 			setDetailedStrategy(null);
 			setStrategyError(null);
+			// Clear detailed strategy data in parent too
+			onStrategySelect(null, null);
 			return;
 		}
 
@@ -58,6 +68,8 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 			console.log("Fetched detailed strategy:", detailed);
 
 			setDetailedStrategy(detailed);
+			// Pass the detailed strategy data back to parent
+			onStrategySelect(strategyId, detailed);
 		} catch (err) {
 			console.error("Error fetching detailed strategy:", err);
 			setStrategyError(
@@ -220,30 +232,41 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 
 							<div>
 								<span className="text-xs font-medium text-blue-400 mb-1 block">
-									Indicators ({detailedStrategy.indicators?.length || 0})
+									Indicators (
+									{getTotalIndicatorCount(detailedStrategy.indicators)})
 								</span>
 								<div className="space-y-1">
-									{detailedStrategy.indicators?.map((indicator) => (
-										<div
-											key={indicator.id}
-											className="flex items-center justify-between bg-gray-900 px-2 py-1 rounded border border-gray-700 text-xs"
-										>
-											<div>
-												<span className="font-semibold text-gray-100">
-													{indicator.type?.toUpperCase() || "UNKNOWN"}
-												</span>
-												<span className="text-gray-400 ml-2">
-													({indicator.id || "N/A"})
-												</span>
-											</div>
-											<div className="text-gray-400">
-												{indicator.parameters &&
-													Object.entries(indicator.parameters)
-														.map(([key, value]) => `${key}: ${value}`)
-														.join(", ")}
-											</div>
-										</div>
-									))}
+									{detailedStrategy.indicators?.map(
+										(indicatorGroup, groupIndex) =>
+											Object.entries(indicatorGroup).map(
+												([indicatorName, indicatorDef]) => {
+													const params = indicatorDef.params || [];
+													const paramDisplay = params
+														.filter((p: any) => p.name !== "price") // Skip price param for cleaner display
+														.map((p: any) => `${p.name}: ${p.default}`)
+														.join(", ");
+
+													return (
+														<div
+															key={`${groupIndex}-${indicatorName}`}
+															className="flex items-center justify-between bg-gray-900 px-2 py-1 rounded border border-gray-700 text-xs"
+														>
+															<div>
+																<span className="font-semibold text-gray-100">
+																	{indicatorName}
+																</span>
+																<span className="text-gray-400 ml-2">
+																	({indicatorDef.description || indicatorName})
+																</span>
+															</div>
+															<div className="text-gray-400">
+																{paramDisplay || "No params"}
+															</div>
+														</div>
+													);
+												}
+											)
+									)}
 								</div>
 							</div>
 						</>

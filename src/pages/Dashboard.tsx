@@ -1,35 +1,25 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useOhlcvWithIndicators } from "../hooks/useOhlcvWithIndicators";
+import StrategySelect from "../components/StrategySelect";
 import MultiPanelChart from "../components/MultiPanelChart";
-import TableView from "../components/TableView";
 import SummaryView from "../components/SummaryView";
 import ConfigModal from "../components/ConfigModal";
-import StrategyManager from "../components/strategy/StrategyManager";
-import StrategySelect from "../components/StrategySelect";
 import StrategyEditor from "../components/strategy/StrategyEditor";
+import StrategyManager from "../components/strategy/StrategyManager";
 import { useStrategies } from "../hooks/useStrategies";
-import { useOhlcvWithIndicators } from "../hooks/useOhlcvWithIndicators";
+import { strategyService } from "../services/strategyService";
 
+// Types
 interface OHLCVData {
 	timestamp: number;
 	open: number;
 	high: number;
-	close: number;
 	low: number;
+	close: number;
 	volume: number;
 }
 
-interface DashboardStrategyIndicator {
-	id: string;
-	current_value: number;
-	values?: number[];
-}
-
-interface DashboardStrategySignal {
-	id: string;
-	side: "long" | "short";
-	active: boolean;
-}
-
+// Connection status component
 interface ConnectionStatusProps {
 	status: string;
 	type: string;
@@ -41,47 +31,44 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 	type,
 	onReconnect,
 }) => {
-	const getStatusColor = () => {
+	const getStatusColor = (status: string) => {
 		switch (status) {
 			case "connected":
 			case "open":
-				return "bg-green-400";
+				return "text-green-400";
 			case "connecting":
-			case "reconnecting":
-				return "bg-yellow-400";
+				return "text-yellow-400";
 			case "disconnected":
 			case "closed":
 			case "closing":
+				return "text-red-400";
 			default:
-				return "bg-red-400";
+				return "text-gray-400";
 		}
 	};
 
-	const getStatusText = () => {
+	const getStatusText = (status: string) => {
 		switch (status) {
 			case "connected":
 			case "open":
 				return "Connected";
 			case "connecting":
-				return "Connecting";
-			case "reconnecting":
-				return "Reconnecting";
-			case "closing":
-				return "Closing";
+				return "Connecting...";
 			case "disconnected":
 			case "closed":
-			default:
 				return "Disconnected";
+			case "closing":
+				return "Closing...";
+			default:
+				return "Unknown";
 		}
 	};
 
 	return (
 		<div className="flex items-center space-x-1">
-			<span
-				className={`inline-block w-2 h-2 rounded-full ${getStatusColor()}`}
-			></span>
-			<span className="text-xs">
-				{type}: {getStatusText()}
+			<span className="text-xs text-gray-400">{type}:</span>
+			<span className={`text-xs font-medium ${getStatusColor(status)}`}>
+				{getStatusText(status)}
 			</span>
 			{(status === "disconnected" ||
 				status === "closed" ||
@@ -99,11 +86,17 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 };
 
 const EnhancedDashboard: React.FC = () => {
+	// State management
 	const [ohlcvData, setOhlcvData] = useState<OHLCVData[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-	const [activeTab, setActiveTab] = useState<"chart" | "manager">("chart"); // Start with chart tab
+	const [activeTab, setActiveTab] = useState<"chart" | "manager">("chart");
+
+	// Strategy selection state
+	const [selectedIndicatorStrategyId, setSelectedIndicatorStrategyId] =
+		useState<string | null>(null);
+	const [detailedStrategy, setDetailedStrategy] = useState<any>(null);
 
 	// Strategy Editor state
 	const [isStrategyEditorOpen, setIsStrategyEditorOpen] = useState(false);
@@ -112,103 +105,211 @@ const EnhancedDashboard: React.FC = () => {
 	);
 	const [editingStrategy, setEditingStrategy] = useState<any>(null);
 
-	// Helper function to get indicator colors
-	const getIndicatorColor = useCallback((indicatorId: string) => {
-		const colorMap: Record<string, string> = {
-			sma: "#3B82F6",
-			ema: "#10B981",
-			rsi: "#F59E0B",
-			macd: "#8B5CF6",
-			bb_upper: "#EF4444",
-			bb_middle: "#6B7280",
-			bb_lower: "#EF4444",
-			stoch_k: "#EC4899",
-			stoch_d: "#06B6D4",
-		};
-		return colorMap[indicatorId] || "#6B7280";
-	}, []);
-
-	// Strategy selection for indicator management
-	const [selectedIndicatorStrategyId, setSelectedIndicatorStrategyId] =
-		useState<string | null>(null); // No default strategy selected
+	// WebSocket hook for OHLCV data
 	const {
-		strategies: availableStrategies,
-		loading: strategiesLoading,
-		error: strategiesError,
-		loadStrategies,
-	} = useStrategies();
-
-	// Simple symbol and timeframe state - no complex strategy execution needed
-	const [symbol] = useState("BTC/USDT");
-	const [timeframe] = useState("1h");
-
-	// Symbol/timeframe initialization - simple static values for now
-	useEffect(() => {
-		// Set static symbol/timeframe for simplified trading bot operation
-	}, [symbol, timeframe]);
-
-	// Strategy data - simplified, no complex WebSocket strategy execution
-	const [indicators, setIndicators] = useState<DashboardStrategyIndicator[]>(
-		[]
-	);
-	const [signals, setSignals] = useState<DashboardStrategySignal[]>([]);
-
-	// OHLCV + Backend Indicators WebSocket - unified data source
-	const {
-		latestCandle,
 		fullDataset,
+		latestCandle,
 		indicators: backendIndicators,
 		connectionStatus: ohlcvConnectionStatus,
+		lastError: wsError,
 		reconnect: reconnectOhlcvWs,
-		setStrategy,
-	} = useOhlcvWithIndicators(symbol, timeframe, selectedIndicatorStrategyId);
+	} = useOhlcvWithIndicators("BTCUSDT", "1h", selectedIndicatorStrategyId);
 
-	// Convert backend indicators to chart format for compatibility
+	// Strategies hook
+	const { strategies: availableStrategies, loadStrategies } = useStrategies();
+
+	// Helper function to extract colors from strategy indicator params
+	const extractColorsFromStrategy = useCallback(
+		(strategy: any): Record<string, string> => {
+			const colorMap: Record<string, string> = {};
+
+			if (!strategy?.indicators || !Array.isArray(strategy.indicators)) {
+				return colorMap;
+			}
+
+			strategy.indicators.forEach((indicatorGroup: any, groupIndex: number) => {
+				Object.entries(indicatorGroup).forEach(
+					([indicatorName, indicatorDef]: [string, any]) => {
+						if (indicatorDef?.params && Array.isArray(indicatorDef.params)) {
+							// For multi-line indicators like MACD, use specific param colors
+							if (indicatorName === "MACD") {
+								indicatorDef.params.forEach((param: any) => {
+									if (param.name === "fastPeriod") {
+										colorMap["macd"] = param.color || "#8B5CF6";
+									} else if (param.name === "slowPeriod") {
+										colorMap["macd_signal"] = param.color || "#EC4899";
+									} else if (param.name === "signalPeriod") {
+										colorMap["macd_histogram"] = param.color || "#6366F1";
+									}
+								});
+							} else {
+								// For single-line indicators, use the first color found (excluding price param)
+								const colorParam = indicatorDef.params.find(
+									(p: any) => p.color && p.name !== "price"
+								);
+								if (colorParam) {
+									const baseKey = indicatorName.toLowerCase();
+									// Handle multiple instances of same indicator (like EMA_10, EMA_30)
+									if (indicatorName === "EMA") {
+										const period = indicatorDef.params.find((p: any) => p.name === "period")?.default;
+										if (period) {
+											colorMap[`ema_${period}`] = colorParam.color;
+											colorMap[`ema${period}`] = colorParam.color;
+										}
+									} else if (indicatorName === "SMA") {
+										const period = indicatorDef.params.find((p: any) => p.name === "period")?.default;
+										if (period) {
+											colorMap[`sma_${period}`] = colorParam.color;
+											colorMap[`sma${period}`] = colorParam.color;
+										}
+									}
+									// Always add the base key
+									colorMap[baseKey] = colorParam.color;
+								}
+							}
+						}
+					}
+				);
+			});
+
+			console.log("Extracted color map:", colorMap);
+			return colorMap;
+		},
+		[]
+	);
+
+	// Color mapping function that uses strategy colors with smart fallbacks
+	const getIndicatorColor = useCallback(
+		(indicatorId: string, indicatorName?: string) => {
+			// Extract colors from current strategy
+			const strategyColors = detailedStrategy
+				? extractColorsFromStrategy(detailedStrategy)
+				: {};
+
+			console.log(`Looking for color for indicator: ${indicatorId}`);
+			console.log("Available strategy colors:", strategyColors);
+
+			// Try to get color from strategy first - try multiple patterns
+			const lowerIndicatorId = indicatorId.toLowerCase();
+			
+			// Direct match
+			if (strategyColors[lowerIndicatorId]) {
+				console.log(`Found direct match: ${strategyColors[lowerIndicatorId]}`);
+				return strategyColors[lowerIndicatorId];
+			}
+			
+			// Try pattern matching for common indicator formats
+			for (const [key, color] of Object.entries(strategyColors)) {
+				if (lowerIndicatorId.includes(key) || key.includes(lowerIndicatorId)) {
+					console.log(`Found pattern match ${key}: ${color}`);
+					return color;
+				}
+			}
+
+			// Smart fallback based on indicator name patterns
+			if (lowerIndicatorId.includes("macd")) {
+				if (lowerIndicatorId.includes("signal")) return "#EC4899";
+				if (lowerIndicatorId.includes("histogram")) return "#6366F1";
+				return "#8B5CF6";
+			}
+
+			// Organized fallback color map by category
+			const fallbackColorMap: Record<string, string> = {
+				// Moving Averages - Blue family
+				sma: "#3B82F6",
+				ema: "#10B981",
+				wma: "#06B6D4",
+
+				// Oscillators - Warmer colors
+				rsi: "#F59E0B",
+				macd: "#8B5CF6",
+
+				// Bollinger Bands - Red family
+				bb_upper: "#EF4444",
+				bb_middle: "#6B7280",
+				bb_lower: "#EF4444",
+
+				// Volume indicators
+				volume: "#F59E0B",
+				obv: "#F97316",
+
+				// Other technical indicators
+				atr: "#9333EA",
+				adx: "#A855F7",
+				cci: "#84CC16",
+				vwap: "#8B5CF6",
+			};
+
+			const fallbackColor = fallbackColorMap[lowerIndicatorId] || "#6B7280";
+			console.log(`Using fallback color: ${fallbackColor}`);
+			return fallbackColor;
+		},
+		[detailedStrategy, extractColorsFromStrategy]
+	);
+
+	// Convert backend indicators to chart format with strategy colors
 	const allChartIndicators = useMemo(() => {
-		const converted = backendIndicators.map((indicator) => ({
-			id: indicator.id,
-			name: indicator.name,
-			type: indicator.type as any, // Cast to satisfy CalculatedIndicator interface
-			data: indicator.data,
-			color: getIndicatorColor(indicator.id),
-			yAxisID: "y1", // Default to secondary y-axis, can be customized per indicator
-		}));
+		console.log("=== Color Debug Info ===");
+		console.log("detailedStrategy:", detailedStrategy);
+		console.log("backendIndicators:", backendIndicators);
+		
+		const strategyColors = detailedStrategy ? extractColorsFromStrategy(detailedStrategy) : {};
+		console.log("extractedColors:", strategyColors);
+		
+		const chartIndicators = backendIndicators.map((indicator: any) => {
+			const color = getIndicatorColor(indicator.id);
+			console.log(`Indicator ${indicator.id}: color = ${color}`);
+			
+			return {
+				id: indicator.id,
+				name: indicator.name,
+				type: indicator.type as any,
+				data: indicator.data,
+				color: color,
+				yAxisID: "y1", // Default to secondary y-axis
+			};
+		});
+		
+		console.log("Final chartIndicators:", chartIndicators);
+		return chartIndicators;
+	}, [backendIndicators, getIndicatorColor, detailedStrategy, extractColorsFromStrategy]);
 
-		return converted;
-	}, [backendIndicators, getIndicatorColor]);
+	// Handle strategy selection with detailed data
+	const handleStrategySelect = useCallback(
+		async (strategyId: string | null, detailedStrategyData: any = null) => {
+			setSelectedIndicatorStrategyId(strategyId);
+			setDetailedStrategy(detailedStrategyData);
 
-	// Track connection status for error handling
-	useEffect(() => {
-		// Monitor OHLCV connection status for error display
-		if (
-			ohlcvConnectionStatus !== "connected" &&
-			ohlcvConnectionStatus !== "open"
-		) {
-			// Connection issues will be handled by error state
-		}
-	}, [ohlcvConnectionStatus]);
+			if (!strategyId) {
+				setError(null);
+				setLoading(false);
+			} else {
+				setLoading(true);
+				setError(null);
+			}
+		},
+		[]
+	);
 
 	// Handle WebSocket full dataset updates
 	useEffect(() => {
 		if (fullDataset && fullDataset.length > 0) {
-			// Normalize data to chronological order (oldest first) for consistent calculations
-			const normalizedData = [...fullDataset].sort(
-				(a, b) => a.timestamp - b.timestamp
-			);
-			setOhlcvData(normalizedData);
+			setOhlcvData(fullDataset);
 			setLoading(false);
 			setError(null);
 		}
 	}, [fullDataset]);
 
-	// Handle WebSocket connection status for loading state
+	// Handle WebSocket connection status
 	useEffect(() => {
-		if (
+		if (wsError) {
+			setError(wsError.message || "WebSocket error occurred");
+		} else if (
 			(ohlcvConnectionStatus === "connected" ||
 				ohlcvConnectionStatus === "open") &&
 			fullDataset?.length === 0
 		) {
-			setLoading(true); // Connected but waiting for data
+			setLoading(true);
 		} else if (
 			ohlcvConnectionStatus === "disconnected" ||
 			ohlcvConnectionStatus === "closed"
@@ -218,214 +319,48 @@ const EnhancedDashboard: React.FC = () => {
 			setLoading(true);
 			setError(null);
 		}
-	}, [ohlcvConnectionStatus, fullDataset?.length]);
+	}, [ohlcvConnectionStatus, fullDataset?.length, wsError]);
 
 	// Handle incremental updates for live data
 	useEffect(() => {
 		if (latestCandle) {
 			setOhlcvData((prevData) => {
-				const existingIndex = prevData.findIndex(
-					(candle) => candle.timestamp === latestCandle.timestamp
-				);
+				if (!prevData || prevData.length === 0) return [latestCandle];
 
-				if (existingIndex >= 0) {
-					// Update existing candle (live updates)
-					const existingCandle = prevData[existingIndex];
-					if (
-						existingCandle.close !== latestCandle.close ||
-						existingCandle.high !== latestCandle.high ||
-						existingCandle.low !== latestCandle.low ||
-						existingCandle.volume !== latestCandle.volume
-					) {
-						const newData = [...prevData];
-						newData[existingIndex] = { ...latestCandle };
-						return newData;
-					}
-					return prevData; // No change
+				const lastIndex = prevData.length - 1;
+				const lastCandle = prevData[lastIndex];
+
+				if (lastCandle && lastCandle.timestamp === latestCandle.timestamp) {
+					// Update existing candle
+					const updatedData = [...prevData];
+					updatedData[lastIndex] = latestCandle;
+					return updatedData;
 				} else {
-					// Add new candle chronologically
-					const newData = [...prevData, { ...latestCandle }];
-					newData.sort((a, b) => a.timestamp - b.timestamp);
-					return newData.slice(-1000); // Keep last 1000 candles
+					// Add new candle
+					return [...prevData, latestCandle];
 				}
 			});
 		}
 	}, [latestCandle]);
 
-	// Note: Strategy WebSocket processing removed for simplification
-	// Indicators are now managed through StrategySelect component
-
-	// Calculate summary data
-	const calculateSummaryData = () => {
-		if (!Array.isArray(ohlcvData) || ohlcvData.length === 0) return {};
-
-		// Data is now normalized to chronological order (oldest first, newest last)
-		const latestCandle = ohlcvData[ohlcvData.length - 1]; // Last item is newest
-
-		// Calculate timeframe-aware 24h comparison
-		const getTimeframeMilliseconds = (tf: string): number => {
-			const timeframeMap: Record<string, number> = {
-				"1m": 60 * 1000,
-				"3m": 3 * 60 * 1000,
-				"5m": 5 * 60 * 1000,
-				"15m": 15 * 60 * 1000,
-				"30m": 30 * 60 * 1000,
-				"1h": 60 * 60 * 1000,
-				"2h": 2 * 60 * 60 * 1000,
-				"4h": 4 * 60 * 60 * 1000,
-				"6h": 6 * 60 * 60 * 1000,
-				"8h": 8 * 60 * 60 * 1000,
-				"12h": 12 * 60 * 60 * 1000,
-				"1d": 24 * 60 * 60 * 1000,
-				"3d": 3 * 24 * 60 * 60 * 1000,
-				"1w": 7 * 24 * 60 * 60 * 1000,
-			};
-			return timeframeMap[tf] || 60 * 60 * 1000; // Default to 1h
-		};
-
-		// Calculate how many candles back we need for 24 hours
-		const timeframeMs = getTimeframeMilliseconds(timeframe);
-		const candlesIn24h = Math.ceil((24 * 60 * 60 * 1000) / timeframeMs);
-
-		// Get the candle from 24 hours ago - data is oldest first, so go backwards from latest
-		const targetIndex = Math.max(0, ohlcvData.length - 1 - candlesIn24h);
-		const previous24hCandle = ohlcvData[targetIndex];
-
-		const priceChange24h = latestCandle.close - previous24hCandle.close;
-		const priceChangePercent24h =
-			(priceChange24h / previous24hCandle.close) * 100;
-
-		// Use consistent array-based approach for all 24h calculations
-		const last24hCandles = ohlcvData.slice(targetIndex);
-
-		// Calculate 24h volume using the same candles
-		const volumeIn24h = last24hCandles.reduce(
-			(sum, candle) => sum + candle.volume,
-			0
-		);
-
-		// Find 24h high and low using the same candles
-		const high24h = Math.max(...last24hCandles.map((candle) => candle.high));
-		const low24h = Math.min(...last24hCandles.map((candle) => candle.low));
-
-		// Simple trading data - no strategy signals for now
-		const strategySignals = {
-			entry_long: false,
-			entry_short: false,
-			exit_long: false,
-			exit_short: false,
-		};
-
-		// Simple indicator data - no strategy indicators for now
-		const strategyIndicators: Record<string, number | number[]> = {};
-
-		console.log("🔥 Current Price", latestCandle.close);
-
-		return {
-			symbol,
-			timeframe,
-			current_price: latestCandle.close,
-			price_change_24h: priceChange24h,
-			price_change_percent_24h: priceChangePercent24h,
-			volume_24h: volumeIn24h,
-			high_24h: high24h,
-			low_24h: low24h,
-			strategy_signals: strategySignals,
-			strategy_indicators: strategyIndicators,
-			last_updated: latestCandle.timestamp,
-		};
-	};
-
-	// Handle strategy selection - simplified
-	const handleStrategySelect = useCallback((strategyId: string) => {
-		// For now, just switch to manager tab
-		setActiveTab("manager");
-	}, []);
-
-	// Handle strategy config save
-	const handleSaveConfig = useCallback((config: any) => {
-		// TODO: Implement config save to API
-		setIsConfigModalOpen(false);
-	}, []);
-
-	// Strategy Editor handlers
-	const handleCreateStrategy = useCallback(() => {
-		console.log("🔥 CREATE STRATEGY CLICKED!");
-		setEditingStrategyId(null);
-		setEditingStrategy(null);
-		setIsStrategyEditorOpen(true);
-		console.log("🔥 Modal state set to:", true);
-	}, []);
-
+	// Strategy management handlers
 	const handleEditStrategy = useCallback(async (strategyId: string) => {
-		console.log("🔥 EDIT STRATEGY CLICKED!", strategyId);
 		try {
-			// Fetch the full strategy data
-			const response = await fetch(`/api/v1/strategies/${strategyId}`);
-			if (response.ok) {
-				const strategy = await response.json();
-				setEditingStrategyId(strategyId);
-				setEditingStrategy(strategy);
-				setIsStrategyEditorOpen(true);
-				console.log("🔥 Modal state set to:", true, "with strategy:", strategy);
-			} else {
-				console.error("Failed to fetch strategy for editing");
-			}
+			const strategy = await strategyService.getDetailedStrategy(strategyId);
+			setEditingStrategyId(strategyId);
+			setEditingStrategy(strategy);
+			setIsStrategyEditorOpen(true);
 		} catch (error) {
-			console.error("Error fetching strategy:", error);
+			console.error("Failed to load strategy for editing:", error);
 		}
 	}, []);
 
-	const handleDeleteStrategy = useCallback(async (strategyId: string) => {
-		console.log("🔥 DELETE STRATEGY CLICKED!", strategyId);
+	const handleSaveConfig = useCallback(async (configData: any) => {
 		try {
-			const response = await fetch(`/api/v1/strategies/${strategyId}`, {
-				method: "DELETE",
-			});
-
-			if (response.ok) {
-				// Refresh strategies list
-				await loadStrategies();
-				setSelectedIndicatorStrategyId(null); // Clear selection
-			} else {
-				console.error("Failed to delete strategy");
-			}
+			console.log("Saving config:", configData);
+			setIsConfigModalOpen(false);
 		} catch (error) {
-			console.error("Error deleting strategy:", error);
-		}
-	}, []);
-
-	const startStrategy = useCallback(async (strategyId: string) => {
-		console.log("🔥 START STRATEGY CLICKED!", strategyId);
-		try {
-			const response = await fetch(`/api/v1/strategies/${strategyId}/start`, {
-				method: "POST",
-			});
-
-			if (response.ok) {
-				console.log(`Strategy ${strategyId} started successfully`);
-			} else {
-				console.error(`Failed to start strategy ${strategyId}`);
-			}
-		} catch (error) {
-			console.error("Error starting strategy:", error);
-		}
-	}, []);
-
-	const stopStrategy = useCallback(async (strategyId: string) => {
-		console.log("🔥 STOP STRATEGY CLICKED!", strategyId);
-		try {
-			const response = await fetch(`/api/v1/strategies/${strategyId}/stop`, {
-				method: "POST",
-			});
-
-			if (response.ok) {
-				console.log(`Strategy ${strategyId} stopped successfully`);
-			} else {
-				console.error(`Failed to stop strategy ${strategyId}`);
-			}
-		} catch (error) {
-			console.error("Error stopping strategy:", error);
+			console.error("Error saving config:", error);
 		}
 	}, []);
 
@@ -439,9 +374,7 @@ const EnhancedDashboard: React.FC = () => {
 
 				const response = await fetch(url, {
 					method,
-					headers: {
-						"Content-Type": "application/json",
-					},
+					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(strategyData),
 				});
 
@@ -449,7 +382,6 @@ const EnhancedDashboard: React.FC = () => {
 					setIsStrategyEditorOpen(false);
 					setEditingStrategyId(null);
 					setEditingStrategy(null);
-					// Refresh strategies list
 					await loadStrategies();
 				} else {
 					console.error("Failed to save strategy");
@@ -467,11 +399,53 @@ const EnhancedDashboard: React.FC = () => {
 		setEditingStrategy(null);
 	}, []);
 
-	// Summary data
+	// Summary data calculation
+	const calculateSummaryData = useCallback(() => {
+		if (!ohlcvData || ohlcvData.length === 0) {
+			return {
+				current_price: 0,
+				price_change_24h: 0,
+				price_change_percent_24h: 0,
+				volume_24h: 0,
+				high_24h: 0,
+				low_24h: 0,
+			};
+		}
+
+		const latest = ohlcvData[ohlcvData.length - 1];
+		const dayAgo = ohlcvData[Math.max(0, ohlcvData.length - 24)];
+
+		const current_price = latest?.close || 0;
+		const previousPrice = dayAgo?.close || current_price;
+		const price_change_24h = current_price - previousPrice;
+		const price_change_percent_24h =
+			previousPrice !== 0 ? (price_change_24h / previousPrice) * 100 : 0;
+
+		const recent24h = ohlcvData.slice(-24);
+		const volume_24h = recent24h.reduce(
+			(sum, candle) => sum + (candle?.volume || 0),
+			0
+		);
+		const high_24h = Math.max(...recent24h.map((candle) => candle?.high || 0));
+		const low_24h = Math.min(
+			...recent24h.map((candle) => candle?.low || Infinity)
+		);
+
+		return {
+			current_price,
+			price_change_24h,
+			price_change_percent_24h,
+			volume_24h,
+			high_24h,
+			low_24h: low_24h === Infinity ? 0 : low_24h,
+		};
+	}, [ohlcvData]);
+
 	const summaryData = calculateSummaryData();
 
 	return (
 		<div className="space-y-6">
+			{/* Header */}
 			<div className="flex justify-between items-center">
 				<h1 className="text-2xl font-bold">Trading Dashboard</h1>
 				<div className="flex space-x-2 items-center">
@@ -491,15 +465,17 @@ const EnhancedDashboard: React.FC = () => {
 				</div>
 			</div>
 
+			{/* Error Display */}
 			{error && (
 				<div className="bg-red-900/50 border border-red-500 text-red-200 p-4 rounded-md">
 					{error}
 				</div>
 			)}
 
+			{/* Summary View */}
 			<SummaryView data={summaryData} isLoading={loading} />
 
-			{/* Tab selector */}
+			{/* Tab Selector */}
 			<div className="flex border-b border-gray-700 mb-4">
 				<button
 					className={`px-4 py-2 font-medium ${
@@ -523,48 +499,71 @@ const EnhancedDashboard: React.FC = () => {
 				</button>
 			</div>
 
-			{/* Tab content */}
+			{/* Chart Tab */}
 			{activeTab === "chart" && (
-				<>
-					{/* Strategy Indicator Controls */}
-					<div className="mb-4">
-						<StrategySelect
-							strategies={availableStrategies}
-							selectedStrategyId={selectedIndicatorStrategyId}
-							onStrategySelect={setSelectedIndicatorStrategyId}
-							onCreateStrategy={handleCreateStrategy}
-							onEditStrategy={handleEditStrategy}
-							onDeleteStrategy={handleDeleteStrategy}
-							onStartStrategy={startStrategy}
-							onStopStrategy={stopStrategy}
-							loading={strategiesLoading}
-							error={strategiesError}
-						/>
-					</div>
+				<div className="space-y-6">
+					{/* Strategy Selection */}
+					<StrategySelect
+						strategies={availableStrategies || []}
+						selectedStrategyId={selectedIndicatorStrategyId}
+						onStrategySelect={handleStrategySelect}
+						onCreateStrategy={() => setIsStrategyEditorOpen(true)}
+						onEditStrategy={handleEditStrategy}
+						onDeleteStrategy={async () => {}}
+						onStartStrategy={async () => {}}
+						onStopStrategy={async () => {}}
+						loading={loading}
+						error={error}
+					/>
 
-					<div className="mb-4">
-						<MultiPanelChart
-							data={ohlcvData}
-							symbol={symbol}
-							timeframe={timeframe}
-							loading={loading}
-							indicators={allChartIndicators}
-						/>
+					{/* Chart */}
+					<MultiPanelChart
+						data={ohlcvData}
+						indicators={allChartIndicators}
+						loading={loading}
+						symbol="BTC/USDT"
+						timeframe="1h"
+					/>
+
+					{/* Data Table - Simple implementation since DataTable doesn't exist */}
+					<div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
+						<h3 className="text-lg font-semibold mb-4">Recent Data</h3>
+						<div className="overflow-x-auto">
+							<table className="w-full text-sm">
+								<thead>
+									<tr className="border-b border-gray-700">
+										<th className="text-left p-2">Time</th>
+										<th className="text-left p-2">Open</th>
+										<th className="text-left p-2">High</th>
+										<th className="text-left p-2">Low</th>
+										<th className="text-left p-2">Close</th>
+										<th className="text-left p-2">Volume</th>
+									</tr>
+								</thead>
+								<tbody>
+									{ohlcvData.slice(-10).map((candle, index) => (
+										<tr key={index} className="border-b border-gray-700">
+											<td className="p-2">
+												{new Date(candle.timestamp).toLocaleTimeString()}
+											</td>
+											<td className="p-2">{candle.open.toFixed(2)}</td>
+											<td className="p-2">{candle.high.toFixed(2)}</td>
+											<td className="p-2">{candle.low.toFixed(2)}</td>
+											<td className="p-2">{candle.close.toFixed(2)}</td>
+											<td className="p-2">{candle.volume.toFixed(0)}</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
 					</div>
-					<div className="">
-						<TableView
-							data={ohlcvData.slice().reverse()} // Show all candles, newest first
-							loading={loading}
-							symbol={symbol}
-							timeframe={timeframe}
-						/>
-					</div>
-				</>
+				</div>
 			)}
 
+			{/* Strategy Manager Tab */}
 			{activeTab === "manager" && <StrategyManager className="max-w-none" />}
 
-			{/* Config modal */}
+			{/* Modals */}
 			<ConfigModal
 				isOpen={isConfigModalOpen}
 				onClose={() => setIsConfigModalOpen(false)}
@@ -573,7 +572,6 @@ const EnhancedDashboard: React.FC = () => {
 				title="Trading Configuration"
 			/>
 
-			{/* Strategy Editor modal */}
 			<StrategyEditor
 				isOpen={isStrategyEditorOpen}
 				onClose={handleCloseStrategyEditor}
