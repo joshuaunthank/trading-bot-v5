@@ -131,20 +131,45 @@ const EnhancedDashboard: React.FC = () => {
 				Object.entries(indicatorGroup).forEach(
 					([indicatorName, indicatorDef]: [string, any]) => {
 						if (indicatorDef?.params && Array.isArray(indicatorDef.params)) {
-							// For multi-line indicators like MACD, map each parameter to specific line colors
+							// For multi-component indicators like MACD, map each parameter to specific components
 							if (indicatorName === "MACD") {
 								indicatorDef.params.forEach((param: any) => {
-									if (param.name === "fastPeriod" && param.color) {
-										colorMap["macd"] = param.color;
-										colorMap["macd_line"] = param.color;
-									} else if (param.name === "slowPeriod" && param.color) {
-										colorMap["macd_signal"] = param.color;
-									} else if (param.name === "signalPeriod" && param.color) {
-										colorMap["macd_histogram"] = param.color;
+									if (param.color) {
+										switch (param.name) {
+											case "fastPeriod":
+												colorMap["macd_line"] = param.color;
+												colorMap["macd"] = param.color;
+												break;
+											case "slowPeriod":
+												colorMap["macd_signal"] = param.color;
+												break;
+											case "signalPeriod":
+												colorMap["macd_histogram"] = param.color;
+												break;
+										}
+									}
+								});
+							} else if (indicatorName === "BB") {
+								// Handle Bollinger Bands
+								indicatorDef.params.forEach((param: any) => {
+									if (param.color) {
+										switch (param.name) {
+											case "period":
+												colorMap["bb_upper"] = param.color;
+												colorMap["bb_middle"] = param.color;
+												colorMap["bb_lower"] = param.color;
+												colorMap["bb"] = param.color;
+												break;
+											case "stdDev":
+												// Use a slightly different color for standard deviation bands
+												colorMap["bb_upper"] = param.color;
+												colorMap["bb_lower"] = param.color;
+												break;
+										}
 									}
 								});
 							} else {
-								// For single-line indicators, find the first non-price color parameter
+								// For single-component indicators, find the first non-price color parameter
 								const colorParam = indicatorDef.params.find(
 									(p: any) => p.color && p.name !== "price"
 								);
@@ -188,13 +213,46 @@ const EnhancedDashboard: React.FC = () => {
 				strategyColors
 			);
 
-			// Try exact match first
+			// Handle multi-component indicators with specific component IDs
 			const lowerIndicatorId = indicatorId.toLowerCase();
+
+			// Try exact match first
 			if (strategyColors[lowerIndicatorId]) {
 				console.log(
 					`Found exact match: ${indicatorId} -> ${strategyColors[lowerIndicatorId]}`
 				);
 				return strategyColors[lowerIndicatorId];
+			}
+
+			// Handle MACD components
+			if (lowerIndicatorId.includes("macd")) {
+				if (lowerIndicatorId.includes("signal")) {
+					return strategyColors["macd_signal"] || "#36a2eb"; // Blue
+				}
+				if (lowerIndicatorId.includes("histogram")) {
+					return strategyColors["macd_histogram"] || "#9966ff"; // Purple
+				}
+				if (
+					lowerIndicatorId.includes("macd") ||
+					lowerIndicatorId.includes("line")
+				) {
+					return (
+						strategyColors["macd_line"] || strategyColors["macd"] || "#ff6384"
+					); // Red
+				}
+			}
+
+			// Handle Bollinger Bands components
+			if (lowerIndicatorId.includes("bb_")) {
+				if (lowerIndicatorId.includes("upper")) {
+					return strategyColors["bb_upper"] || "#EF4444";
+				}
+				if (lowerIndicatorId.includes("middle")) {
+					return strategyColors["bb_middle"] || "#6B7280";
+				}
+				if (lowerIndicatorId.includes("lower")) {
+					return strategyColors["bb_lower"] || "#EF4444";
+				}
 			}
 
 			// Try pattern matching for complex indicator names
@@ -205,13 +263,6 @@ const EnhancedDashboard: React.FC = () => {
 					);
 					return color;
 				}
-			}
-
-			// Smart fallback based on indicator name patterns
-			if (lowerIndicatorId.includes("macd")) {
-				if (lowerIndicatorId.includes("signal")) return "#36a2eb"; // Blue
-				if (lowerIndicatorId.includes("histogram")) return "#9966ff"; // Purple
-				return "#ff6384"; // Red for main MACD line
 			}
 
 			// Organized fallback color map by category
@@ -227,7 +278,13 @@ const EnhancedDashboard: React.FC = () => {
 				mfi: "#F59E0B",
 				stochastic: "#A855F7",
 
-				// Bollinger Bands - Red family
+				// MACD fallbacks
+				macd: "#ff6384",
+				macd_line: "#ff6384",
+				macd_signal: "#36a2eb",
+				macd_histogram: "#9966ff",
+
+				// Bollinger Bands fallbacks
 				bb_upper: "#EF4444",
 				bb_middle: "#6B7280",
 				bb_lower: "#EF4444",
@@ -270,71 +327,21 @@ const EnhancedDashboard: React.FC = () => {
 			: {};
 		console.log("Extracted strategy colors:", strategyColors);
 
-		const chartIndicators = backendIndicators.flatMap((indicator: any) => {
+		const chartIndicators = backendIndicators.map((indicator: any) => {
 			console.log(`Processing indicator:`, indicator);
 
-			// Handle multi-line indicators like MACD
-			if (
-				indicator.type?.toLowerCase() === "macd" ||
-				indicator.id?.toLowerCase().includes("macd")
-			) {
-				// MACD typically has 3 components: main line, signal line, and histogram
-				const results = [];
-
-				// Main MACD line
-				if (indicator.data) {
-					results.push({
-						id: `${indicator.id}_line`,
-						name: `${indicator.name} Line`,
-						type: indicator.type,
-						data: indicator.data,
-						color: getIndicatorColor("macd", "MACD Line"),
-						yAxisID: "y1",
-					});
-
-					// If we have signal data, create separate dataset
-					if (indicator.signal_data) {
-						results.push({
-							id: `${indicator.id}_signal`,
-							name: `${indicator.name} Signal`,
-							type: indicator.type,
-							data: indicator.signal_data,
-							color: getIndicatorColor("macd_signal", "MACD Signal"),
-							yAxisID: "y1",
-						});
-					}
-
-					// If we have histogram data, create separate dataset
-					if (indicator.histogram_data) {
-						results.push({
-							id: `${indicator.id}_histogram`,
-							name: `${indicator.name} Histogram`,
-							type: indicator.type,
-							data: indicator.histogram_data,
-							color: getIndicatorColor("macd_histogram", "MACD Histogram"),
-							yAxisID: "y1",
-						});
-					}
-				}
-
-				console.log(`MACD split into ${results.length} datasets:`, results);
-				return results;
-			}
-
-			// Handle single-line indicators
+			// Get color from strategy config
 			const color = getIndicatorColor(indicator.id, indicator.name);
-			console.log(`Single indicator ${indicator.id}: color = ${color}`);
+			console.log(`Indicator ${indicator.id}: color = ${color}`);
 
-			return [
-				{
-					id: indicator.id,
-					name: indicator.name,
-					type: indicator.type,
-					data: indicator.data,
-					color: color,
-					yAxisID: "y1", // Default to secondary y-axis
-				},
-			];
+			return {
+				id: indicator.id,
+				name: indicator.name,
+				type: indicator.type,
+				data: indicator.data,
+				color: color,
+				yAxisID: "y1", // Default to secondary y-axis for indicators
+			};
 		});
 
 		console.log("Final chartIndicators:", chartIndicators);

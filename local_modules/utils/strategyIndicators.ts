@@ -237,25 +237,24 @@ function generateIndicatorId(
 }
 
 /**
- * Calculate a single indicator with proper alignment
+ * Calculate indicators and handle multi-component indicators like MACD
  */
-function calculateSingleIndicator(
+function calculateIndicatorsForStrategy(
 	indicator: ProcessedIndicator,
 	ohlcvData: OHLCVData[]
-): CalculatedIndicatorResult | null {
+): CalculatedIndicatorResult[] {
 	try {
 		const type = indicator.type.toLowerCase();
 		const calculator = indicatorCalculators[type];
 
 		if (!calculator) {
 			console.warn(`[Indicators] No calculator found for type: ${type}`);
-			return null;
+			return [];
 		}
 
 		const timestamps = ohlcvData.map((d) => d.timestamp);
 		const period = indicator.parameters?.period || 14;
-		let calculatedValues: number[] = [];
-		let startIndex = 0;
+		const results: CalculatedIndicatorResult[] = [];
 
 		// Prepare data based on indicator type
 		switch (type) {
@@ -263,8 +262,21 @@ function calculateSingleIndicator(
 			case "ema":
 			case "rsi": {
 				const closes = ohlcvData.map((d) => d.close);
-				calculatedValues = calculator(closes, period);
-				startIndex = period - 1;
+				const calculatedValues = calculator(closes, period);
+				const startIndex = period - 1;
+
+				const alignedData = alignIndicatorData(
+					calculatedValues,
+					timestamps,
+					startIndex
+				);
+
+				results.push({
+					id: indicator.id,
+					name: indicator.name,
+					type: indicator.type,
+					data: alignedData,
+				});
 				break;
 			}
 
@@ -275,8 +287,50 @@ function calculateSingleIndicator(
 				const signalPeriod = indicator.parameters?.signalPeriod || 9;
 
 				const result = calculator(closes, fastPeriod, slowPeriod, signalPeriod);
-				calculatedValues = result.macd || [];
-				startIndex = slowPeriod - 1;
+				const startIndex = slowPeriod - 1;
+
+				// Create separate datasets for each MACD component
+				if (result.macd) {
+					const alignedMacd = alignIndicatorData(
+						result.macd,
+						timestamps,
+						startIndex
+					);
+					results.push({
+						id: `${indicator.id}_macd`,
+						name: `MACD Line (${fastPeriod})`,
+						type: "macd_line",
+						data: alignedMacd,
+					});
+				}
+
+				if (result.signal) {
+					const alignedSignal = alignIndicatorData(
+						result.signal,
+						timestamps,
+						startIndex
+					);
+					results.push({
+						id: `${indicator.id}_signal`,
+						name: `MACD Signal (${signalPeriod})`,
+						type: "macd_signal",
+						data: alignedSignal,
+					});
+				}
+
+				if (result.histogram) {
+					const alignedHistogram = alignIndicatorData(
+						result.histogram,
+						timestamps,
+						startIndex
+					);
+					results.push({
+						id: `${indicator.id}_histogram`,
+						name: `MACD Histogram`,
+						type: "macd_histogram",
+						data: alignedHistogram,
+					});
+				}
 				break;
 			}
 
@@ -285,8 +339,50 @@ function calculateSingleIndicator(
 				const stdDev = indicator.parameters?.stdDev || 2;
 
 				const result = calculator(closes, period, stdDev);
-				calculatedValues = result.middle || [];
-				startIndex = period - 1;
+				const startIndex = period - 1;
+
+				// Create separate datasets for each Bollinger Band component
+				if (result.upper) {
+					const alignedUpper = alignIndicatorData(
+						result.upper,
+						timestamps,
+						startIndex
+					);
+					results.push({
+						id: `${indicator.id}_upper`,
+						name: `BB Upper (${period})`,
+						type: "bb_upper",
+						data: alignedUpper,
+					});
+				}
+
+				if (result.middle) {
+					const alignedMiddle = alignIndicatorData(
+						result.middle,
+						timestamps,
+						startIndex
+					);
+					results.push({
+						id: `${indicator.id}_middle`,
+						name: `BB Middle (${period})`,
+						type: "bb_middle",
+						data: alignedMiddle,
+					});
+				}
+
+				if (result.lower) {
+					const alignedLower = alignIndicatorData(
+						result.lower,
+						timestamps,
+						startIndex
+					);
+					results.push({
+						id: `${indicator.id}_lower`,
+						name: `BB Lower (${period})`,
+						type: "bb_lower",
+						data: alignedLower,
+					});
+				}
 				break;
 			}
 
@@ -299,8 +395,21 @@ function calculateSingleIndicator(
 					close: d.close,
 				}));
 
-				calculatedValues = calculator(ohlcFormat, period);
-				startIndex = period - 1;
+				const calculatedValues = calculator(ohlcFormat, period);
+				const startIndex = period - 1;
+
+				const alignedData = alignIndicatorData(
+					calculatedValues,
+					timestamps,
+					startIndex
+				);
+
+				results.push({
+					id: indicator.id,
+					name: indicator.name,
+					type: indicator.type,
+					data: alignedData,
+				});
 				break;
 			}
 
@@ -312,35 +421,36 @@ function calculateSingleIndicator(
 					volume: d.volume,
 				}));
 
-				calculatedValues = calculator(vwapFormat);
-				startIndex = 0;
+				const calculatedValues = calculator(vwapFormat);
+				const startIndex = 0;
+
+				const alignedData = alignIndicatorData(
+					calculatedValues,
+					timestamps,
+					startIndex
+				);
+
+				results.push({
+					id: indicator.id,
+					name: indicator.name,
+					type: indicator.type,
+					data: alignedData,
+				});
 				break;
 			}
 
 			default:
 				console.warn(`[Indicators] Unhandled indicator type: ${type}`);
-				return null;
+				return [];
 		}
 
-		// Align the calculated values with timestamps
-		const alignedData = alignIndicatorData(
-			calculatedValues,
-			timestamps,
-			startIndex
-		);
-
-		return {
-			id: indicator.id,
-			name: indicator.name,
-			type: indicator.type,
-			data: alignedData,
-		};
+		return results;
 	} catch (error) {
 		console.error(
 			`[Indicators] Error calculating ${indicator.type} for ${indicator.id}:`,
 			error
 		);
-		return null;
+		return [];
 	}
 }
 
@@ -367,10 +477,11 @@ export function calculateStrategyIndicators(
 	for (const indicator of indicators) {
 		// Only calculate if we have a calculator for this type
 		if (indicatorCalculators[indicator.type]) {
-			const result = calculateSingleIndicator(indicator, ohlcvData);
-			if (result) {
-				results.push(result);
-			}
+			const indicatorResults = calculateIndicatorsForStrategy(
+				indicator,
+				ohlcvData
+			);
+			results.push(...indicatorResults); // Spread to handle multi-component indicators
 		} else {
 			console.warn(`[Indicators] No calculator for type: ${indicator.type}`);
 		}
