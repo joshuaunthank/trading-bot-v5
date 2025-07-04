@@ -1,0 +1,83 @@
+{
+  "id": "newest_test",
+  "name": "Newest Test",
+  "description": "test",
+  "symbol": "BTC/USDT",
+  "timeframe": "1h",
+  "enabled": true,
+  "tags": [
+    "test"
+  ],
+  "indicators": [
+    {
+      "MACD": {
+        "description": "Moving Average Convergence Divergence",
+        "params": [
+          {
+            "name": "fastPeriod",
+            "default": 12,
+            "type": "number",
+            "color": "#ff6384"
+          },
+          {
+            "name": "slowPeriod",
+            "default": 26,
+            "type": "number",
+            "color": "#36a2eb"
+          },
+          {
+            "name": "signalPeriod",
+            "default": 9,
+            "type": "number",
+            "color": "#9966ff"
+          },
+          {
+            "name": "price",
+            "default": "close",
+            "type": "string",
+            "color": "#4bc0c0"
+          }
+        ]
+      }
+    },
+    {
+      "SMA": {
+        "description": "Simple Moving Average",
+        "params": [
+          {
+            "name": "period",
+            "default": 20,
+            "type": "number",
+            "color": "#ffcd56"
+          },
+          {
+            "name": "price",
+            "default": "close",
+            "type": "string",
+            "color": "#4bc0c0"
+          }
+        ]
+      }
+    }
+  ],
+  "signals": [],
+  "risk": {
+    "position_size_type": "percent_equity",
+    "risk_per_trade": 2,
+    "stop_loss_percent": 1.5,
+    "take_profit_percent": 3,
+    "trailing_stop": false,
+    "max_drawdown_percent": 10
+  },
+  "ml_models": [],
+  "postprocessing": [],
+  "metadata": {
+    "version": "1.0",
+    "created": "2025-07-04T16:23:22.709Z",
+    "author": "user"
+  },
+  "meta": {
+    "created_at": "2025-07-04T16:23:57.897Z",
+    "last_updated": "2025-07-04T16:25:39.579Z"
+  }
+}

@@ -131,24 +131,37 @@ const EnhancedDashboard: React.FC = () => {
 				Object.entries(indicatorGroup).forEach(
 					([indicatorName, indicatorDef]: [string, any]) => {
 						if (indicatorDef?.params && Array.isArray(indicatorDef.params)) {
-							// For multi-line indicators like MACD, use specific param colors
+							// For multi-line indicators like MACD, map each parameter to specific line colors
 							if (indicatorName === "MACD") {
 								indicatorDef.params.forEach((param: any) => {
-									if (param.name === "fastPeriod") {
-										colorMap["macd"] = param.color || "#8B5CF6";
-									} else if (param.name === "slowPeriod") {
-										colorMap["macd_signal"] = param.color || "#EC4899";
-									} else if (param.name === "signalPeriod") {
-										colorMap["macd_histogram"] = param.color || "#6366F1";
+									if (param.name === "fastPeriod" && param.color) {
+										colorMap["macd"] = param.color;
+										colorMap["macd_line"] = param.color;
+									} else if (param.name === "slowPeriod" && param.color) {
+										colorMap["macd_signal"] = param.color;
+									} else if (param.name === "signalPeriod" && param.color) {
+										colorMap["macd_histogram"] = param.color;
 									}
 								});
 							} else {
-								// For single-line indicators, use the first color found
+								// For single-line indicators, find the first non-price color parameter
 								const colorParam = indicatorDef.params.find(
 									(p: any) => p.color && p.name !== "price"
 								);
 								if (colorParam) {
-									colorMap[indicatorName.toLowerCase()] = colorParam.color;
+									const baseKey = indicatorName.toLowerCase();
+									colorMap[baseKey] = colorParam.color;
+
+									// Handle period-specific variations (e.g., EMA_20, SMA_14)
+									const periodParam = indicatorDef.params.find(
+										(p: any) => p.name === "period"
+									);
+									if (periodParam) {
+										colorMap[`${baseKey}_${periodParam.default}`] =
+											colorParam.color;
+										colorMap[`${baseKey}${periodParam.default}`] =
+											colorParam.color;
+									}
 								}
 							}
 						}
@@ -156,6 +169,7 @@ const EnhancedDashboard: React.FC = () => {
 				);
 			});
 
+			console.log("Extracted color map from strategy:", colorMap);
 			return colorMap;
 		},
 		[]
@@ -169,34 +183,55 @@ const EnhancedDashboard: React.FC = () => {
 				? extractColorsFromStrategy(detailedStrategy)
 				: {};
 
-			// Try to get color from strategy first
+			console.log(
+				`Getting color for indicator: ${indicatorId}, available colors:`,
+				strategyColors
+			);
+
+			// Try exact match first
 			const lowerIndicatorId = indicatorId.toLowerCase();
 			if (strategyColors[lowerIndicatorId]) {
+				console.log(
+					`Found exact match: ${indicatorId} -> ${strategyColors[lowerIndicatorId]}`
+				);
 				return strategyColors[lowerIndicatorId];
+			}
+
+			// Try pattern matching for complex indicator names
+			for (const [colorKey, color] of Object.entries(strategyColors)) {
+				if (lowerIndicatorId.includes(colorKey)) {
+					console.log(
+						`Found pattern match: ${indicatorId} includes ${colorKey} -> ${color}`
+					);
+					return color;
+				}
 			}
 
 			// Smart fallback based on indicator name patterns
 			if (lowerIndicatorId.includes("macd")) {
-				if (lowerIndicatorId.includes("signal")) return "#EC4899";
-				if (lowerIndicatorId.includes("histogram")) return "#6366F1";
-				return "#8B5CF6";
+				if (lowerIndicatorId.includes("signal")) return "#36a2eb"; // Blue
+				if (lowerIndicatorId.includes("histogram")) return "#9966ff"; // Purple
+				return "#ff6384"; // Red for main MACD line
 			}
 
 			// Organized fallback color map by category
 			const fallbackColorMap: Record<string, string> = {
-				// Moving Averages - Blue family
+				// Moving Averages - Blue/Green family
 				sma: "#3B82F6",
 				ema: "#10B981",
 				wma: "#06B6D4",
 
 				// Oscillators - Warmer colors
-				rsi: "#F59E0B",
-				macd: "#8B5CF6",
+				rsi: "#ffcd56", // Yellow
+				cci: "#84CC16",
+				mfi: "#F59E0B",
+				stochastic: "#A855F7",
 
 				// Bollinger Bands - Red family
 				bb_upper: "#EF4444",
 				bb_middle: "#6B7280",
 				bb_lower: "#EF4444",
+				bb: "#EF4444",
 
 				// Volume indicators
 				volume: "#F59E0B",
@@ -205,26 +240,111 @@ const EnhancedDashboard: React.FC = () => {
 				// Other technical indicators
 				atr: "#9333EA",
 				adx: "#A855F7",
-				cci: "#84CC16",
+				sar: "#EC4899",
+				roc: "#8B5CF6",
+				tsi: "#06B6D4",
+				trix: "#84CC16",
+				keltnerchannel: "#EF4444",
+				donchian: "#6B7280",
+				ichimoku: "#10B981",
 				vwap: "#8B5CF6",
+				ppo: "#F59E0B",
+				ultimateoscillator: "#A855F7",
 			};
 
-			return fallbackColorMap[lowerIndicatorId] || "#6B7280";
+			const fallbackColor = fallbackColorMap[lowerIndicatorId] || "#6B7280";
+			console.log(`Using fallback color for ${indicatorId}: ${fallbackColor}`);
+			return fallbackColor;
 		},
 		[detailedStrategy, extractColorsFromStrategy]
 	);
 
 	// Convert backend indicators to chart format with strategy colors
 	const allChartIndicators = useMemo(() => {
-		return backendIndicators.map((indicator: any) => ({
-			id: indicator.id,
-			name: indicator.name,
-			type: indicator.type as any,
-			data: indicator.data,
-			color: getIndicatorColor(indicator.id),
-			yAxisID: "y1", // Default to secondary y-axis
-		}));
-	}, [backendIndicators, getIndicatorColor]);
+		console.log("=== Indicator Processing Debug ===");
+		console.log("detailedStrategy:", detailedStrategy);
+		console.log("backendIndicators from WebSocket:", backendIndicators);
+
+		const strategyColors = detailedStrategy
+			? extractColorsFromStrategy(detailedStrategy)
+			: {};
+		console.log("Extracted strategy colors:", strategyColors);
+
+		const chartIndicators = backendIndicators.flatMap((indicator: any) => {
+			console.log(`Processing indicator:`, indicator);
+
+			// Handle multi-line indicators like MACD
+			if (
+				indicator.type?.toLowerCase() === "macd" ||
+				indicator.id?.toLowerCase().includes("macd")
+			) {
+				// MACD typically has 3 components: main line, signal line, and histogram
+				const results = [];
+
+				// Main MACD line
+				if (indicator.data) {
+					results.push({
+						id: `${indicator.id}_line`,
+						name: `${indicator.name} Line`,
+						type: indicator.type,
+						data: indicator.data,
+						color: getIndicatorColor("macd", "MACD Line"),
+						yAxisID: "y1",
+					});
+
+					// If we have signal data, create separate dataset
+					if (indicator.signal_data) {
+						results.push({
+							id: `${indicator.id}_signal`,
+							name: `${indicator.name} Signal`,
+							type: indicator.type,
+							data: indicator.signal_data,
+							color: getIndicatorColor("macd_signal", "MACD Signal"),
+							yAxisID: "y1",
+						});
+					}
+
+					// If we have histogram data, create separate dataset
+					if (indicator.histogram_data) {
+						results.push({
+							id: `${indicator.id}_histogram`,
+							name: `${indicator.name} Histogram`,
+							type: indicator.type,
+							data: indicator.histogram_data,
+							color: getIndicatorColor("macd_histogram", "MACD Histogram"),
+							yAxisID: "y1",
+						});
+					}
+				}
+
+				console.log(`MACD split into ${results.length} datasets:`, results);
+				return results;
+			}
+
+			// Handle single-line indicators
+			const color = getIndicatorColor(indicator.id, indicator.name);
+			console.log(`Single indicator ${indicator.id}: color = ${color}`);
+
+			return [
+				{
+					id: indicator.id,
+					name: indicator.name,
+					type: indicator.type,
+					data: indicator.data,
+					color: color,
+					yAxisID: "y1", // Default to secondary y-axis
+				},
+			];
+		});
+
+		console.log("Final chartIndicators:", chartIndicators);
+		return chartIndicators;
+	}, [
+		backendIndicators,
+		getIndicatorColor,
+		detailedStrategy,
+		extractColorsFromStrategy,
+	]);
 
 	// Handle strategy selection with detailed data
 	const handleStrategySelect = useCallback(
@@ -296,52 +416,94 @@ const EnhancedDashboard: React.FC = () => {
 	}, [latestCandle]);
 
 	// Strategy management handlers
-	const handleEditStrategy = useCallback(async (strategyId: string) => {
-		try {
-			const strategy = await strategyService.getDetailedStrategy(strategyId);
+	const handleEditStrategy = useCallback(
+		async (strategyId: string) => {
+			try {
+				// Use the detailed strategy data that's already loaded via StrategySelect
+				// instead of making another API call
+				if (detailedStrategy && detailedStrategy.id === strategyId) {
+					// Transform strategy data to match StrategyEditor format
+					const transformedStrategy = {
+						...detailedStrategy,
+						// Transform indicators format if needed
+						indicators: detailedStrategy.indicators
+							? detailedStrategy.indicators.flatMap((indicatorGroup: any) => {
+									// If it's already in the correct format (array of single-key objects), return as is
+									if (Object.keys(indicatorGroup).length === 1) {
+										return [indicatorGroup];
+									}
+									// If it's a single object with multiple indicators, split it
+									return Object.entries(indicatorGroup).map(([key, value]) => ({
+										[key]: value,
+									}));
+							  })
+							: [],
+						// Map risk_management to risk if needed
+						risk: detailedStrategy.risk_management ||
+							detailedStrategy.risk || {
+								position_size_type: "percent_equity",
+								risk_per_trade: 2,
+								stop_loss_percent: 1.5,
+								take_profit_percent: 3,
+								trailing_stop: false,
+								max_drawdown_percent: 10,
+							},
+						// Ensure other required fields
+						enabled:
+							detailedStrategy.status === "active" ||
+							detailedStrategy.enabled ||
+							true,
+					};
 
-			// Transform strategy data to match StrategyEditor format
-			// The API returns indicators as [{ "RSI": {...}, "MACD": {...}, ... }]
-			// But StrategyEditor expects [{ "RSI": {...} }, { "MACD": {...} }, ...]
-			const transformedStrategy = {
-				...strategy,
-				// Transform indicators format if needed
-				indicators: strategy.indicators
-					? strategy.indicators.flatMap((indicatorGroup: any) => {
-							// If it's already in the correct format (array of single-key objects), return as is
-							if (Object.keys(indicatorGroup).length === 1) {
-								return [indicatorGroup];
-							}
-							// If it's a single object with multiple indicators, split it
-							return Object.entries(indicatorGroup).map(([key, value]) => ({
-								[key]: value,
-							}));
-					  })
-					: [],
-				// Map risk_management to risk if needed
-				risk: strategy.risk_management ||
-					strategy.risk || {
-						position_size_type: "percent_equity",
-						risk_per_trade: 2,
-						stop_loss_percent: 1.5,
-						take_profit_percent: 3,
-						trailing_stop: false,
-						max_drawdown_percent: 10,
-					},
-				// Ensure other required fields
-				enabled: strategy.status === "active" || strategy.enabled || true,
-			};
+					console.log("Using cached strategy data:", detailedStrategy);
+					console.log("Transformed strategy:", transformedStrategy);
 
-			console.log("Original strategy:", strategy);
-			console.log("Transformed strategy:", transformedStrategy);
+					setEditingStrategyId(strategyId);
+					setEditingStrategy(transformedStrategy);
+					setIsStrategyEditorOpen(true);
+				} else {
+					// Fallback to API call if detailed strategy isn't available
+					const strategy = await strategyService.getDetailedStrategy(
+						strategyId
+					);
 
-			setEditingStrategyId(strategyId);
-			setEditingStrategy(transformedStrategy);
-			setIsStrategyEditorOpen(true);
-		} catch (error) {
-			console.error("Failed to load strategy for editing:", error);
-		}
-	}, []);
+					const transformedStrategy = {
+						...strategy,
+						indicators: strategy.indicators
+							? strategy.indicators.flatMap((indicatorGroup: any) => {
+									if (Object.keys(indicatorGroup).length === 1) {
+										return [indicatorGroup];
+									}
+									return Object.entries(indicatorGroup).map(([key, value]) => ({
+										[key]: value,
+									}));
+							  })
+							: [],
+						risk: strategy.risk_management ||
+							strategy.risk || {
+								position_size_type: "percent_equity",
+								risk_per_trade: 2,
+								stop_loss_percent: 1.5,
+								take_profit_percent: 3,
+								trailing_stop: false,
+								max_drawdown_percent: 10,
+							},
+						enabled: strategy.status === "active" || strategy.enabled || true,
+					};
+
+					console.log("Fetched strategy from API:", strategy);
+					console.log("Transformed strategy:", transformedStrategy);
+
+					setEditingStrategyId(strategyId);
+					setEditingStrategy(transformedStrategy);
+					setIsStrategyEditorOpen(true);
+				}
+			} catch (error) {
+				console.error("Failed to load strategy for editing:", error);
+			}
+		},
+		[detailedStrategy]
+	);
 
 	const handleSaveConfig = useCallback(async (configData: any) => {
 		try {

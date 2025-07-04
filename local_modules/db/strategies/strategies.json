@@ -131,5 +131,27 @@
       "avg_return": null,
       "max_drawdown": null
     }
+  },
+  {
+    "id": "newest_test",
+    "name": "Newest Test",
+    "description": "test",
+    "category": "custom",
+    "risk_level": "medium",
+    "complexity": "intermediate",
+    "tags": [
+      "test"
+    ],
+    "timeframes": [
+      "1h"
+    ],
+    "created_at": "2025-07-04T16:23:57.897Z",
+    "last_updated": "2025-07-04T16:23:57.897Z",
+    "performance": {
+      "backtested": false,
+      "win_rate": null,
+      "avg_return": null,
+      "max_drawdown": null
+    }
   }
 ]
