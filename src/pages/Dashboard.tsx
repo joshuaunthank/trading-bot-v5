@@ -127,7 +127,7 @@ const EnhancedDashboard: React.FC = () => {
 				return colorMap;
 			}
 
-			strategy.indicators.forEach((indicatorGroup: any, groupIndex: number) => {
+			strategy.indicators.forEach((indicatorGroup: any) => {
 				Object.entries(indicatorGroup).forEach(
 					([indicatorName, indicatorDef]: [string, any]) => {
 						if (indicatorDef?.params && Array.isArray(indicatorDef.params)) {
@@ -143,28 +143,12 @@ const EnhancedDashboard: React.FC = () => {
 									}
 								});
 							} else {
-								// For single-line indicators, use the first color found (excluding price param)
+								// For single-line indicators, use the first color found
 								const colorParam = indicatorDef.params.find(
 									(p: any) => p.color && p.name !== "price"
 								);
 								if (colorParam) {
-									const baseKey = indicatorName.toLowerCase();
-									// Handle multiple instances of same indicator (like EMA_10, EMA_30)
-									if (indicatorName === "EMA") {
-										const period = indicatorDef.params.find((p: any) => p.name === "period")?.default;
-										if (period) {
-											colorMap[`ema_${period}`] = colorParam.color;
-											colorMap[`ema${period}`] = colorParam.color;
-										}
-									} else if (indicatorName === "SMA") {
-										const period = indicatorDef.params.find((p: any) => p.name === "period")?.default;
-										if (period) {
-											colorMap[`sma_${period}`] = colorParam.color;
-											colorMap[`sma${period}`] = colorParam.color;
-										}
-									}
-									// Always add the base key
-									colorMap[baseKey] = colorParam.color;
+									colorMap[indicatorName.toLowerCase()] = colorParam.color;
 								}
 							}
 						}
@@ -172,7 +156,6 @@ const EnhancedDashboard: React.FC = () => {
 				);
 			});
 
-			console.log("Extracted color map:", colorMap);
 			return colorMap;
 		},
 		[]
@@ -186,24 +169,10 @@ const EnhancedDashboard: React.FC = () => {
 				? extractColorsFromStrategy(detailedStrategy)
 				: {};
 
-			console.log(`Looking for color for indicator: ${indicatorId}`);
-			console.log("Available strategy colors:", strategyColors);
-
-			// Try to get color from strategy first - try multiple patterns
+			// Try to get color from strategy first
 			const lowerIndicatorId = indicatorId.toLowerCase();
-			
-			// Direct match
 			if (strategyColors[lowerIndicatorId]) {
-				console.log(`Found direct match: ${strategyColors[lowerIndicatorId]}`);
 				return strategyColors[lowerIndicatorId];
-			}
-			
-			// Try pattern matching for common indicator formats
-			for (const [key, color] of Object.entries(strategyColors)) {
-				if (lowerIndicatorId.includes(key) || key.includes(lowerIndicatorId)) {
-					console.log(`Found pattern match ${key}: ${color}`);
-					return color;
-				}
 			}
 
 			// Smart fallback based on indicator name patterns
@@ -240,39 +209,22 @@ const EnhancedDashboard: React.FC = () => {
 				vwap: "#8B5CF6",
 			};
 
-			const fallbackColor = fallbackColorMap[lowerIndicatorId] || "#6B7280";
-			console.log(`Using fallback color: ${fallbackColor}`);
-			return fallbackColor;
+			return fallbackColorMap[lowerIndicatorId] || "#6B7280";
 		},
 		[detailedStrategy, extractColorsFromStrategy]
 	);
 
 	// Convert backend indicators to chart format with strategy colors
 	const allChartIndicators = useMemo(() => {
-		console.log("=== Color Debug Info ===");
-		console.log("detailedStrategy:", detailedStrategy);
-		console.log("backendIndicators:", backendIndicators);
-		
-		const strategyColors = detailedStrategy ? extractColorsFromStrategy(detailedStrategy) : {};
-		console.log("extractedColors:", strategyColors);
-		
-		const chartIndicators = backendIndicators.map((indicator: any) => {
-			const color = getIndicatorColor(indicator.id);
-			console.log(`Indicator ${indicator.id}: color = ${color}`);
-			
-			return {
-				id: indicator.id,
-				name: indicator.name,
-				type: indicator.type as any,
-				data: indicator.data,
-				color: color,
-				yAxisID: "y1", // Default to secondary y-axis
-			};
-		});
-		
-		console.log("Final chartIndicators:", chartIndicators);
-		return chartIndicators;
-	}, [backendIndicators, getIndicatorColor, detailedStrategy, extractColorsFromStrategy]);
+		return backendIndicators.map((indicator: any) => ({
+			id: indicator.id,
+			name: indicator.name,
+			type: indicator.type as any,
+			data: indicator.data,
+			color: getIndicatorColor(indicator.id),
+			yAxisID: "y1", // Default to secondary y-axis
+		}));
+	}, [backendIndicators, getIndicatorColor]);
 
 	// Handle strategy selection with detailed data
 	const handleStrategySelect = useCallback(
@@ -347,8 +299,44 @@ const EnhancedDashboard: React.FC = () => {
 	const handleEditStrategy = useCallback(async (strategyId: string) => {
 		try {
 			const strategy = await strategyService.getDetailedStrategy(strategyId);
+
+			// Transform strategy data to match StrategyEditor format
+			// The API returns indicators as [{ "RSI": {...}, "MACD": {...}, ... }]
+			// But StrategyEditor expects [{ "RSI": {...} }, { "MACD": {...} }, ...]
+			const transformedStrategy = {
+				...strategy,
+				// Transform indicators format if needed
+				indicators: strategy.indicators
+					? strategy.indicators.flatMap((indicatorGroup: any) => {
+							// If it's already in the correct format (array of single-key objects), return as is
+							if (Object.keys(indicatorGroup).length === 1) {
+								return [indicatorGroup];
+							}
+							// If it's a single object with multiple indicators, split it
+							return Object.entries(indicatorGroup).map(([key, value]) => ({
+								[key]: value,
+							}));
+					  })
+					: [],
+				// Map risk_management to risk if needed
+				risk: strategy.risk_management ||
+					strategy.risk || {
+						position_size_type: "percent_equity",
+						risk_per_trade: 2,
+						stop_loss_percent: 1.5,
+						take_profit_percent: 3,
+						trailing_stop: false,
+						max_drawdown_percent: 10,
+					},
+				// Ensure other required fields
+				enabled: strategy.status === "active" || strategy.enabled || true,
+			};
+
+			console.log("Original strategy:", strategy);
+			console.log("Transformed strategy:", transformedStrategy);
+
 			setEditingStrategyId(strategyId);
-			setEditingStrategy(strategy);
+			setEditingStrategy(transformedStrategy);
 			setIsStrategyEditorOpen(true);
 		} catch (error) {
 			console.error("Failed to load strategy for editing:", error);
