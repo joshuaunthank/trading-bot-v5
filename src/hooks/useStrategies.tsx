@@ -17,14 +17,22 @@ export function useStrategies(): UseStrategiesResult {
 		try {
 			setLoading(true);
 			setError(null);
-
 			const response = await fetch("/api/v1/strategies");
 			if (!response.ok) {
 				throw new Error(`Failed to load strategies: ${response.statusText}`);
 			}
 
 			const data = await response.json();
-			setStrategies(data);
+
+			// Handle WebSocket-only API response format
+			if (data.success && Array.isArray(data.strategies)) {
+				setStrategies(data.strategies);
+			} else if (Array.isArray(data)) {
+				// Fallback for legacy API format
+				setStrategies(data);
+			} else {
+				throw new Error("Invalid strategies response format");
+			}
 		} catch (err) {
 			console.error("Error loading strategies:", err);
 			setError(err instanceof Error ? err.message : "Unknown error");

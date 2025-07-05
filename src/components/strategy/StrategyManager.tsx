@@ -31,12 +31,18 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ className }) => {
 		try {
 			setLoading(true);
 			setError(null);
-
 			// Get strategy list
 			const response = await fetch("/api/v1/strategies");
 			if (!response.ok) throw new Error("Failed to fetch strategies");
 
-			const strategyList = await response.json();
+			const strategyData = await response.json();
+
+			// Handle WebSocket-only API response format
+			if (!strategyData.success) {
+				throw new Error(strategyData.message || "Failed to fetch strategies");
+			}
+
+			const strategyList = strategyData.strategies || [];
 
 			// Get status for each strategy
 			const strategiesWithStatus = await Promise.all(

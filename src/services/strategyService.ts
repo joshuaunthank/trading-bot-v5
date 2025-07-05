@@ -92,7 +92,18 @@ class StrategyService {
 		if (!response.ok) {
 			throw new Error(`Failed to fetch strategies: ${response.statusText}`);
 		}
-		return response.json();
+
+		const data = await response.json();
+
+		// Handle WebSocket-only API response format
+		if (data.success && Array.isArray(data.strategies)) {
+			return data.strategies;
+		} else if (Array.isArray(data)) {
+			// Fallback for legacy API format
+			return data;
+		} else {
+			throw new Error("Invalid strategies response format");
+		}
 	}
 
 	/**
@@ -105,7 +116,18 @@ class StrategyService {
 				`Failed to fetch strategy ${strategyId}: ${response.statusText}`
 			);
 		}
-		return response.json();
+
+		const data = await response.json();
+
+		// Handle WebSocket-only API response format
+		if (data.success && data.strategy) {
+			return data.strategy;
+		} else if (data.id) {
+			// Fallback for legacy API format
+			return data;
+		} else {
+			throw new Error("Invalid strategy response format");
+		}
 	}
 
 	/**

@@ -2,10 +2,7 @@ import { pro as ccxt } from "ccxt";
 import { config } from "./config";
 import { WebSocketServer, WebSocket as WsWebSocket } from "ws";
 import * as http from "http";
-import { strategyManager } from "./StrategyManager";
 import { OHLCVCandle } from "../types/index";
-import { calculateIndicators } from "../routes/api-utils/indicator-management";
-import { IndicatorConfig } from "../routes/api-utils/indicator-management";
 import {
 	calculateStrategyIndicators,
 	calculateStrategyIndicatorsIncremental,
@@ -201,28 +198,27 @@ export function setupMainWebSocket(server: http.Server) {
 	);
 
 	// Connect to strategy manager events for strategy data integration
-	strategyManager.on("signal", ({ strategyId, signal }) => {
-		console.log(`[Strategy Integration] Signal from ${strategyId}:`, signal);
-
-		// Create a strategy result with the signal
-		const strategyResult: StrategyResult = {
-			timestamp: signal.timestamp || Date.now(),
-			indicators: {}, // Will be populated by strategy
-			models: {}, // Will be populated by strategy
-			signals: {
-				[`${signal.type}_${signal.side}`]: true,
-			},
-		};
-
-		// Add to cache and broadcast to strategy subscribers
-		addStrategyResult(strategyId, strategyResult);
-	});
+	// Note: In WebSocket-only architecture, strategy events come through WebSocket messages
+	// strategyManager.on("signal", ({ strategyId, signal }) => {
+	// 	console.log(`[Strategy Integration] Signal from ${strategyId}:`, signal);
+	// 	// Create a strategy result with the signal
+	// 	const strategyResult: StrategyResult = {
+	// 		timestamp: signal.timestamp || Date.now(),
+	// 		indicators: {}, // Will be populated by strategy
+	// 		models: {}, // Will be populated by strategy
+	// 		signals: {
+	// 			[`${signal.type}_${signal.side}`]: true,
+	// 		},
+	// 	};
+	// 	// Add to cache and broadcast to strategy subscribers
+	// 	addStrategyResult(strategyId, strategyResult);
+	// });
 
 	// Listen for strategy results (we'll add this event to strategy manager)
-	strategyManager.on("strategyResult", ({ strategyId, result }) => {
-		console.log(`[Strategy Integration] Result from ${strategyId}`);
-		addStrategyResult(strategyId, result);
-	});
+	// strategyManager.on("strategyResult", ({ strategyId, result }) => {
+	// 	console.log(`[Strategy Integration] Result from ${strategyId}`);
+	// 	addStrategyResult(strategyId, result);
+	// });
 
 	wss.on("connection", (ws: WsWebSocket, req: http.IncomingMessage) => {
 		const clientId = Math.random().toString(36).substr(2, 9);
@@ -787,13 +783,16 @@ async function startWatchLoop(
 					// Distribute data to Strategy Manager for strategy processing
 					try {
 						if (updateType === "incremental") {
-							// For incremental updates, send the latest candle to strategy manager
-							strategyManager.onNewCandle(latestCandle);
+							// For incremental updates, data distribution handled by WebSocket system
+							// Note: In WebSocket-only architecture, strategy processing happens through WebSocket
+							console.log(
+								`[WebSocket-Only] Strategy processing handled by WebSocket system`
+							);
 						}
 						// For full updates, we don't send to strategy manager as it's just initial load
 					} catch (error) {
 						console.error(
-							"[Main WS] Error distributing data to Strategy Manager:",
+							"[Main WS] Error in WebSocket-only architecture strategy processing:",
 							error
 						);
 					}
@@ -945,9 +944,8 @@ export async function cleanupMainWebSocket() {
 	// Clear strategy clients
 	strategyClients.clear();
 
-	// Remove strategy manager listeners
-	strategyManager.removeAllListeners("signal");
-	strategyManager.removeAllListeners("strategyResult");
+	// Note: In WebSocket-only architecture, no legacy strategy manager to clean up
+	// Removed strategy manager listeners for WebSocket-only architecture
 
 	// Close WebSocket server
 	if (wss) {

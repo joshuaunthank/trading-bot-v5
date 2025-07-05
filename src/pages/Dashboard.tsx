@@ -512,6 +512,38 @@ const EnhancedDashboard: React.FC = () => {
 		[detailedStrategy]
 	);
 
+	// Delete strategy handler
+	const handleDeleteStrategy = useCallback(
+		async (strategyId: string) => {
+			try {
+				const response = await fetch(`/api/v1/strategies/${strategyId}`, {
+					method: "DELETE",
+				});
+
+				if (response.ok) {
+					// Clear the current selection if we deleted the selected strategy
+					if (selectedIndicatorStrategyId === strategyId) {
+						setSelectedIndicatorStrategyId(null);
+						setDetailedStrategy(null);
+					}
+					// Refresh the strategies list
+					loadStrategies();
+					console.log(`Strategy ${strategyId} deleted successfully`);
+				} else {
+					const errorData = await response.json();
+					console.error("Failed to delete strategy:", errorData);
+					alert(
+						`Failed to delete strategy: ${errorData.message || errorData.error}`
+					);
+				}
+			} catch (error) {
+				console.error("Error deleting strategy:", error);
+				alert("Failed to delete strategy. Please try again.");
+			}
+		},
+		[selectedIndicatorStrategyId, loadStrategies]
+	);
+
 	const handleSaveConfig = useCallback(async (configData: any) => {
 		try {
 			console.log("Saving config:", configData);
@@ -666,7 +698,7 @@ const EnhancedDashboard: React.FC = () => {
 						onStrategySelect={handleStrategySelect}
 						onCreateStrategy={() => setIsStrategyEditorOpen(true)}
 						onEditStrategy={handleEditStrategy}
-						onDeleteStrategy={async () => {}}
+						onDeleteStrategy={handleDeleteStrategy}
 						onStartStrategy={async () => {}}
 						onStopStrategy={async () => {}}
 						loading={loading}

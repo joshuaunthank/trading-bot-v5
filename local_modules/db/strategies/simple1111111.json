@@ -1,7 +1,7 @@
 {
-  "id": "newest_test",
-  "name": "Newest Test",
-  "description": "test",
+  "id": "simple1111111",
+  "name": "simple1111111",
+  "description": "",
   "symbol": "BTC/USDT",
   "timeframe": "1h",
   "enabled": true,
@@ -17,19 +17,51 @@
             "name": "fastPeriod",
             "default": 12,
             "type": "number",
-            "color": "#ff001f"
+            "color": "#ff6384"
           },
           {
             "name": "slowPeriod",
             "default": 26,
             "type": "number",
-            "color": "#08eb05"
+            "color": "#36a2eb"
           },
           {
             "name": "signalPeriod",
             "default": 9,
             "type": "number",
-            "color": "#0029ff"
+            "color": "#9966ff"
+          },
+          {
+            "name": "price",
+            "default": "close",
+            "type": "string",
+            "color": "#4bc0c0"
+          }
+        ]
+      }
+    },
+    {
+      "ATR": {
+        "description": "Average True Range",
+        "params": [
+          {
+            "name": "period",
+            "default": 14,
+            "type": "number",
+            "color": "#ff0200"
+          }
+        ]
+      }
+    },
+    {
+      "SMA": {
+        "description": "Simple Moving Average",
+        "params": [
+          {
+            "name": "period",
+            "default": 10,
+            "type": "number",
+            "color": "#ffcd56"
           },
           {
             "name": "price",
@@ -46,9 +78,9 @@
         "params": [
           {
             "name": "period",
-            "default": 20,
+            "default": 30,
             "type": "number",
-            "color": "#0027ff"
+            "color": "#ffcd56"
           },
           {
             "name": "price",
@@ -73,11 +105,9 @@
   "postprocessing": [],
   "metadata": {
     "version": "1.0",
-    "created": "2025-07-04T16:23:22.709Z",
+    "created": "2025-07-05T00:50:14.802Z",
     "author": "user"
   },
-  "meta": {
-    "created_at": "2025-07-04T16:23:57.897Z",
-    "last_updated": "2025-07-04T21:10:19.578Z"
-  }
+  "created_at": "2025-07-05T00:51:06.694Z",
+  "updated_at": "2025-07-05T00:51:06.694Z"
 }

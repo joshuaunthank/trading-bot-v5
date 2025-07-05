@@ -105,13 +105,13 @@
             "name": "period",
             "default": 20,
             "type": "number",
-            "color": "#ffcd56"
+            "color": "#00ff02"
           },
           {
             "name": "stdDev",
             "default": 2,
             "type": "number",
-            "color": "#c9cbcf"
+            "color": "#cf00ba"
           },
           {
             "name": "price",
@@ -142,5 +142,6 @@
   "meta": {
     "created_at": "2025-07-03T01:33:54.811Z",
     "last_updated": "2025-07-03T01:33:54.811Z"
-  }
+  },
+  "updated_at": "2025-07-05T00:46:04.441Z"
 }

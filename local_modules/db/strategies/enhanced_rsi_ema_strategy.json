@@ -20,7 +20,9 @@
             "color": "#4bc0c0"
           }
         ]
-      },
+      }
+    },
+    {
       "EMA": {
         "description": "Exponential Moving Average",
         "params": [
@@ -37,7 +39,9 @@
             "color": "#4bc0c0"
           }
         ]
-      },
+      }
+    },
+    {
       "MACD": {
         "description": "Moving Average Convergence Divergence",
         "params": [
@@ -66,15 +70,23 @@
             "color": "#4bc0c0"
           }
         ]
-      },
-      "BOLLINGER": {
-        "description": "BOLLINGER Indicator",
+      }
+    },
+    {
+      "BB": {
+        "description": "Bollinger Bands",
         "params": [
           {
             "name": "period",
             "default": 20,
             "type": "number",
             "color": "#ffcd56"
+          },
+          {
+            "name": "stdDev",
+            "default": 2,
+            "type": "number",
+            "color": "#c9cbcf"
           },
           {
             "name": "price",
@@ -246,5 +258,13 @@
     "win_rate": null,
     "avg_return": null,
     "max_drawdown": null
-  }
+  },
+  "risk": {
+    "max_position_size": 0.1,
+    "stop_loss_percentage": 0.02,
+    "take_profit_percentage": 0.05
+  },
+  "enabled": true,
+  "tags": [],
+  "updated_at": "2025-07-05T00:49:27.972Z"
 }

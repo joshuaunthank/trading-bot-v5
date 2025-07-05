@@ -5,7 +5,7 @@
  * This provides a clean interface for importing API handlers in route files.
  */
 
-// Strategy execution utilities
+// Strategy execution utilities - WebSocket-Only Architecture
 export {
 	startStrategy,
 	stopStrategy,
@@ -20,7 +20,7 @@ export {
 	updateStrategy,
 	deleteStrategy,
 	StrategyExecutionResponse,
-} from "./strategy-execution";
+} from "./strategy-execution-websocket";
 
 // Indicator management utilities
 export {
@@ -34,12 +34,14 @@ export {
 	calculateIndicators,
 } from "./indicator-management";
 
-// Performance tracking utilities
+// Performance tracking utilities - WebSocket-Only Architecture
 export {
 	getStrategyPerformance,
 	getAllPerformanceMetrics,
+	getPortfolioPerformance,
+	getRiskMetrics,
 	PerformanceResponse,
-} from "./performance-tracking";
+} from "./performance-tracking-websocket";
 
 // Future API utilities can be added here:
 // export * from "./trading-operations";
