@@ -22,17 +22,8 @@ export {
 	StrategyExecutionResponse,
 } from "./strategy-execution-websocket";
 
-// Indicator management utilities
-export {
-	getAllIndicators,
-	getIndicatorTypes,
-	getIndicatorById,
-	createIndicator,
-	updateIndicator,
-	deleteIndicator,
-	IndicatorResponse,
-	calculateIndicators,
-} from "./indicator-management";
+// Legacy indicator management utilities (REST API) removed for WebSocket-only architecture
+// If needed for admin/config UI, import directly from './indicator-management'
 
 // Performance tracking utilities - WebSocket-Only Architecture
 export {

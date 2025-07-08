@@ -239,7 +239,7 @@ function generateIndicatorId(
 /**
  * Calculate indicators and handle multi-component indicators like MACD
  */
-function calculateIndicatorsForStrategy(
+export function calculateIndicatorsForStrategy(
 	indicator: ProcessedIndicator,
 	ohlcvData: OHLCVData[]
 ): CalculatedIndicatorResult[] {
