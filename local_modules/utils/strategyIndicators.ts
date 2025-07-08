@@ -288,62 +288,49 @@ function calculateIndicatorsForStrategy(
 
 				const result = calculator(closes, fastPeriod, slowPeriod, signalPeriod);
 
-				// MACD line starts at slowPeriod - 1
-				const macdStartIndex = slowPeriod - 1;
+				// Standardized: filter undefined/NaN, compute start indexes by length difference
+				const macdLine = (result.macd || []).filter(
+					(v: number | undefined) => v !== undefined && !isNaN(v)
+				);
+				const signalLine = (result.signal || []).filter(
+					(v: number | undefined) => v !== undefined && !isNaN(v)
+				);
+				const histogram = (result.histogram || []).filter(
+					(v: number | undefined) => v !== undefined && !isNaN(v)
+				);
 
-				// Create separate datasets for each MACD component
-				if (result.macd) {
-					const alignedMacd = alignIndicatorData(
-						result.macd,
-						timestamps,
-						macdStartIndex
-					);
+				const macdStartIndex = slowPeriod - 1;
+				const signalStartIndex =
+					macdStartIndex + (macdLine.length - signalLine.length);
+				const histogramStartIndex =
+					macdStartIndex + (macdLine.length - histogram.length);
+
+				if (macdLine.length) {
 					results.push({
 						id: `${indicator.id}_macd`,
 						name: `MACD Line (${fastPeriod})`,
 						type: "macd_line",
-						data: alignedMacd,
+						data: alignIndicatorData(macdLine, timestamps, macdStartIndex),
 					});
 				}
-
-				if (result.signal) {
-					// Extract only the defined signal values
-					const definedSignals = result.signal.filter((s: undefined) => s !== undefined);
-					const signalStartIndex =
-						macdStartIndex + (result.signal.length - definedSignals.length);
-
-					const alignedSignal = alignIndicatorData(
-						definedSignals,
-						timestamps,
-						signalStartIndex
-					);
+				if (signalLine.length) {
 					results.push({
 						id: `${indicator.id}_signal`,
 						name: `MACD Signal (${signalPeriod})`,
 						type: "macd_signal",
-						data: alignedSignal,
+						data: alignIndicatorData(signalLine, timestamps, signalStartIndex),
 					});
 				}
-
-				if (result.histogram) {
-					// Extract only the defined histogram values
-					const definedHistogram = result.histogram.filter(
-						(h: number | undefined) => h !== undefined
-					);
-					const histogramStartIndex =
-						macdStartIndex +
-						(result.histogram.length - definedHistogram.length);
-
-					const alignedHistogram = alignIndicatorData(
-						definedHistogram,
-						timestamps,
-						histogramStartIndex
-					);
+				if (histogram.length) {
 					results.push({
 						id: `${indicator.id}_histogram`,
 						name: `MACD Histogram`,
 						type: "macd_histogram",
-						data: alignedHistogram,
+						data: alignIndicatorData(
+							histogram,
+							timestamps,
+							histogramStartIndex
+						),
 					});
 				}
 				break;
