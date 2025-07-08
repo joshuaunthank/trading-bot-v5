@@ -132,9 +132,10 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
 				time: {
 					displayFormats: {
 						minute: "HH:mm",
-						hour: "HH:mm",
+						hour: "MMM dd HH:mm",
 						day: "MMM dd",
 					},
+					tooltipFormat: "MMM dd, yyyy HH:mm:ss",
 				},
 				grid: {
 					color: "rgba(255, 255, 255, 0.1)",

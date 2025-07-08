@@ -721,7 +721,9 @@ const EnhancedDashboard: React.FC = () => {
 							<table className="w-full text-sm">
 								<thead>
 									<tr className="border-b border-gray-700">
-										<th className="text-left p-2">Time</th>
+										<th className="text-left p-2 cursor-pointer hover:bg-gray-700">
+											Time ↓
+										</th>
 										<th className="text-left p-2">Open</th>
 										<th className="text-left p-2">High</th>
 										<th className="text-left p-2">Low</th>
@@ -730,18 +732,22 @@ const EnhancedDashboard: React.FC = () => {
 									</tr>
 								</thead>
 								<tbody>
-									{ohlcvData.slice(-10).map((candle, index) => (
-										<tr key={index} className="border-b border-gray-700">
-											<td className="p-2">
-												{new Date(candle.timestamp).toLocaleTimeString()}
-											</td>
-											<td className="p-2">{candle.open.toFixed(2)}</td>
-											<td className="p-2">{candle.high.toFixed(2)}</td>
-											<td className="p-2">{candle.low.toFixed(2)}</td>
-											<td className="p-2">{candle.close.toFixed(2)}</td>
-											<td className="p-2">{candle.volume.toFixed(0)}</td>
-										</tr>
-									))}
+									{ohlcvData
+										.slice()
+										.sort((a, b) => b.timestamp - a.timestamp)
+										.slice(0, 10)
+										.map((candle, index) => (
+											<tr key={index} className="border-b border-gray-700">
+												<td className="p-2">
+													{new Date(candle.timestamp).toLocaleString()}
+												</td>
+												<td className="p-2">{candle.open.toFixed(2)}</td>
+												<td className="p-2">{candle.high.toFixed(2)}</td>
+												<td className="p-2">{candle.low.toFixed(2)}</td>
+												<td className="p-2">{candle.close.toFixed(2)}</td>
+												<td className="p-2">{candle.volume.toFixed(0)}</td>
+											</tr>
+										))}
 								</tbody>
 							</table>
 						</div>

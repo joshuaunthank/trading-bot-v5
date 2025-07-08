@@ -17,6 +17,13 @@ The trading bot has been fully migrated to a **WebSocket-only architecture** for
 - ✅ **Implemented Delete Strategy Handler** - Added `handleDeleteStrategy` function in Dashboard component
 - ✅ **Fixed Edit and Delete Button Functionality** - Edit and Delete buttons now work correctly with strategy CRUD operations
 
+## 🔧 **Post-Migration Fix: Chart Data Synchronization**
+
+- ✅ **Fixed Table Sorting** - Most recent data now appears first in the table with proper timestamp sorting
+- ✅ **Fixed MACD Data Alignment** - MACD Signal and Histogram components now properly synchronized with MACD Line and price data
+- ✅ **Enhanced Timestamp Formatting** - Better time display formats in charts and detailed tooltips for data flow verification
+- ✅ **Improved Data Visualization** - All chart indicators now accurately aligned for proper technical analysis
+
 ## 🚀 **Key Achievements**
 
 ### **1. Removed Legacy Strategy System Dependencies**

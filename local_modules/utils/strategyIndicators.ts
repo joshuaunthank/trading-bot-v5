@@ -287,14 +287,16 @@ function calculateIndicatorsForStrategy(
 				const signalPeriod = indicator.parameters?.signalPeriod || 9;
 
 				const result = calculator(closes, fastPeriod, slowPeriod, signalPeriod);
-				const startIndex = slowPeriod - 1;
+
+				// MACD line starts at slowPeriod - 1
+				const macdStartIndex = slowPeriod - 1;
 
 				// Create separate datasets for each MACD component
 				if (result.macd) {
 					const alignedMacd = alignIndicatorData(
 						result.macd,
 						timestamps,
-						startIndex
+						macdStartIndex
 					);
 					results.push({
 						id: `${indicator.id}_macd`,
@@ -305,10 +307,15 @@ function calculateIndicatorsForStrategy(
 				}
 
 				if (result.signal) {
+					// Extract only the defined signal values
+					const definedSignals = result.signal.filter((s: undefined) => s !== undefined);
+					const signalStartIndex =
+						macdStartIndex + (result.signal.length - definedSignals.length);
+
 					const alignedSignal = alignIndicatorData(
-						result.signal,
+						definedSignals,
 						timestamps,
-						startIndex
+						signalStartIndex
 					);
 					results.push({
 						id: `${indicator.id}_signal`,
@@ -319,10 +326,18 @@ function calculateIndicatorsForStrategy(
 				}
 
 				if (result.histogram) {
+					// Extract only the defined histogram values
+					const definedHistogram = result.histogram.filter(
+						(h: number | undefined) => h !== undefined
+					);
+					const histogramStartIndex =
+						macdStartIndex +
+						(result.histogram.length - definedHistogram.length);
+
 					const alignedHistogram = alignIndicatorData(
-						result.histogram,
+						definedHistogram,
 						timestamps,
-						startIndex
+						histogramStartIndex
 					);
 					results.push({
 						id: `${indicator.id}_histogram`,
