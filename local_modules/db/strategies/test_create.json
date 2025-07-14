@@ -1,6 +1,6 @@
 {
-  "id": "newest_test",
-  "name": "Newest Test",
+  "id": "test_create",
+  "name": "test create",
   "description": "test",
   "symbol": "BTC/USDT",
   "timeframe": "1h",
@@ -17,19 +17,19 @@
             "name": "fastPeriod",
             "default": 12,
             "type": "number",
-            "color": "#ff9d47"
+            "color": "#ff6384"
           },
           {
             "name": "slowPeriod",
             "default": 26,
             "type": "number",
-            "color": "#ebe82a"
+            "color": "#36a2eb"
           },
           {
             "name": "signalPeriod",
             "default": 9,
             "type": "number",
-            "color": "#0029ff"
+            "color": "#9966ff"
           },
           {
             "name": "price",
@@ -41,6 +41,12 @@
       }
     },
     {
+      "VWAP": {
+        "description": "Volume Weighted Average Price",
+        "params": []
+      }
+    },
+    {
       "SMA": {
         "description": "Simple Moving Average",
         "params": [
@@ -48,7 +54,26 @@
             "name": "period",
             "default": 20,
             "type": "number",
-            "color": "#32ff2e"
+            "color": "#ffcd56"
+          },
+          {
+            "name": "price",
+            "default": "close",
+            "type": "string",
+            "color": "#4bc0c0"
+          }
+        ]
+      }
+    },
+    {
+      "EMA": {
+        "description": "Exponential Moving Average",
+        "params": [
+          {
+            "name": "period",
+            "default": 20,
+            "type": "number",
+            "color": "#ffcd56"
           },
           {
             "name": "price",
@@ -73,12 +98,9 @@
   "postprocessing": [],
   "metadata": {
     "version": "1.0",
-    "created": "2025-07-04T16:23:22.709Z",
+    "created": "2025-07-12T00:36:46.603Z",
     "author": "user"
   },
-  "meta": {
-    "created_at": "2025-07-04T16:23:57.897Z",
-    "last_updated": "2025-07-04T21:10:19.578Z"
-  },
-  "updated_at": "2025-07-12T21:06:26.085Z"
+  "created_at": "2025-07-12T00:37:27.542Z",
+  "updated_at": "2025-07-12T00:37:27.543Z"
 }

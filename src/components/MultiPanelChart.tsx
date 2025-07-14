@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import ChartPanel from "./ChartPanel";
+import React, { useState, useRef } from "react";
+import ChartPanel, { ChartPanelHandle } from "./ChartPanel";
 import Loader from "./Loader";
 import { CalculatedIndicator, OHLCVData } from "../types/indicators";
 import { categorizeIndicators, getPanelHeight } from "./ChartPanelUtils";
@@ -35,6 +35,15 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 	const [isZoomed, setIsZoomed] = useState(false);
 	const timeframes = ["1m", "5m", "15m", "1h", "4h", "1d"];
 
+	// Refs for chart panels
+	const priceChartRef = useRef<ChartPanelHandle>(null);
+	const oscillatorChartRef = useRef<ChartPanelHandle>(null);
+	const volumeChartRef = useRef<ChartPanelHandle>(null);
+
+	// Debounce for zoom changes to prevent infinite loops
+	const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const isUpdatingRef = useRef<boolean>(false);
+
 	// Responsive chart height for price panel
 	const getResponsiveChartHeight = () => {
 		if (typeof window !== "undefined") {
@@ -58,20 +67,65 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 	const hasOscillators = categorizedIndicators.oscillator.length > 0;
 	const hasVolume = categorizedIndicators.volume.length > 0;
 
-	// Handle zoom state changes from any panel
+	// Handle zoom state changes from any panel with debouncing to prevent loops
 	const handleZoomChange = (newZoomState: any) => {
-		setSharedZoomState(newZoomState);
-		setIsZoomed(
-			newZoomState &&
-				(newZoomState.min !== undefined || newZoomState.max !== undefined)
-		);
+		// Prevent multiple rapid updates
+		if (isUpdatingRef.current) return;
+
+		// Clear any existing timeout
+		if (zoomTimeoutRef.current) {
+			clearTimeout(zoomTimeoutRef.current);
+		}
+
+		// Set a flag that we're updating to prevent loops
+		isUpdatingRef.current = true;
+
+		// Short delay to debounce zoom changes
+		zoomTimeoutRef.current = setTimeout(() => {
+			setSharedZoomState(newZoomState);
+			setIsZoomed(
+				newZoomState &&
+					(newZoomState.min !== undefined || newZoomState.max !== undefined)
+			);
+			isUpdatingRef.current = false;
+		}, 50); // 50ms debounce
 	};
 
-	// Reset zoom across all panels
+	// Reset zoom across all panels by calling Chart.js resetZoom method directly
 	const resetZoom = () => {
-		setSharedZoomState(null);
-		setIsZoomed(false);
-		// The panels will handle the actual chart reset in their useEffect
+		try {
+			// Update state
+			setSharedZoomState(null);
+			setIsZoomed(false);
+
+			// Call resetZoom on each chart instance
+			priceChartRef.current?.resetZoom();
+			oscillatorChartRef.current?.resetZoom();
+			volumeChartRef.current?.resetZoom();
+
+			console.log("Reset zoom successful");
+		} catch (error) {
+			console.error("Error in reset zoom operation:", error);
+
+			// Attempt to force reset by updating state only
+			try {
+				setSharedZoomState(null);
+				setIsZoomed(false);
+
+				// Add a small delay to ensure state is updated before trying again
+				setTimeout(() => {
+					try {
+						priceChartRef.current?.resetZoom();
+						oscillatorChartRef.current?.resetZoom();
+						volumeChartRef.current?.resetZoom();
+					} catch (retryError) {
+						console.error("Retry reset failed:", retryError);
+					}
+				}, 100);
+			} catch (fallbackError) {
+				console.error("Fallback reset failed:", fallbackError);
+			}
+		}
 	};
 
 	return (
@@ -127,6 +181,7 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 			<div className="space-y-2">
 				{/* Price Panel - Always visible, now with explicit heightPx prop */}
 				<ChartPanel
+					ref={priceChartRef}
 					data={data}
 					symbol={symbol}
 					timeframe={timeframe}
@@ -142,6 +197,7 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 				{/* Oscillator Panel - Only if oscillators exist */}
 				{hasOscillators && (
 					<ChartPanel
+						ref={oscillatorChartRef}
 						data={data}
 						symbol={symbol}
 						timeframe={timeframe}
@@ -157,6 +213,7 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 				{/* Volume Panel - Only if volume indicators exist */}
 				{hasVolume && (
 					<ChartPanel
+						ref={volumeChartRef}
 						data={data}
 						symbol={symbol}
 						timeframe={timeframe}

@@ -95,7 +95,10 @@ const EnhancedDashboard: React.FC = () => {
 
 	// Strategy selection state
 	const [selectedIndicatorStrategyId, setSelectedIndicatorStrategyId] =
-		useState<string | null>(null);
+		useState<string | null>(() => {
+			const savedStrategy = localStorage.getItem("selectedIndicatorStrategy");
+			return savedStrategy || null;
+		});
 	const [detailedStrategy, setDetailedStrategy] = useState<any>(null);
 
 	// Strategy Editor state
@@ -568,6 +571,20 @@ const EnhancedDashboard: React.FC = () => {
 				});
 
 				if (response.ok) {
+					// If we're saving an edited strategy and it's the currently selected one,
+					// make sure we keep it selected
+					const savedStrategyData = await response.json();
+					const savedStrategyId = savedStrategyData.id || editingStrategyId;
+
+					// If we're editing the currently selected strategy, update the selection
+					// Or if we have no selection yet, select the newly created strategy
+					if (
+						editingStrategyId === selectedIndicatorStrategyId ||
+						(!selectedIndicatorStrategyId && !editingStrategyId)
+					) {
+						setSelectedIndicatorStrategyId(savedStrategyId);
+					}
+
 					setIsStrategyEditorOpen(false);
 					setEditingStrategyId(null);
 					setEditingStrategy(null);
@@ -579,7 +596,7 @@ const EnhancedDashboard: React.FC = () => {
 				console.error("Error saving strategy:", error);
 			}
 		},
-		[editingStrategyId, loadStrategies]
+		[editingStrategyId, loadStrategies, selectedIndicatorStrategyId]
 	);
 
 	const handleCloseStrategyEditor = useCallback(() => {
@@ -631,6 +648,18 @@ const EnhancedDashboard: React.FC = () => {
 	}, [ohlcvData]);
 
 	const summaryData = calculateSummaryData();
+
+	// Save selected indicator strategy to localStorage
+	useEffect(() => {
+		if (selectedIndicatorStrategyId) {
+			localStorage.setItem(
+				"selectedIndicatorStrategy",
+				selectedIndicatorStrategyId
+			);
+		} else {
+			localStorage.removeItem("selectedIndicatorStrategy");
+		}
+	}, [selectedIndicatorStrategyId]);
 
 	return (
 		<div className="space-y-6">

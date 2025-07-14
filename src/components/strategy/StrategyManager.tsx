@@ -24,7 +24,13 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ className }) => {
 	const [strategies, setStrategies] = useState<Strategy[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
+	const [selectedStrategy, setSelectedStrategy] = useState<string | null>(
+		() => {
+			// Initialize from localStorage if available
+			const savedStrategy = localStorage.getItem("selectedStrategy");
+			return savedStrategy || null;
+		}
+	);
 
 	// Fetch available strategies
 	const fetchStrategies = async () => {
@@ -198,6 +204,15 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ className }) => {
 			);
 		}
 	};
+
+	// Save selected strategy to localStorage when it changes
+	useEffect(() => {
+		if (selectedStrategy) {
+			localStorage.setItem("selectedStrategy", selectedStrategy);
+		} else {
+			localStorage.removeItem("selectedStrategy");
+		}
+	}, [selectedStrategy]);
 
 	// Auto-refresh every 10 seconds
 	useEffect(() => {
