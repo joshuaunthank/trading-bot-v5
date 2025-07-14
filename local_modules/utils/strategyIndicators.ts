@@ -9,17 +9,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { alignIndicatorData, IndicatorValue } from "./indicatorUtils";
-import {
-	calculatedSMA,
-	calculatedEMA,
-	calculatedRSI,
-	calculatedMACD,
-	calculatedBollingerBands,
-	calculatedATR,
-	calculatedCCI,
-	calculatedADX,
-	calculatedVWAP,
-} from "../routes/api-utils/indicator-calculations";
+import { indicatorCalculatorsByCategory } from "../routes/api-utils/indicator-calculations";
 
 export interface IndicatorParam {
 	name: string;
@@ -63,19 +53,24 @@ export interface CalculatedIndicatorResult {
 
 const STRATEGIES_DIR = path.join(__dirname, "../db/strategies");
 
-// Map indicator types to calculation functions
-const indicatorCalculators: Record<string, Function> = {
-	sma: calculatedSMA,
-	ema: calculatedEMA,
-	rsi: calculatedRSI,
-	macd: calculatedMACD,
-	bb: calculatedBollingerBands,
-	bollingerbands: calculatedBollingerBands,
-	atr: calculatedATR,
-	cci: calculatedCCI,
-	adx: calculatedADX,
-	vwap: calculatedVWAP,
-};
+// Dynamic indicator calculator lookup
+function getIndicatorCalculator(type: string): Function | null {
+	for (const category of Object.keys(indicatorCalculatorsByCategory) as Array<
+		keyof typeof indicatorCalculatorsByCategory
+	>) {
+		const calculators = indicatorCalculatorsByCategory[category];
+		if (
+			calculators &&
+			Object.prototype.hasOwnProperty.call(calculators, type)
+		) {
+			const fn = (calculators as Record<string, Function>)[type];
+			if (typeof fn === "function") {
+				return fn;
+			}
+		}
+	}
+	return null;
+}
 
 /**
  * Load strategy configuration from file
@@ -170,31 +165,11 @@ function processIndicatorsFromNewFormat(
 	return processed;
 }
 
-/**
- * Map indicator names to backend calculator types
- */
+// Dynamic mapping: indicatorName is used directly as type (lowercase)
 function mapIndicatorNameToCalculatorType(
 	indicatorName: string
 ): string | null {
-	const mapping: Record<string, string> = {
-		RSI: "rsi",
-		MACD: "macd",
-		BB: "bb",
-		SMA: "sma",
-		EMA: "ema",
-		ATR: "atr",
-		CCI: "cci",
-		ADX: "adx",
-		VWAP: "vwap",
-		STOCH: "stoch",
-		OBV: "obv",
-		WILLIAMS_R: "williams",
-		MFI: "mfi",
-		PSAR: "sar",
-		AD: "ad",
-	};
-
-	return mapping[indicatorName] || null;
+	return indicatorName.toLowerCase();
 }
 
 /**
@@ -245,7 +220,7 @@ export function calculateIndicatorsForStrategy(
 ): CalculatedIndicatorResult[] {
 	try {
 		const type = indicator.type.toLowerCase();
-		const calculator = indicatorCalculators[type];
+		const calculator = getIndicatorCalculator(type);
 
 		if (!calculator) {
 			console.warn(`[Indicators] No calculator found for type: ${type}`);
@@ -253,24 +228,25 @@ export function calculateIndicatorsForStrategy(
 		}
 
 		const timestamps = ohlcvData.map((d) => d.timestamp);
-		const period = indicator.parameters?.period || 14;
+		const params = indicator.parameters || {};
 		const results: CalculatedIndicatorResult[] = [];
 
-		// Prepare data based on indicator type
+		// Dynamic argument construction based on indicator type
+		// For most indicators, pass closes and period; for others, pass OHLCV or custom
+		// This can be further improved by using a config map for argument structure
+		let calculatedValues: any;
 		switch (type) {
 			case "sma":
 			case "ema":
 			case "rsi": {
 				const closes = ohlcvData.map((d) => d.close);
-				const calculatedValues = calculator(closes, period);
-				const startIndex = period - 1;
-
+				calculatedValues = calculator(closes, params.period || 14);
+				const startIndex = (params.period || 14) - 1;
 				const alignedData = alignIndicatorData(
 					calculatedValues,
 					timestamps,
 					startIndex
 				);
-
 				results.push({
 					id: indicator.id,
 					name: indicator.name,
@@ -279,36 +255,32 @@ export function calculateIndicatorsForStrategy(
 				});
 				break;
 			}
-
 			case "macd": {
 				const closes = ohlcvData.map((d) => d.close);
-				const fastPeriod = indicator.parameters?.fastPeriod || 12;
-				const slowPeriod = indicator.parameters?.slowPeriod || 26;
-				const signalPeriod = indicator.parameters?.signalPeriod || 9;
-
-				const result = calculator(closes, fastPeriod, slowPeriod, signalPeriod);
-
-				// Standardized: filter undefined/NaN, compute start indexes by length difference
-				const macdLine = (result.macd || []).filter(
+				calculatedValues = calculator(
+					closes,
+					params.fastPeriod || 12,
+					params.slowPeriod || 26,
+					params.signalPeriod || 9
+				);
+				const macdLine = (calculatedValues.macd || []).filter(
 					(v: number | undefined) => v !== undefined && !isNaN(v)
 				);
-				const signalLine = (result.signal || []).filter(
+				const signalLine = (calculatedValues.signal || []).filter(
 					(v: number | undefined) => v !== undefined && !isNaN(v)
 				);
-				const histogram = (result.histogram || []).filter(
+				const histogram = (calculatedValues.histogram || []).filter(
 					(v: number | undefined) => v !== undefined && !isNaN(v)
 				);
-
-				const macdStartIndex = slowPeriod - 1;
+				const macdStartIndex = (params.slowPeriod || 26) - 1;
 				const signalStartIndex =
 					macdStartIndex + (macdLine.length - signalLine.length);
 				const histogramStartIndex =
 					macdStartIndex + (macdLine.length - histogram.length);
-
 				if (macdLine.length) {
 					results.push({
 						id: `${indicator.id}_macd`,
-						name: `MACD Line (${fastPeriod})`,
+						name: `MACD Line (${params.fastPeriod || 12})`,
 						type: "macd_line",
 						data: alignIndicatorData(macdLine, timestamps, macdStartIndex),
 					});
@@ -316,7 +288,7 @@ export function calculateIndicatorsForStrategy(
 				if (signalLine.length) {
 					results.push({
 						id: `${indicator.id}_signal`,
-						name: `MACD Signal (${signalPeriod})`,
+						name: `MACD Signal (${params.signalPeriod || 9})`,
 						type: "macd_signal",
 						data: alignIndicatorData(signalLine, timestamps, signalStartIndex),
 					});
@@ -335,59 +307,53 @@ export function calculateIndicatorsForStrategy(
 				}
 				break;
 			}
-
-			case "bb": {
+			case "bb":
+			case "bollingerbands": {
 				const closes = ohlcvData.map((d) => d.close);
-				const stdDev = indicator.parameters?.stdDev || 2;
-
-				const result = calculator(closes, period, stdDev);
-				const startIndex = period - 1;
-
-				// Create separate datasets for each Bollinger Band component
-				if (result.upper) {
-					const alignedUpper = alignIndicatorData(
-						result.upper,
-						timestamps,
-						startIndex
-					);
+				calculatedValues = calculator(
+					closes,
+					params.period || 20,
+					params.stdDev || 2
+				);
+				const startIndex = (params.period || 20) - 1;
+				if (calculatedValues.upper) {
 					results.push({
 						id: `${indicator.id}_upper`,
-						name: `BB Upper (${period})`,
+						name: `BB Upper (${params.period || 20})`,
 						type: "bb_upper",
-						data: alignedUpper,
+						data: alignIndicatorData(
+							calculatedValues.upper,
+							timestamps,
+							startIndex
+						),
 					});
 				}
-
-				if (result.middle) {
-					const alignedMiddle = alignIndicatorData(
-						result.middle,
-						timestamps,
-						startIndex
-					);
+				if (calculatedValues.middle) {
 					results.push({
 						id: `${indicator.id}_middle`,
-						name: `BB Middle (${period})`,
+						name: `BB Middle (${params.period || 20})`,
 						type: "bb_middle",
-						data: alignedMiddle,
+						data: alignIndicatorData(
+							calculatedValues.middle,
+							timestamps,
+							startIndex
+						),
 					});
 				}
-
-				if (result.lower) {
-					const alignedLower = alignIndicatorData(
-						result.lower,
-						timestamps,
-						startIndex
-					);
+				if (calculatedValues.lower) {
 					results.push({
 						id: `${indicator.id}_lower`,
-						name: `BB Lower (${period})`,
+						name: `BB Lower (${params.period || 20})`,
 						type: "bb_lower",
-						data: alignedLower,
+						data: alignIndicatorData(
+							calculatedValues.lower,
+							timestamps,
+							startIndex
+						),
 					});
 				}
 				break;
 			}
-
 			case "atr":
 			case "cci":
 			case "adx": {
@@ -396,16 +362,13 @@ export function calculateIndicatorsForStrategy(
 					low: d.low,
 					close: d.close,
 				}));
-
-				const calculatedValues = calculator(ohlcFormat, period);
-				const startIndex = period - 1;
-
+				calculatedValues = calculator(ohlcFormat, params.period || 14);
+				const startIndex = (params.period || 14) - 1;
 				const alignedData = alignIndicatorData(
 					calculatedValues,
 					timestamps,
 					startIndex
 				);
-
 				results.push({
 					id: indicator.id,
 					name: indicator.name,
@@ -414,7 +377,6 @@ export function calculateIndicatorsForStrategy(
 				});
 				break;
 			}
-
 			case "vwap": {
 				const vwapFormat = ohlcvData.map((d) => ({
 					high: d.high,
@@ -422,16 +384,13 @@ export function calculateIndicatorsForStrategy(
 					close: d.close,
 					volume: d.volume,
 				}));
-
-				const calculatedValues = calculator(vwapFormat);
+				calculatedValues = calculator(vwapFormat);
 				const startIndex = 0;
-
 				const alignedData = alignIndicatorData(
 					calculatedValues,
 					timestamps,
 					startIndex
 				);
-
 				results.push({
 					id: indicator.id,
 					name: indicator.name,
@@ -440,12 +399,32 @@ export function calculateIndicatorsForStrategy(
 				});
 				break;
 			}
-
-			default:
-				console.warn(`[Indicators] Unhandled indicator type: ${type}`);
-				return [];
+			// Add dynamic support for all other indicators
+			default: {
+				// Try to pass closes and period if possible
+				const closes = ohlcvData.map((d) => d.close);
+				try {
+					// Try closes, period
+					calculatedValues = calculator(closes, params.period || 14);
+				} catch {
+					// Try OHLCV
+					calculatedValues = calculator(ohlcvData, params.period || 14);
+				}
+				const startIndex = (params.period || 14) - 1;
+				const alignedData = alignIndicatorData(
+					calculatedValues,
+					timestamps,
+					startIndex
+				);
+				results.push({
+					id: indicator.id,
+					name: indicator.name,
+					type: indicator.type,
+					data: alignedData,
+				});
+				break;
+			}
 		}
-
 		return results;
 	} catch (error) {
 		console.error(
@@ -477,16 +456,11 @@ export function calculateStrategyIndicators(
 	const results: CalculatedIndicatorResult[] = [];
 
 	for (const indicator of indicators) {
-		// Only calculate if we have a calculator for this type
-		if (indicatorCalculators[indicator.type]) {
-			const indicatorResults = calculateIndicatorsForStrategy(
-				indicator,
-				ohlcvData
-			);
-			results.push(...indicatorResults); // Spread to handle multi-component indicators
-		} else {
-			console.warn(`[Indicators] No calculator for type: ${indicator.type}`);
-		}
+		const indicatorResults = calculateIndicatorsForStrategy(
+			indicator,
+			ohlcvData
+		);
+		results.push(...indicatorResults);
 	}
 
 	console.log(
