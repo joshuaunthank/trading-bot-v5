@@ -1,0 +1,29 @@
+{
+	"id": "adl",
+	"name": "Accumulation/Distribution Line",
+	"description": "Volume-based indicator measuring the cumulative flow of money into and out of a security.",
+	"category": "volume",
+	"type": "oscillator",
+	"version": "1.0.0",
+	"created_at": "2025-07-14T00:00:00Z",
+	"last_updated": "2025-07-14T00:00:00Z",
+	"parameters": {},
+	"input": {
+		"source": {
+			"type": "string",
+			"default": "close",
+			"options": ["open", "high", "low", "close"],
+			"description": "Price source for calculation"
+		}
+	},
+	"output": { "fields": ["adl"] },
+	"chart": { "panel": "separate", "color": "#eab308", "style": "line" },
+	"calculation": {
+		"formula": "ADL = Cumulative money flow based on price and volume",
+		"library": "technicalindicators"
+	},
+	"usage": {
+		"signals": ["Buy when ADL rises", "Sell when ADL falls"],
+		"timeframes": ["1m", "5m", "15m", "1h", "4h", "1d"]
+	}
+}

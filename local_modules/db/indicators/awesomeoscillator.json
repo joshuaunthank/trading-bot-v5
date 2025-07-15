@@ -1,0 +1,47 @@
+{
+	"id": "awesomeoscillator",
+	"name": "Awesome Oscillator",
+	"description": "Momentum indicator reflecting the difference between a 5-period and 34-period simple moving average.",
+	"category": "momentum",
+	"type": "oscillator",
+	"version": "1.0.0",
+	"created_at": "2025-07-14T00:00:00Z",
+	"last_updated": "2025-07-14T00:00:00Z",
+	"parameters": {
+		"fastPeriod": {
+			"type": "integer",
+			"default": 5,
+			"min": 1,
+			"max": 50,
+			"description": "Fast SMA period"
+		},
+		"slowPeriod": {
+			"type": "integer",
+			"default": 34,
+			"min": 2,
+			"max": 100,
+			"description": "Slow SMA period"
+		}
+	},
+	"input": {
+		"source": {
+			"type": "string",
+			"default": "close",
+			"options": ["open", "high", "low", "close"],
+			"description": "Price source for calculation"
+		}
+	},
+	"output": { "fields": ["awesomeoscillator"] },
+	"chart": { "panel": "separate", "color": "#6366f1", "style": "line" },
+	"calculation": {
+		"formula": "AO = SMA(5) - SMA(34)",
+		"library": "technicalindicators"
+	},
+	"usage": {
+		"signals": [
+			"Buy when AO crosses above zero",
+			"Sell when AO crosses below zero"
+		],
+		"timeframes": ["1m", "5m", "15m", "1h", "4h", "1d"]
+	}
+}

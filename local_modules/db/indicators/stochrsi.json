@@ -1,0 +1,67 @@
+{
+	"id": "stochrsi",
+	"name": "Stochastic RSI",
+	"description": "Momentum indicator that applies the Stochastic Oscillator formula to RSI values.",
+	"category": "momentum",
+	"type": "oscillator",
+	"version": "1.0.0",
+	"created_at": "2025-07-14T00:00:00Z",
+	"last_updated": "2025-07-14T00:00:00Z",
+	"parameters": {
+		"rsiPeriod": {
+			"type": "integer",
+			"default": 14,
+			"min": 2,
+			"max": 100,
+			"description": "Number of periods for RSI calculation"
+		},
+		"stochasticPeriod": {
+			"type": "integer",
+			"default": 14,
+			"min": 2,
+			"max": 100,
+			"description": "Number of periods for Stochastic calculation"
+		},
+		"kPeriod": {
+			"type": "integer",
+			"default": 3,
+			"min": 1,
+			"max": 20,
+			"description": "Number of periods for %K line"
+		},
+		"dPeriod": {
+			"type": "integer",
+			"default": 3,
+			"min": 1,
+			"max": 20,
+			"description": "Number of periods for %D line"
+		}
+	},
+	"input": {
+		"source": {
+			"type": "string",
+			"default": "close",
+			"options": ["open", "high", "low", "close"],
+			"description": "Price source for calculation"
+		}
+	},
+	"output": {
+		"fields": ["stochrsi"]
+	},
+	"chart": {
+		"panel": "separate",
+		"color": "#6366f1",
+		"style": "line"
+	},
+	"calculation": {
+		"formula": "StochRSI = (RSI - min(RSI)) / (max(RSI) - min(RSI))",
+		"library": "technicalindicators"
+	},
+	"usage": {
+		"signals": [
+			"Buy when StochRSI crosses above 0.2",
+			"Sell when StochRSI crosses below 0.8"
+		],
+		"timeframes": ["1m", "5m", "15m", "1h", "4h", "1d"]
+	}
+}

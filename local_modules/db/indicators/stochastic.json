@@ -1,7 +1,7 @@
 {
-	"id": "momentum",
-	"name": "Momentum",
-	"description": "Measures the rate of change of closing prices to identify the strength of price movements.",
+	"id": "stochastic",
+	"name": "Stochastic Oscillator",
+	"description": "Momentum indicator comparing a particular closing price to a range of its prices over a certain period.",
 	"category": "momentum",
 	"type": "oscillator",
 	"version": "1.0.0",
@@ -10,10 +10,17 @@
 	"parameters": {
 		"period": {
 			"type": "integer",
-			"default": 10,
+			"default": 14,
 			"min": 2,
 			"max": 100,
-			"description": "Number of periods for momentum calculation"
+			"description": "Number of periods for Stochastic calculation"
+		},
+		"signalPeriod": {
+			"type": "integer",
+			"default": 3,
+			"min": 1,
+			"max": 20,
+			"description": "Number of periods for signal line"
 		}
 	},
 	"input": {
@@ -25,21 +32,21 @@
 		}
 	},
 	"output": {
-		"fields": ["momentum"]
+		"fields": ["stochastic", "signal"]
 	},
 	"chart": {
 		"panel": "separate",
-		"color": "#eab308",
+		"color": "#ef4444",
 		"style": "line"
 	},
 	"calculation": {
-		"formula": "Momentum = Close - Close[n-period]",
+		"formula": "%K and %D lines based on price range",
 		"library": "technicalindicators"
 	},
 	"usage": {
 		"signals": [
-			"Buy when momentum crosses above zero",
-			"Sell when momentum crosses below zero"
+			"Buy when %K crosses above %D",
+			"Sell when %K crosses below %D"
 		],
 		"timeframes": ["1m", "5m", "15m", "1h", "4h", "1d"]
 	}

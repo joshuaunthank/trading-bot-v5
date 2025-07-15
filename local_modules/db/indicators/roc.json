@@ -1,7 +1,7 @@
 {
-	"id": "momentum",
-	"name": "Momentum",
-	"description": "Measures the rate of change of closing prices to identify the strength of price movements.",
+	"id": "roc",
+	"name": "Rate of Change",
+	"description": "Momentum oscillator measuring the percentage change between the current price and the price a certain number of periods ago.",
 	"category": "momentum",
 	"type": "oscillator",
 	"version": "1.0.0",
@@ -10,10 +10,10 @@
 	"parameters": {
 		"period": {
 			"type": "integer",
-			"default": 10,
+			"default": 12,
 			"min": 2,
 			"max": 100,
-			"description": "Number of periods for momentum calculation"
+			"description": "Number of periods for ROC calculation"
 		}
 	},
 	"input": {
@@ -25,21 +25,21 @@
 		}
 	},
 	"output": {
-		"fields": ["momentum"]
+		"fields": ["roc"]
 	},
 	"chart": {
 		"panel": "separate",
-		"color": "#eab308",
+		"color": "#6366f1",
 		"style": "line"
 	},
 	"calculation": {
-		"formula": "Momentum = Close - Close[n-period]",
+		"formula": "ROC = ((Current Price - Price n periods ago) / Price n periods ago) * 100",
 		"library": "technicalindicators"
 	},
 	"usage": {
 		"signals": [
-			"Buy when momentum crosses above zero",
-			"Sell when momentum crosses below zero"
+			"Buy when ROC crosses above zero",
+			"Sell when ROC crosses below zero"
 		],
 		"timeframes": ["1m", "5m", "15m", "1h", "4h", "1d"]
 	}

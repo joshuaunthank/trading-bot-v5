@@ -1,0 +1,44 @@
+{
+	"id": "chandelierexit",
+	"name": "Chandelier Exit",
+	"description": "Volatility-based indicator for trailing stop-loss levels.",
+	"category": "volatility",
+	"type": "overlay",
+	"version": "1.0.0",
+	"created_at": "2025-07-14T00:00:00Z",
+	"last_updated": "2025-07-14T00:00:00Z",
+	"parameters": {
+		"period": {
+			"type": "integer",
+			"default": 22,
+			"min": 2,
+			"max": 100,
+			"description": "Number of periods for ATR calculation"
+		},
+		"multiplier": {
+			"type": "number",
+			"default": 3,
+			"min": 0.1,
+			"max": 10,
+			"description": "ATR multiplier for stop calculation"
+		}
+	},
+	"input": {
+		"source": {
+			"type": "string",
+			"default": "close",
+			"options": ["open", "high", "low", "close"],
+			"description": "Price source for calculation"
+		}
+	},
+	"output": { "fields": ["chandelierexit"] },
+	"chart": { "panel": "price", "color": "#eab308", "style": "line" },
+	"calculation": {
+		"formula": "Chandelier Exit = Highest High - ATR × multiplier",
+		"library": "technicalindicators"
+	},
+	"usage": {
+		"signals": ["Trailing stop-loss level"],
+		"timeframes": ["1m", "5m", "15m", "1h", "4h", "1d"]
+	}
+}

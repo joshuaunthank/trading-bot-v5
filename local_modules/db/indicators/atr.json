@@ -1,8 +1,8 @@
 {
-	"id": "momentum",
-	"name": "Momentum",
-	"description": "Measures the rate of change of closing prices to identify the strength of price movements.",
-	"category": "momentum",
+	"id": "atr",
+	"name": "Average True Range",
+	"description": "Measures market volatility by decomposing the entire range of an asset price for a given period.",
+	"category": "volatility",
 	"type": "oscillator",
 	"version": "1.0.0",
 	"created_at": "2025-07-14T00:00:00Z",
@@ -10,10 +10,10 @@
 	"parameters": {
 		"period": {
 			"type": "integer",
-			"default": 10,
+			"default": 14,
 			"min": 2,
 			"max": 100,
-			"description": "Number of periods for momentum calculation"
+			"description": "Number of periods for ATR calculation"
 		}
 	},
 	"input": {
@@ -25,22 +25,19 @@
 		}
 	},
 	"output": {
-		"fields": ["momentum"]
+		"fields": ["atr"]
 	},
 	"chart": {
 		"panel": "separate",
-		"color": "#eab308",
+		"color": "#6366f1",
 		"style": "line"
 	},
 	"calculation": {
-		"formula": "Momentum = Close - Close[n-period]",
+		"formula": "ATR = max(high-low, abs(high-prevClose), abs(low-prevClose))",
 		"library": "technicalindicators"
 	},
 	"usage": {
-		"signals": [
-			"Buy when momentum crosses above zero",
-			"Sell when momentum crosses below zero"
-		],
+		"signals": ["High ATR indicates high volatility"],
 		"timeframes": ["1m", "5m", "15m", "1h", "4h", "1d"]
 	}
 }

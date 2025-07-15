@@ -1,0 +1,59 @@
+{
+	"id": "keltnerchannels",
+	"name": "Keltner Channels",
+	"description": "Volatility-based envelope set above and below an exponential moving average.",
+	"category": "volatility",
+	"type": "overlay",
+	"version": "1.0.0",
+	"created_at": "2025-07-14T00:00:00Z",
+	"last_updated": "2025-07-14T00:00:00Z",
+	"parameters": {
+		"maPeriod": {
+			"type": "integer",
+			"default": 20,
+			"min": 2,
+			"max": 100,
+			"description": "Moving average period"
+		},
+		"atrPeriod": {
+			"type": "integer",
+			"default": 10,
+			"min": 2,
+			"max": 100,
+			"description": "ATR period"
+		},
+		"multiplier": {
+			"type": "number",
+			"default": 2,
+			"min": 0.1,
+			"max": 10,
+			"description": "ATR multiplier"
+		},
+		"useSMA": {
+			"type": "boolean",
+			"default": false,
+			"description": "Use SMA instead of EMA for center line"
+		}
+	},
+	"input": {
+		"source": {
+			"type": "string",
+			"default": "close",
+			"options": ["open", "high", "low", "close"],
+			"description": "Price source for calculation"
+		}
+	},
+	"output": { "fields": ["upper", "middle", "lower"] },
+	"chart": { "panel": "price", "color": "#6366f1", "style": "band" },
+	"calculation": {
+		"formula": "Channels = EMA ± (ATR × multiplier)",
+		"library": "technicalindicators"
+	},
+	"usage": {
+		"signals": [
+			"Buy when price crosses above lower channel",
+			"Sell when price crosses below upper channel"
+		],
+		"timeframes": ["1m", "5m", "15m", "1h", "4h", "1d"]
+	}
+}

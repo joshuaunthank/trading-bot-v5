@@ -1,7 +1,7 @@
 {
-	"id": "momentum",
-	"name": "Momentum",
-	"description": "Measures the rate of change of closing prices to identify the strength of price movements.",
+	"id": "williamsr",
+	"name": "Williams %R",
+	"description": "Momentum indicator measuring overbought and oversold levels.",
 	"category": "momentum",
 	"type": "oscillator",
 	"version": "1.0.0",
@@ -10,10 +10,10 @@
 	"parameters": {
 		"period": {
 			"type": "integer",
-			"default": 10,
+			"default": 14,
 			"min": 2,
 			"max": 100,
-			"description": "Number of periods for momentum calculation"
+			"description": "Number of periods for Williams %R calculation"
 		}
 	},
 	"input": {
@@ -24,22 +24,16 @@
 			"description": "Price source for calculation"
 		}
 	},
-	"output": {
-		"fields": ["momentum"]
-	},
-	"chart": {
-		"panel": "separate",
-		"color": "#eab308",
-		"style": "line"
-	},
+	"output": { "fields": ["williamsr"] },
+	"chart": { "panel": "separate", "color": "#ef4444", "style": "line" },
 	"calculation": {
-		"formula": "Momentum = Close - Close[n-period]",
+		"formula": "Williams %R = (Highest High - Close) / (Highest High - Lowest Low) * -100",
 		"library": "technicalindicators"
 	},
 	"usage": {
 		"signals": [
-			"Buy when momentum crosses above zero",
-			"Sell when momentum crosses below zero"
+			"Buy when Williams %R crosses above -80",
+			"Sell when Williams %R crosses below -20"
 		],
 		"timeframes": ["1m", "5m", "15m", "1h", "4h", "1d"]
 	}

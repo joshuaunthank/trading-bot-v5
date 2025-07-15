@@ -1,0 +1,35 @@
+{
+	"id": "vwap",
+	"name": "Volume Weighted Average Price",
+	"description": "Gives the average price weighted by volume, useful for identifying the true average price over a period.",
+	"category": "volume",
+	"type": "overlay",
+	"version": "1.0.0",
+	"created_at": "2025-07-14T00:00:00Z",
+	"last_updated": "2025-07-14T00:00:00Z",
+	"parameters": {},
+	"input": {
+		"source": {
+			"type": "string",
+			"default": "close",
+			"options": ["open", "high", "low", "close"],
+			"description": "Price source for calculation"
+		}
+	},
+	"output": {
+		"fields": ["vwap"]
+	},
+	"chart": {
+		"panel": "price",
+		"color": "#6366f1",
+		"style": "line"
+	},
+	"calculation": {
+		"formula": "VWAP = (Sum(Price * Volume) / Sum(Volume))",
+		"library": "technicalindicators"
+	},
+	"usage": {
+		"signals": ["Price above VWAP is bullish", "Price below VWAP is bearish"],
+		"timeframes": ["1m", "5m", "15m", "1h", "4h", "1d"]
+	}
+}

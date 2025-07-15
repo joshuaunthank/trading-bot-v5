@@ -1,7 +1,7 @@
 {
-	"id": "momentum",
-	"name": "Momentum",
-	"description": "Measures the rate of change of closing prices to identify the strength of price movements.",
+	"id": "cci",
+	"name": "Commodity Channel Index",
+	"description": "Identifies cyclical trends in a security by measuring the deviation of price from its average.",
 	"category": "momentum",
 	"type": "oscillator",
 	"version": "1.0.0",
@@ -10,10 +10,10 @@
 	"parameters": {
 		"period": {
 			"type": "integer",
-			"default": 10,
+			"default": 20,
 			"min": 2,
 			"max": 100,
-			"description": "Number of periods for momentum calculation"
+			"description": "Number of periods for CCI calculation"
 		}
 	},
 	"input": {
@@ -25,21 +25,21 @@
 		}
 	},
 	"output": {
-		"fields": ["momentum"]
+		"fields": ["cci"]
 	},
 	"chart": {
 		"panel": "separate",
-		"color": "#eab308",
+		"color": "#f59e42",
 		"style": "line"
 	},
 	"calculation": {
-		"formula": "Momentum = Close - Close[n-period]",
+		"formula": "CCI = (Typical Price - SMA(Typical Price)) / (0.015 * Mean Deviation)",
 		"library": "technicalindicators"
 	},
 	"usage": {
 		"signals": [
-			"Buy when momentum crosses above zero",
-			"Sell when momentum crosses below zero"
+			"Buy when CCI crosses above -100",
+			"Sell when CCI crosses below 100"
 		],
 		"timeframes": ["1m", "5m", "15m", "1h", "4h", "1d"]
 	}

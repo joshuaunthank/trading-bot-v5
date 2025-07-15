@@ -1,0 +1,54 @@
+{
+  "id": "test_new_indicatorzzzzz",
+  "name": "test new indicatorzzzzz",
+  "description": "",
+  "symbol": "BTC/USDT",
+  "timeframe": "1h",
+  "enabled": true,
+  "tags": [],
+  "indicators": [
+    {
+      "vwap": {
+        "description": "Gives the average price weighted by volume, useful for identifying the true average price over a period.",
+        "params": []
+      }
+    },
+    {
+      "adl": {
+        "description": "Volume-based indicator measuring the cumulative flow of money into and out of a security.",
+        "params": []
+      }
+    },
+    {
+      "williamsr": {
+        "description": "Momentum indicator measuring overbought and oversold levels.",
+        "params": [
+          {
+            "name": "period",
+            "default": 14,
+            "type": "number",
+            "color": "#6366f1"
+          }
+        ]
+      }
+    }
+  ],
+  "signals": [],
+  "risk": {
+    "position_size_type": "percent_equity",
+    "risk_per_trade": 2,
+    "stop_loss_percent": 1.5,
+    "take_profit_percent": 3,
+    "trailing_stop": false,
+    "max_drawdown_percent": 10
+  },
+  "ml_models": [],
+  "postprocessing": [],
+  "metadata": {
+    "version": "1.0",
+    "created": "2025-07-14T20:29:26.088Z",
+    "author": "user"
+  },
+  "created_at": "2025-07-14T20:31:00.613Z",
+  "updated_at": "2025-07-14T20:31:00.613Z"
+}
