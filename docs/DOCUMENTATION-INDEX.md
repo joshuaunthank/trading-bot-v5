@@ -1,12 +1,19 @@
-# Trading Bot Documentation Index
+# Documentation Index - July 15, 2025
 
-This is the **documentation index** for the Trading Bot project. All project documentation is organized in this directory by category.
+## 📋 **Primary Documentation (Current & Accurate)**
 
-> 📋 **Note**: This is the documentation index. For the main project information, see [`../README.md`](../README.md) in the project root.
+### **Project Status**
 
-## � **DOCUMENTATION STATUS UPDATE - June 26, 2025**
+- **[CURRENT-PROJECT-ASSESSMENT-JULY-2025.md](./CURRENT-PROJECT-ASSESSMENT-JULY-2025.md)** - ⭐ **SINGLE SOURCE OF TRUTH**
+- **[IMMEDIATE-PRIORITY-ACTIONS.md](./IMMEDIATE-PRIORITY-ACTIONS.md)** - Current priority tasks
+- **[REALISTIC-DEVELOPMENT-PLAN.md](./REALISTIC-DEVELOPMENT-PLAN.md)** - 6-8 week roadmap based on actual state
+- **[DOCUMENTATION-CLEANUP-PLAN.md](./DOCUMENTATION-CLEANUP-PLAN.md)** - Documentation cleanup strategy
 
-**CRITICAL**: Previous documentation significantly overstated project completion status. For accurate information:
+### **Development Guides**
+
+- **[DEVELOPMENT-ROADMAP.md](./DEVELOPMENT-ROADMAP.md)** - Updated development roadmap
+- **[API-REFERENCE.md](./API-REFERENCE.md)** - API endpoint documentation
+- **[QUICK-START.md](./QUICK-START.md)** - Getting started guide
 
 - ✅ **Use**: `ACTUAL-PROJECT-STATUS.md` - Honest assessment
 - ✅ **Use**: `DEVELOPMENT-ROADMAP.md` - Realistic plan

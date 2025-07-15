@@ -228,7 +228,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 		const firstIndicator = indicatorOptions[0];
 		// Convert backend parameters to frontend params
 		const params = Object.entries(firstIndicator.parameters || {}).map(
-			([name, param]) => ({
+			([name, param]: [string, any]) => ({
 				name,
 				default: param.default,
 				type: param.type === "integer" ? "number" : param.type,
@@ -251,7 +251,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 		const selected = indicatorOptions.find((opt) => opt.id === newType);
 		if (!selected) return;
 		const params = Object.entries(selected.parameters || {}).map(
-			([name, param]) => ({
+			([name, param]: [string, any]) => ({
 				name,
 				default: param.default,
 				type: param.type === "integer" ? "number" : param.type,
