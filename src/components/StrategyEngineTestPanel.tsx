@@ -57,7 +57,7 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 
 	// WebSocket connection for real-time strategy updates
 	const webSocket = useWebSocket({
-		url: "ws://localhost:8080", // Adjust to your WebSocket port
+		url: "ws://localhost:3001/ws/ohlcv", // Use the same unified WebSocket as the rest of the app
 		onMessage: handleWebSocketMessage,
 		onStatusChange: (status: string) =>
 			console.log("WebSocket status:", status),
@@ -276,31 +276,31 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 	const getStatusColor = (status: string) => {
 		switch (status) {
 			case "running":
-				return "text-green-600";
+				return "text-green-400";
 			case "stopped":
-				return "text-red-600";
+				return "text-red-400";
 			case "paused":
-				return "text-yellow-600";
+				return "text-yellow-400";
 			case "error":
-				return "text-red-800";
+				return "text-red-300";
 			default:
-				return "text-gray-600";
+				return "text-gray-400";
 		}
 	};
 
 	return (
 		<div className={`strategy-engine-test-panel ${className}`}>
-			<div className="bg-white rounded-lg shadow-lg p-6">
+			<div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
 				<div className="flex justify-between items-center mb-6">
-					<h2 className="text-2xl font-bold text-gray-800">
+					<h2 className="text-2xl font-bold text-white">
 						Strategy Engine Test Panel
 					</h2>
 					<div className="flex items-center space-x-4">
 						<span
 							className={`text-sm ${
 								webSocket.status === "Connected"
-									? "text-green-600"
-									: "text-red-600"
+									? "text-green-400"
+									: "text-red-400"
 							}`}
 						>
 							WebSocket: {webSocket.status}
@@ -308,7 +308,7 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 						<button
 							onClick={requestStrategyStatus}
 							disabled={webSocket.status !== "Connected"}
-							className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300"
+							className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
 						>
 							Refresh
 						</button>
@@ -316,23 +316,26 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 				</div>
 
 				{error && (
-					<div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+					<div className="mb-4 p-4 bg-red-900/50 border border-red-500 text-red-200 rounded">
 						{error}
 					</div>
 				)}
 
 				{/* Strategy Controls */}
 				<div className="mb-6">
-					<h3 className="text-lg font-semibold mb-4">Strategy Controls</h3>
+					<h3 className="text-lg font-semibold mb-4 text-white">
+						Strategy Controls
+					</h3>
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 						{strategies.map((strategy) => (
-							<div key={strategy.id} className="border rounded-lg p-4">
+							<div
+								key={strategy.id}
+								className="border border-gray-600 rounded-lg p-4 bg-gray-700"
+							>
 								<div className="flex justify-between items-start mb-3">
 									<div>
-										<h4 className="font-medium text-gray-800">
-											{strategy.name}
-										</h4>
-										<p className="text-sm text-gray-500">{strategy.id}</p>
+										<h4 className="font-medium text-white">{strategy.name}</h4>
+										<p className="text-sm text-gray-400">{strategy.id}</p>
 									</div>
 									<span
 										className={`text-sm font-medium ${getStatusColor(
@@ -343,7 +346,7 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 									</span>
 								</div>
 
-								<div className="mb-3 text-sm text-gray-600">
+								<div className="mb-3 text-sm text-gray-300">
 									<div>Signals: {strategy.performance?.totalSignals || 0}</div>
 									<div>Candles: {strategy.state?.totalCandles || 0}</div>
 									<div>
@@ -358,28 +361,28 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 									<button
 										onClick={() => startStrategy(strategy.id)}
 										disabled={loading || strategy.status === "running"}
-										className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 disabled:bg-gray-300"
+										className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
 									>
 										Start
 									</button>
 									<button
 										onClick={() => stopStrategy(strategy.id)}
 										disabled={loading || strategy.status === "stopped"}
-										className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 disabled:bg-gray-300"
+										className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
 									>
 										Stop
 									</button>
 									<button
 										onClick={() => pauseStrategy(strategy.id)}
 										disabled={loading || strategy.status !== "running"}
-										className="px-3 py-1 bg-yellow-500 text-white text-sm rounded hover:bg-yellow-600 disabled:bg-gray-300"
+										className="px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
 									>
 										Pause
 									</button>
 									<button
 										onClick={() => resumeStrategy(strategy.id)}
 										disabled={loading || strategy.status !== "paused"}
-										className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:bg-gray-300"
+										className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
 									>
 										Resume
 									</button>
@@ -391,10 +394,12 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 
 				{/* Recent Signals */}
 				<div className="mb-6">
-					<h3 className="text-lg font-semibold mb-4">Recent Trading Signals</h3>
+					<h3 className="text-lg font-semibold mb-4 text-white">
+						Recent Trading Signals
+					</h3>
 					<div className="max-h-96 overflow-y-auto">
 						{signals.length === 0 ? (
-							<div className="text-center py-8 text-gray-500">
+							<div className="text-center py-8 text-gray-400">
 								No signals generated yet. Start a strategy to begin receiving
 								signals.
 							</div>
@@ -403,18 +408,18 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 								{signals.map((signal, index) => (
 									<div
 										key={`${signal.strategyId}-${signal.timestamp}-${index}`}
-										className="border rounded-lg p-3 bg-gray-50"
+										className="border border-gray-600 rounded-lg p-3 bg-gray-700"
 									>
 										<div className="flex justify-between items-start mb-2">
 											<div>
-												<span className="font-medium text-gray-800">
+												<span className="font-medium text-white">
 													{signal.strategyId}
 												</span>
 												<span
 													className={`ml-2 px-2 py-1 text-xs rounded ${
 														signal.type === "entry"
-															? "bg-green-100 text-green-800"
-															: "bg-red-100 text-red-800"
+															? "bg-green-700 text-green-200"
+															: "bg-red-700 text-red-200"
 													}`}
 												>
 													{signal.type.toUpperCase()}
@@ -422,14 +427,14 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 												<span
 													className={`ml-2 px-2 py-1 text-xs rounded ${
 														signal.side === "long"
-															? "bg-blue-100 text-blue-800"
-															: "bg-purple-100 text-purple-800"
+															? "bg-blue-700 text-blue-200"
+															: "bg-purple-700 text-purple-200"
 													}`}
 												>
 													{signal.side.toUpperCase()}
 												</span>
 											</div>
-											<div className="text-right text-sm text-gray-500">
+											<div className="text-right text-sm text-gray-400">
 												<div>{formatTime(signal.timestamp)}</div>
 												<div>
 													Confidence: {(signal.confidence * 100).toFixed(1)}%
@@ -437,7 +442,7 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 											</div>
 										</div>
 
-										<div className="text-sm text-gray-600">
+										<div className="text-sm text-gray-300">
 											<div>Price: ${signal.price.toFixed(2)}</div>
 											{signal.conditions.length > 0 && (
 												<div>Conditions: {signal.conditions.join(", ")}</div>
@@ -451,7 +456,7 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 				</div>
 
 				{/* Connection Status */}
-				<div className="text-sm text-gray-500 border-t pt-4">
+				<div className="text-sm text-gray-400 border-t border-gray-600 pt-4">
 					<div className="flex justify-between">
 						<span>WebSocket Status: {webSocket.status}</span>
 						<span>Strategies Loaded: {strategies.length}</span>

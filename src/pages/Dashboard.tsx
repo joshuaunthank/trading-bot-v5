@@ -5,7 +5,7 @@ import MultiPanelChart from "../components/MultiPanelChart";
 import SummaryView from "../components/SummaryView";
 import ConfigModal from "../components/ConfigModal";
 import StrategyEditor from "../components/strategy/StrategyEditor";
-import StrategyManager from "../components/strategy/StrategyManager";
+import StrategyEngineTestPanel from "../components/StrategyEngineTestPanel";
 import { useStrategies } from "../hooks/useStrategies";
 import { strategyService } from "../services/strategyService";
 
@@ -91,7 +91,7 @@ const EnhancedDashboard: React.FC = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-	const [activeTab, setActiveTab] = useState<"chart" | "manager">("chart");
+	const [activeTab, setActiveTab] = useState<"chart" | "testing">("chart");
 
 	// Strategy selection state
 	const [selectedIndicatorStrategyId, setSelectedIndicatorStrategyId] =
@@ -707,13 +707,13 @@ const EnhancedDashboard: React.FC = () => {
 				</button>
 				<button
 					className={`px-4 py-2 font-medium ${
-						activeTab === "manager"
+						activeTab === "testing"
 							? "text-blue-500 border-b-2 border-blue-500"
 							: "text-gray-400 hover:text-gray-300"
 					}`}
-					onClick={() => setActiveTab("manager")}
+					onClick={() => setActiveTab("testing")}
 				>
-					Strategy Manager
+					Strategy Testing
 				</button>
 			</div>
 
@@ -784,8 +784,10 @@ const EnhancedDashboard: React.FC = () => {
 				</div>
 			)}
 
-			{/* Strategy Manager Tab */}
-			{activeTab === "manager" && <StrategyManager className="max-w-none" />}
+			{/* Strategy Testing Tab */}
+			{activeTab === "testing" && (
+				<StrategyEngineTestPanel className="max-w-none" />
+			)}
 
 			{/* Modals */}
 			<ConfigModal
