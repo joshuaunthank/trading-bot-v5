@@ -11,7 +11,8 @@
 		"build:backend": "tsc --project tsconfig.server.json",
 		"build:frontend": "vite build",
 		"copy-db-files": "mkdir -p dist/local_modules/db/strategies dist/local_modules/db/indicators && cp local_modules/db/strategies/*.json dist/local_modules/db/strategies/ 2>/dev/null || true && cp local_modules/db/indicators/*.json dist/local_modules/db/indicators/ 2>/dev/null || true",
-		"start": "node dist/server.js",
+		"start": "node debug-start.js",
+		"start-production": "node ./dist/server.js",
 		"type-check": "tsc --noEmit",
 		"test": "echo \"Running all tests...\" && ./tests/run-all-tests.sh"
 	},
