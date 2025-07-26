@@ -7,7 +7,10 @@
 		"dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
 		"dev:frontend": "wait-on http://localhost:3001 && vite",
 		"dev:backend": "ts-node server.ts",
-		"build": "tsc && vite build",
+		"build": "npm run build:backend && npm run build:frontend && npm run copy-db-files",
+		"build:backend": "tsc --project tsconfig.server.json",
+		"build:frontend": "vite build",
+		"copy-db-files": "mkdir -p dist/local_modules/db/strategies dist/local_modules/db/indicators && cp local_modules/db/strategies/*.json dist/local_modules/db/strategies/ 2>/dev/null || true && cp local_modules/db/indicators/*.json dist/local_modules/db/indicators/ 2>/dev/null || true",
 		"start": "node dist/server.js",
 		"type-check": "tsc --noEmit",
 		"test": "echo \"Running all tests...\" && ./tests/run-all-tests.sh"

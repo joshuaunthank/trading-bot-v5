@@ -19,8 +19,9 @@ export {
 	cloneStrategy,
 	updateStrategy,
 	deleteStrategy,
-	StrategyExecutionResponse,
 } from "./strategy-execution-websocket";
+
+export type { StrategyExecutionResponse } from "./strategy-execution-websocket";
 
 // Legacy indicator management utilities (REST API) removed for WebSocket-only architecture
 // If needed for admin/config UI, import directly from './indicator-management'
@@ -31,8 +32,9 @@ export {
 	getAllPerformanceMetrics,
 	getPortfolioPerformance,
 	getRiskMetrics,
-	PerformanceResponse,
 } from "./performance-tracking-websocket";
+
+export type { PerformanceResponse } from "./performance-tracking-websocket";
 
 // Future API utilities can be added here:
 // export * from "./trading-operations";
