@@ -7,6 +7,10 @@ export default defineConfig(async () => {
 
 	return {
 		plugins: [react(), tailwindcss()],
+		build: {
+			outDir: "dist",
+			emptyDir: false, // Don't empty the dist directory (preserve backend files)
+		},
 		server: {
 			port: 5173,
 			proxy: {
