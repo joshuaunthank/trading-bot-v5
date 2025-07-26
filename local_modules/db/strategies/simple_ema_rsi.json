@@ -1,0 +1,235 @@
+{
+	"id": "simple_ema_rsi",
+	"name": "Simple EMA & RSI",
+	"description": "A simple strategy using EMA and RSI indicators for trend following and momentum analysis",
+	"symbol": "BTC/USDT",
+	"timeframe": "1h",
+	"enabled": true,
+	"tags": ["simple", "test"],
+	"indicators": [
+		{
+			"ema": {
+				"description": "Trend-following indicator that gives more weight to recent prices, making it more responsive to new information",
+				"params": [
+					{
+						"name": "period",
+						"default": 20,
+						"type": "number",
+						"color": "#6366f1"
+					}
+				]
+			}
+		},
+		{
+			"rsi": {
+				"description": "Momentum oscillator that measures the speed and magnitude of recent price changes to evaluate overbought or oversold conditions",
+				"params": [
+					{
+						"name": "period",
+						"default": 14,
+						"type": "number",
+						"color": "#6366f1"
+					}
+				]
+			}
+		},
+		{
+			"bollingerBands": {
+				"description": "Volatility indicator consisting of a moving average with upper and lower bands based on standard deviation",
+				"params": [
+					{
+						"name": "period",
+						"default": 20,
+						"type": "number",
+						"color": "#14f01e"
+					},
+					{
+						"name": "stdDev",
+						"default": 2,
+						"type": "number",
+						"color": "#14f11e"
+					}
+				]
+			}
+		}
+	],
+	"signals": [
+		{
+			"id": "rsi_oversold_entry",
+			"name": "RSI Oversold Entry",
+			"type": "entry",
+			"side": "long",
+			"description": "Enter long when RSI is oversold and price is above EMA",
+			"conditions": [
+				{
+					"indicator": "rsi",
+					"operator": "less_than",
+					"value": 30,
+					"description": "RSI below 30 (oversold)"
+				},
+				{
+					"indicator": "ema",
+					"operator": "crossover_above",
+					"value": "close",
+					"description": "Price above EMA (uptrend)"
+				}
+			],
+			"logic": "and",
+			"confidence": 0.7
+		},
+		{
+			"id": "rsi_overbought_exit",
+			"name": "RSI Overbought Exit",
+			"type": "exit",
+			"side": "long",
+			"description": "Exit long when RSI is overbought",
+			"conditions": [
+				{
+					"indicator": "rsi",
+					"operator": "greater_than",
+					"value": 70,
+					"description": "RSI above 70 (overbought)"
+				}
+			],
+			"logic": "and",
+			"confidence": 0.8
+		},
+		{
+			"id": "rsi_overbought_short_entry",
+			"name": "RSI Overbought Short Entry",
+			"type": "entry",
+			"side": "short",
+			"description": "Enter short when RSI is overbought and price is below EMA",
+			"conditions": [
+				{
+					"indicator": "rsi",
+					"operator": "greater_than",
+					"value": 70,
+					"description": "RSI above 70 (overbought)"
+				},
+				{
+					"indicator": "ema",
+					"operator": "crossover_below",
+					"value": "close",
+					"description": "Price below EMA (downtrend)"
+				}
+			],
+			"logic": "and",
+			"confidence": 0.7
+		},
+		{
+			"id": "rsi_oversold_short_exit",
+			"name": "RSI Oversold Short Exit",
+			"type": "exit",
+			"side": "short",
+			"description": "Exit short when RSI is oversold",
+			"conditions": [
+				{
+					"indicator": "rsi",
+					"operator": "less_than",
+					"value": 30,
+					"description": "RSI below 30 (oversold)"
+				}
+			],
+			"logic": "and",
+			"confidence": 0.8
+		},
+		{
+			"id": "bollinger_breakout_entry",
+			"name": "Bollinger Breakout Entry",
+			"type": "entry",
+			"side": "long",
+			"description": "Enter long when price breaks above upper Bollinger Band with RSI momentum",
+			"conditions": [
+				{
+					"indicator": "bollingerBands",
+					"operator": "crossover_above",
+					"value": "upper",
+					"description": "Price breaks above upper Bollinger Band"
+				},
+				{
+					"indicator": "rsi",
+					"operator": "greater_than",
+					"value": 50,
+					"description": "RSI above 50 (bullish momentum)"
+				}
+			],
+			"logic": "and",
+			"confidence": 0.6
+		},
+		{
+			"id": "bollinger_breakdown_entry",
+			"name": "Bollinger Breakdown Entry",
+			"type": "entry",
+			"side": "short",
+			"description": "Enter short when price breaks below lower Bollinger Band with RSI momentum",
+			"conditions": [
+				{
+					"indicator": "bollingerBands",
+					"operator": "crossover_below",
+					"value": "lower",
+					"description": "Price breaks below lower Bollinger Band"
+				},
+				{
+					"indicator": "rsi",
+					"operator": "less_than",
+					"value": 50,
+					"description": "RSI below 50 (bearish momentum)"
+				}
+			],
+			"logic": "and",
+			"confidence": 0.6
+		},
+		{
+			"id": "ema_trend_reversal_exit",
+			"name": "EMA Trend Reversal Exit",
+			"type": "exit",
+			"side": "long",
+			"description": "Exit long when price crosses below EMA (trend reversal)",
+			"conditions": [
+				{
+					"indicator": "ema",
+					"operator": "crossover_below",
+					"value": "close",
+					"description": "Price crosses below EMA"
+				}
+			],
+			"logic": "and",
+			"confidence": 0.9
+		},
+		{
+			"id": "ema_trend_reversal_short_exit",
+			"name": "EMA Trend Reversal Short Exit",
+			"type": "exit",
+			"side": "short",
+			"description": "Exit short when price crosses above EMA (trend reversal)",
+			"conditions": [
+				{
+					"indicator": "ema",
+					"operator": "crossover_above",
+					"value": "close",
+					"description": "Price crosses above EMA"
+				}
+			],
+			"logic": "and",
+			"confidence": 0.9
+		}
+	],
+	"risk": {
+		"position_size_type": "percent_equity",
+		"risk_per_trade": 2,
+		"stop_loss_percent": 1.5,
+		"take_profit_percent": 3,
+		"trailing_stop": false,
+		"max_drawdown_percent": 10
+	},
+	"ml_models": [],
+	"postprocessing": [],
+	"metadata": {
+		"version": "1.0",
+		"created": "2025-07-15T17:09:21.077Z",
+		"author": "user"
+	},
+	"created_at": "2025-07-15T17:10:13.157Z",
+	"updated_at": "2025-07-15T17:11:26.438Z"
+}

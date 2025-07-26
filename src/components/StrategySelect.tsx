@@ -36,6 +36,7 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 		useState<DetailedStrategy | null>(null);
 	const [strategyLoading, setStrategyLoading] = useState(false);
 	const [strategyError, setStrategyError] = useState<string | null>(null);
+	const [actionLoading, setActionLoading] = useState(false);
 
 	// Find selected strategy summary - safely handle undefined/non-array strategies
 	const selectedStrategySummary = Array.isArray(strategies)
@@ -117,11 +118,11 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 				<label className="block text-xs font-medium text-gray-400 mb-1">
 					Select Strategy
 				</label>
-				<div className="flex gap-2">
+				<div className="flex gap-2 flex-wrap items-center">
 					<select
 						value={selectedStrategyId || ""}
 						onChange={(e) => onStrategySelect(e.target.value || null)}
-						className="flex-1 px-3 py-2 bg-gray-900 text-gray-100 border border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+						className="flex-1 max-w-full px-3 py-2 bg-gray-900 text-gray-100 border border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
 						disabled={loading || strategyLoading}
 					>
 						<option value="">No strategy selected</option>
@@ -278,19 +279,51 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 							{/* {JSON.stringify(detailedStrategy)} */}
 							{detailedStrategy.status === "running" ? (
 								<button
-									onClick={() => onStopStrategy?.(detailedStrategy.id)}
-									className="px-3 py-1 bg-red-700 hover:bg-red-600 text-white rounded text-xs"
+									onClick={async () => {
+										if (onStopStrategy && !actionLoading) {
+											try {
+												setActionLoading(true);
+												await onStopStrategy(detailedStrategy.id);
+												// Update status locally without full refetch to avoid clearing chart
+												setDetailedStrategy((prev) =>
+													prev ? { ...prev, status: "stopped" } : null
+												);
+											} catch (error) {
+												console.error("Error stopping strategy:", error);
+											} finally {
+												setActionLoading(false);
+											}
+										}
+									}}
+									disabled={actionLoading}
+									className="px-3 py-1 bg-red-700 hover:bg-red-600 disabled:bg-red-800 disabled:cursor-not-allowed text-white rounded text-xs"
 									title="Stop Strategy"
 								>
-									Stop Strategy
+									{actionLoading ? "Stopping..." : "Stop Strategy"}
 								</button>
 							) : (
 								<button
-									onClick={() => onStartStrategy?.(detailedStrategy.id)}
-									className="px-3 py-1 bg-green-700 hover:bg-green-600 text-white rounded text-xs"
+									onClick={async () => {
+										if (onStartStrategy && !actionLoading) {
+											try {
+												setActionLoading(true);
+												await onStartStrategy(detailedStrategy.id);
+												// Update status locally without full refetch to avoid clearing chart
+												setDetailedStrategy((prev) =>
+													prev ? { ...prev, status: "running" } : null
+												);
+											} catch (error) {
+												console.error("Error starting strategy:", error);
+											} finally {
+												setActionLoading(false);
+											}
+										}
+									}}
+									disabled={actionLoading}
+									className="px-3 py-1 bg-green-700 hover:bg-green-600 disabled:bg-green-800 disabled:cursor-not-allowed text-white rounded text-xs"
 									title="Start Strategy"
 								>
-									Start Strategy
+									{actionLoading ? "Starting..." : "Start Strategy"}
 								</button>
 							)}
 						</div>

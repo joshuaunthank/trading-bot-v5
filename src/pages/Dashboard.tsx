@@ -665,7 +665,7 @@ const EnhancedDashboard: React.FC = () => {
 		<div className="space-y-6">
 			{/* Header */}
 			<div className="flex justify-between items-center">
-				<h1 className="text-2xl font-bold">Trading Dashboard</h1>
+				<h1 className="text-xl md:text-2xl font-bold">Trading Dashboard</h1>
 				<div className="flex space-x-2 items-center">
 					<div className="flex flex-col space-y-1 mr-4">
 						<ConnectionStatus

@@ -35,11 +35,22 @@ interface NewIndicatorData {
 	[key: string]: IndicatorConfig;
 }
 
+interface SignalCondition {
+	indicator: string;
+	operator: string;
+	value: any;
+	description: string;
+}
+
 interface SignalData {
 	id: string;
+	name?: string;
 	type: "entry" | "exit";
 	side: "long" | "short";
-	expression: string;
+	expression?: string; // Legacy format support
+	conditions?: SignalCondition[]; // New format
+	logic?: "and" | "or";
+	confidence?: number;
 	description: string;
 }
 
@@ -72,7 +83,73 @@ interface StrategyData {
 	};
 }
 
-// ...existing code...
+// Helper functions to convert between expression and conditions formats
+const conditionsToExpression = (
+	conditions: SignalCondition[],
+	logic: "and" | "or" = "and"
+): string => {
+	if (!conditions || conditions.length === 0) return "";
+
+	const expressionParts = conditions.map((condition) => {
+		const { indicator, operator, value, description } = condition;
+
+		// Convert operators to expression format
+		switch (operator) {
+			case "less_than":
+				return `${indicator} < ${value}`;
+			case "greater_than":
+				return `${indicator} > ${value}`;
+			case "equals":
+				return `${indicator} == ${value}`;
+			case "crossover_above":
+				return `${value} > ${indicator}`;
+			case "crossover_below":
+				return `${value} < ${indicator}`;
+			default:
+				return `${indicator} ${operator} ${value}`;
+		}
+	});
+
+	const connector = logic === "and" ? " && " : " || ";
+	return expressionParts.join(connector);
+};
+
+const expressionToConditions = (expression: string): SignalCondition[] => {
+	if (!expression || expression.trim() === "") return [];
+
+	// Simple parser for basic expressions
+	// This is a basic implementation - you might want to enhance it
+	const conditions: SignalCondition[] = [];
+
+	// Split by && or ||
+	const parts = expression.split(/\s*(\|\||\&\&)\s*/);
+
+	for (let i = 0; i < parts.length; i += 2) {
+		const part = parts[i].trim();
+		if (part) {
+			// Parse simple expressions like "rsi < 30" or "close > ema_20"
+			const match = part.match(/(\w+)\s*([<>=!]+)\s*(.+)/);
+			if (match) {
+				const [, indicator, operator, value] = match;
+				conditions.push({
+					indicator,
+					operator:
+						operator === "<"
+							? "less_than"
+							: operator === ">"
+							? "greater_than"
+							: operator === "=="
+							? "equals"
+							: operator,
+					value: isNaN(Number(value)) ? value : Number(value),
+					description: `${indicator} ${operator} ${value}`,
+				});
+			}
+		}
+	}
+
+	return conditions;
+};
 
 const TIMEFRAMES = [
 	"1m",
@@ -306,9 +383,12 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 	const addSignal = () => {
 		const newSignal: SignalData = {
 			id: `signal_${Date.now()}`,
+			name: "New Signal",
 			type: "entry",
 			side: "long",
-			expression: "",
+			conditions: [],
+			logic: "and",
+			confidence: 0.5,
 			description: "",
 		};
 		setStrategy((prev) => ({
@@ -722,7 +802,7 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 								>
 									<div className="flex items-center justify-between mb-3">
 										<h4 className="font-medium text-gray-100">
-											Signal {index + 1}
+											{signal.name || signal.id || `Signal ${index + 1}`}
 										</h4>
 										<button
 											onClick={() => removeSignal(index)}
@@ -778,19 +858,87 @@ export const StrategyEditor: React.FC<StrategyEditorProps> = ({
 										</div>
 									</div>
 
+									<div className="grid grid-cols-2 gap-4 mb-3">
+										<div>
+											<label className="block text-sm font-medium text-gray-100 mb-1">
+												Logic
+											</label>
+											<select
+												value={signal.logic || "and"}
+												onChange={(e) =>
+													updateSignal(index, "logic", e.target.value)
+												}
+												className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
+											>
+												<option value="and">AND</option>
+												<option value="or">OR</option>
+											</select>
+										</div>
+										<div>
+											<label className="block text-sm font-medium text-gray-100 mb-1">
+												Confidence
+											</label>
+											<input
+												type="number"
+												min="0"
+												max="1"
+												step="0.1"
+												value={signal.confidence || 0.5}
+												onChange={(e) =>
+													updateSignal(
+														index,
+														"confidence",
+														parseFloat(e.target.value)
+													)
+												}
+												className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
+											/>
+										</div>
+									</div>
+
+									<div className="mb-3">
+										<label className="block text-sm font-medium text-gray-100 mb-1">
+											Name
+										</label>
+										<input
+											type="text"
+											value={signal.name || signal.id}
+											onChange={(e) =>
+												updateSignal(index, "name", e.target.value)
+											}
+											className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-300"
+											placeholder="Signal name"
+										/>
+									</div>
+
 									<div className="mb-3">
 										<label className="block text-sm font-medium text-gray-100 mb-1">
 											Expression
 										</label>
 										<input
 											type="text"
-											value={signal.expression}
-											onChange={(e) =>
-												updateSignal(index, "expression", e.target.value)
+											value={
+												signal.conditions
+													? conditionsToExpression(
+															signal.conditions,
+															signal.logic
+													  )
+													: signal.expression || ""
 											}
+											onChange={(e) => {
+												const newConditions = expressionToConditions(
+													e.target.value
+												);
+												updateSignal(index, "conditions", newConditions);
+												updateSignal(index, "expression", e.target.value);
+											}}
 											className="w-full px-3 py-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-gray-300"
-											placeholder="e.g., rsi_14 < 30 && close > ema_20"
+											placeholder="e.g., rsi < 30 && close > ema_20"
 										/>
+										<p className="text-xs text-gray-400 mt-1">
+											Expression is auto-generated from conditions. Edit to
+											update conditions.
+										</p>
 									</div>
 
 									<div>

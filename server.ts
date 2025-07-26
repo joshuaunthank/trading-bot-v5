@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 3001;
 import apiRoutes from "./local_modules/routes/routes-api";
 import uiRoutes from "./local_modules/routes/routes-ui";
 import { setupMainWebSocket } from "./local_modules/utils/websocket-main";
+import { strategyEngineIntegration } from "./local_modules/utils/strategy-engine";
 
 dotenv.config();
 
@@ -33,6 +34,14 @@ dotenv.config();
 	const server = app.listen(PORT, () => {
 		console.log(`Server is running on http://localhost:${PORT}`);
 	});
+
+	// --- Initialize Strategy Engine ---
+	try {
+		await strategyEngineIntegration.initialize();
+		console.log("✅ Strategy Engine initialized successfully");
+	} catch (error) {
+		console.error("❌ Failed to initialize Strategy Engine:", error);
+	}
 
 	// --- Attach WebSocket servers ---
 	setupMainWebSocket(server); // CCXT Pro WebSocket - no RSV1 errors

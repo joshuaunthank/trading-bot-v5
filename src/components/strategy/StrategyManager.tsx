@@ -107,13 +107,10 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ className }) => {
 	const startStrategy = async (strategyId: string) => {
 		try {
 			setError(null);
-			const response = await fetch(
-				`/api/v1/strategies/manager/${strategyId}/start`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-				}
-			);
+			const response = await fetch(`/api/v1/strategies/${strategyId}/start`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+			});
 
 			if (!response.ok) {
 				const errorData = await response.json();
@@ -133,13 +130,10 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ className }) => {
 	const stopStrategy = async (strategyId: string) => {
 		try {
 			setError(null);
-			const response = await fetch(
-				`/api/v1/strategies/manager/${strategyId}/stop`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-				}
-			);
+			const response = await fetch(`/api/v1/strategies/${strategyId}/stop`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+			});
 
 			if (!response.ok) {
 				const errorData = await response.json();
@@ -158,13 +152,10 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ className }) => {
 	const pauseStrategy = async (strategyId: string) => {
 		try {
 			setError(null);
-			const response = await fetch(
-				`/api/v1/strategies/manager/${strategyId}/pause`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-				}
-			);
+			const response = await fetch(`/api/v1/strategies/${strategyId}/pause`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+			});
 
 			if (!response.ok) {
 				const errorData = await response.json();
@@ -183,13 +174,10 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ className }) => {
 	const resumeStrategy = async (strategyId: string) => {
 		try {
 			setError(null);
-			const response = await fetch(
-				`/api/v1/strategies/manager/${strategyId}/resume`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-				}
-			);
+			const response = await fetch(`/api/v1/strategies/${strategyId}/resume`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+			});
 
 			if (!response.ok) {
 				const errorData = await response.json();

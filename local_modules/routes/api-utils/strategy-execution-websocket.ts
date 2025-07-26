@@ -1,14 +1,14 @@
 /**
- * Strategy Execution API - WebSocket-Only Architecture
+ * Strategy Execution API - Real Strategy Engine Integration
  *
- * This module provides file-based strategy CRUD operations without
- * legacy StrategyManager dependencies. Strategy execution happens
- * through the WebSocket system only.
+ * This module provides strategy execution through the actual strategy engine
+ * with real-time WebSocket integration for live data processing.
  */
 
 import { Request, Response } from "express";
 import * as fs from "fs";
 import * as path from "path";
+import { strategyEngineIntegration } from "../../utils/strategy-engine";
 
 const strategiesPath = path.join(__dirname, "../../db/strategies");
 
@@ -21,8 +21,8 @@ export interface StrategyExecutionResponse {
 }
 
 /**
- * Start Strategy - WebSocket-Only Version
- * Returns success but actual execution happens through WebSocket system
+ * Start Strategy - Real Strategy Engine Integration
+ * Actually starts the strategy using the strategy engine
  */
 export const startStrategy = async (
 	req: Request,
@@ -30,9 +30,12 @@ export const startStrategy = async (
 ): Promise<void> => {
 	try {
 		const { id: strategy_id } = req.params; // Extract 'id' parameter as 'strategy_id'
+		console.log(`[API] Starting strategy request for: ${strategy_id}`);
+
 		const strategyPath = path.join(strategiesPath, `${strategy_id}.json`);
 
 		if (!fs.existsSync(strategyPath)) {
+			console.log(`[API] Strategy file not found: ${strategyPath}`);
 			res.status(404).json({
 				success: false,
 				error: "Strategy not found",
@@ -41,14 +44,79 @@ export const startStrategy = async (
 			return;
 		}
 
-		// In WebSocket-only architecture, strategy execution is handled by the WebSocket system
-		// This endpoint acknowledges the start request but actual execution is elsewhere
-		res.status(200).json({
-			success: true,
-			strategy_id,
-			status: "acknowledged",
-			message: `Strategy '${strategy_id}' start request acknowledged. Execution handled by WebSocket system.`,
-		});
+		console.log(`[API] Strategy file found: ${strategyPath}`);
+
+		// Initialize strategy engine if not already initialized
+		if (!strategyEngineIntegration.getInitializationStatus()) {
+			console.log(`[API] Initializing strategy engine...`);
+			await strategyEngineIntegration.initialize();
+		}
+
+		// Load strategy if not already loaded
+		const strategyManager = strategyEngineIntegration.getStrategyManager();
+		console.log(
+			`[API] Checking if strategy ${strategy_id} is already loaded...`
+		);
+
+		if (!strategyManager.getStrategy(strategy_id)) {
+			console.log(`[API] Strategy ${strategy_id} not loaded, loading now...`);
+			const strategy = await strategyManager.loadStrategy(strategy_id);
+			if (!strategy) {
+				console.log(`[API] Failed to load strategy ${strategy_id}`);
+				res.status(500).json({
+					success: false,
+					error: "Failed to load strategy",
+					message: `Could not load strategy '${strategy_id}'`,
+				});
+				return;
+			}
+			console.log(`[API] Strategy ${strategy_id} loaded successfully`);
+		} else {
+			console.log(`[API] Strategy ${strategy_id} already loaded`);
+		}
+
+		// Check current status before starting
+		const currentInstance = strategyManager.getStrategy(strategy_id);
+		if (currentInstance) {
+			const currentState = currentInstance.getState();
+			console.log(
+				`[API] Current strategy state before start: ${JSON.stringify(
+					currentState
+				)}`
+			);
+		}
+
+		// Start the strategy
+		console.log(`[API] Attempting to start strategy ${strategy_id}...`);
+		const started = strategyManager.startStrategy(strategy_id);
+
+		// Check status after starting
+		const instanceAfterStart = strategyManager.getStrategy(strategy_id);
+		if (instanceAfterStart) {
+			const stateAfterStart = instanceAfterStart.getState();
+			console.log(
+				`[API] Strategy state after start attempt: ${JSON.stringify(
+					stateAfterStart
+				)}`
+			);
+		}
+
+		if (started) {
+			console.log(`[API] ✅ Strategy ${strategy_id} started successfully`);
+			res.status(200).json({
+				success: true,
+				strategy_id,
+				status: "running",
+				message: `Strategy '${strategy_id}' started successfully`,
+			});
+		} else {
+			console.log(`[API] ❌ Failed to start strategy ${strategy_id}`);
+			res.status(500).json({
+				success: false,
+				error: "Failed to start strategy",
+				message: `Could not start strategy '${strategy_id}'`,
+			});
+		}
 	} catch (error: any) {
 		res.status(500).json({
 			success: false,
@@ -59,7 +127,7 @@ export const startStrategy = async (
 };
 
 /**
- * Stop Strategy - WebSocket-Only Version
+ * Stop Strategy - Real Strategy Engine Integration
  */
 export const stopStrategy = async (
 	req: Request,
@@ -67,13 +135,61 @@ export const stopStrategy = async (
 ): Promise<void> => {
 	try {
 		const { id: strategy_id } = req.params; // Extract 'id' parameter as 'strategy_id'
+		console.log(`[API] Stopping strategy request for: ${strategy_id}`);
 
-		res.status(200).json({
-			success: true,
-			strategy_id,
-			status: "acknowledged",
-			message: `Strategy '${strategy_id}' stop request acknowledged. Execution handled by WebSocket system.`,
-		});
+		// Initialize strategy engine if not already initialized
+		if (!strategyEngineIntegration.getInitializationStatus()) {
+			console.log(`[API] Initializing strategy engine...`);
+			await strategyEngineIntegration.initialize();
+		}
+
+		// Check current status before stopping
+		const strategyManager = strategyEngineIntegration.getStrategyManager();
+		const currentInstance = strategyManager.getStrategy(strategy_id);
+		if (currentInstance) {
+			const currentState = currentInstance.getState();
+			console.log(
+				`[API] Current strategy state before stop: ${JSON.stringify(
+					currentState
+				)}`
+			);
+		} else {
+			console.log(`[API] Strategy ${strategy_id} not found in manager`);
+		}
+
+		// Stop the strategy
+		console.log(`[API] Attempting to stop strategy ${strategy_id}...`);
+		const stopped = strategyManager.stopStrategy(strategy_id);
+
+		// Check status after stopping
+		const instanceAfterStop = strategyManager.getStrategy(strategy_id);
+		if (instanceAfterStop) {
+			const stateAfterStop = instanceAfterStop.getState();
+			console.log(
+				`[API] Strategy state after stop attempt: ${JSON.stringify(
+					stateAfterStop
+				)}`
+			);
+		}
+
+		if (stopped) {
+			console.log(`[API] ✅ Strategy ${strategy_id} stopped successfully`);
+			res.status(200).json({
+				success: true,
+				strategy_id,
+				status: "stopped",
+				message: `Strategy '${strategy_id}' stopped successfully`,
+			});
+		} else {
+			console.log(
+				`[API] ❌ Failed to stop strategy ${strategy_id} (not found or not running)`
+			);
+			res.status(404).json({
+				success: false,
+				error: "Strategy not found",
+				message: `Strategy '${strategy_id}' not found or not running`,
+			});
+		}
 	} catch (error: any) {
 		res.status(500).json({
 			success: false,
@@ -84,7 +200,7 @@ export const stopStrategy = async (
 };
 
 /**
- * Pause Strategy - WebSocket-Only Version
+ * Pause Strategy - Real Strategy Engine Integration
  */
 export const pauseStrategy = async (
 	req: Request,
@@ -93,12 +209,29 @@ export const pauseStrategy = async (
 	try {
 		const { id: strategy_id } = req.params; // Extract 'id' parameter as 'strategy_id'
 
-		res.status(200).json({
-			success: true,
-			strategy_id,
-			status: "acknowledged",
-			message: `Strategy '${strategy_id}' pause request acknowledged. Execution handled by WebSocket system.`,
-		});
+		// Initialize strategy engine if not already initialized
+		if (!strategyEngineIntegration.getInitializationStatus()) {
+			await strategyEngineIntegration.initialize();
+		}
+
+		// Pause the strategy
+		const strategyManager = strategyEngineIntegration.getStrategyManager();
+		const paused = strategyManager.pauseStrategy(strategy_id);
+
+		if (paused) {
+			res.status(200).json({
+				success: true,
+				strategy_id,
+				status: "paused",
+				message: `Strategy '${strategy_id}' paused successfully`,
+			});
+		} else {
+			res.status(404).json({
+				success: false,
+				error: "Strategy not found",
+				message: `Strategy '${strategy_id}' not found or not running`,
+			});
+		}
 	} catch (error: any) {
 		res.status(500).json({
 			success: false,
@@ -109,7 +242,7 @@ export const pauseStrategy = async (
 };
 
 /**
- * Resume Strategy - WebSocket-Only Version
+ * Resume Strategy - Real Strategy Engine Integration
  */
 export const resumeStrategy = async (
 	req: Request,
@@ -118,12 +251,29 @@ export const resumeStrategy = async (
 	try {
 		const { id: strategy_id } = req.params; // Extract 'id' parameter as 'strategy_id'
 
-		res.status(200).json({
-			success: true,
-			strategy_id,
-			status: "acknowledged",
-			message: `Strategy '${strategy_id}' resume request acknowledged. Execution handled by WebSocket system.`,
-		});
+		// Initialize strategy engine if not already initialized
+		if (!strategyEngineIntegration.getInitializationStatus()) {
+			await strategyEngineIntegration.initialize();
+		}
+
+		// Resume the strategy
+		const strategyManager = strategyEngineIntegration.getStrategyManager();
+		const resumed = strategyManager.resumeStrategy(strategy_id);
+
+		if (resumed) {
+			res.status(200).json({
+				success: true,
+				strategy_id,
+				status: "running",
+				message: `Strategy '${strategy_id}' resumed successfully`,
+			});
+		} else {
+			res.status(404).json({
+				success: false,
+				error: "Strategy not found",
+				message: `Strategy '${strategy_id}' not found or not paused`,
+			});
+		}
 	} catch (error: any) {
 		res.status(500).json({
 			success: false,
@@ -155,7 +305,7 @@ export const getAllStrategyStatus = async (
 };
 
 /**
- * Get Strategy Status - WebSocket-Only Version
+ * Get Strategy Status - Enhanced with Live Execution Status
  */
 export const getStrategyStatus = async (
 	req: Request,
@@ -163,9 +313,12 @@ export const getStrategyStatus = async (
 ): Promise<void> => {
 	try {
 		const { id: strategy_id } = req.params; // Extract 'id' parameter as 'strategy_id'
+		console.log(`[API] Getting status for strategy: ${strategy_id}`);
+
 		const strategyPath = path.join(strategiesPath, `${strategy_id}.json`);
 
 		if (!fs.existsSync(strategyPath)) {
+			console.log(`[API] Strategy file not found: ${strategyPath}`);
 			res.status(404).json({
 				success: false,
 				error: "Strategy not found",
@@ -175,13 +328,46 @@ export const getStrategyStatus = async (
 		}
 
 		const strategy = JSON.parse(fs.readFileSync(strategyPath, "utf8"));
+		console.log(`[API] Strategy file loaded: ${strategy.name}`);
+
+		// Initialize strategy engine if not already initialized
+		if (!strategyEngineIntegration.getInitializationStatus()) {
+			console.log(`[API] Initializing strategy engine...`);
+			await strategyEngineIntegration.initialize();
+		}
+
+		const strategyManager = strategyEngineIntegration.getStrategyManager();
+
+		// Get live execution status
+		const strategyInstance = strategyManager.getStrategy(strategy_id);
+		let executionStatus = "stopped";
+		let liveStatus = null;
+
+		if (strategyInstance) {
+			liveStatus = strategyInstance.getState();
+			executionStatus = liveStatus.status;
+			console.log(
+				`[API] Strategy ${strategy_id} live status: ${JSON.stringify(
+					liveStatus
+				)}`
+			);
+		} else {
+			console.log(
+				`[API] Strategy ${strategy_id} not found in manager (not loaded or stopped)`
+			);
+		}
+
+		console.log(
+			`[API] Returning status: ${executionStatus} for strategy ${strategy_id}`
+		);
 
 		res.status(200).json({
 			success: true,
 			strategy_id,
-			status: "file-based",
+			status: executionStatus,
 			strategy: strategy,
-			message: `Strategy '${strategy_id}' configuration loaded. Live status available through WebSocket.`,
+			liveStatus: liveStatus,
+			message: `Strategy '${strategy_id}' configuration loaded with live execution status.`,
 		});
 	} catch (error: any) {
 		res.status(500).json({
