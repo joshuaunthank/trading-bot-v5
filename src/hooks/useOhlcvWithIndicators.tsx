@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useWebSocket } from "./useWebSocket";
+import { getWebSocketUrl } from "../utils/websocket";
 
 interface OHLCVCandle {
 	timestamp: number;
@@ -272,7 +273,8 @@ export function useOhlcvWithIndicators(
 
 	// Build WebSocket URL with strategy parameter - memoized to prevent reconnections
 	const wsUrl = useMemo(() => {
-		const url = `ws://localhost:3001/ws/ohlcv?symbol=${encodeURIComponent(
+		const baseUrl = getWebSocketUrl("/ws/ohlcv");
+		const url = `${baseUrl}?symbol=${encodeURIComponent(
 			symbol
 		)}&timeframe=${encodeURIComponent(timeframe)}${
 			currentStrategyId

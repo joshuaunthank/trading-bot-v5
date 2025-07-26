@@ -7,6 +7,7 @@
 
 import React, { useState, useCallback, useEffect } from "react";
 import { useWebSocket } from "../hooks/useWebSocket";
+import { getWebSocketUrl } from "../utils/websocket";
 
 interface StrategyControlsProps {
 	selectedStrategy: string;
@@ -37,7 +38,7 @@ const StrategyControls: React.FC<StrategyControlsProps> = ({
 
 	// WebSocket connection for strategy controls
 	const webSocket = useWebSocket({
-		url: "ws://localhost:3001/ws/ohlcv",
+		url: getWebSocketUrl("/ws/ohlcv"),
 		onMessage: handleWebSocketMessage,
 		onStatusChange: (status: string) => {
 			console.log("StrategyControls WebSocket status:", status);

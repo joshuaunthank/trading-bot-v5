@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
+import { getWebSocketUrl } from "../utils/websocket";
 
 interface IndicatorData {
 	id: string;
@@ -81,7 +82,7 @@ export const useRealTimeChartUpdates = ({
 		if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
 		try {
-			wsRef.current = new WebSocket(`ws://localhost:3001/ws/ohlcv`);
+			wsRef.current = new WebSocket(getWebSocketUrl("/ws/ohlcv"));
 
 			wsRef.current.onopen = () => {
 				console.log("[Chart Updates] WebSocket connected");

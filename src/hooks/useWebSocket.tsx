@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { getWebSocketUrl } from "../utils/websocket";
 
 interface OHLCVCandle {
 	timestamp: number;
@@ -425,7 +426,7 @@ export function useOhlcvWebSocket(
 	}, []);
 
 	// Build WebSocket URL
-	const wsUrl = `ws://localhost:3001/ws/ohlcv?symbol=${encodeURIComponent(
+	const wsUrl = `${getWebSocketUrl("/ws/ohlcv")}?symbol=${encodeURIComponent(
 		symbol
 	)}&timeframe=${encodeURIComponent(timeframe)}`;
 

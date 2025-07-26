@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useWebSocket } from "../hooks/useWebSocket";
+import { getWebSocketUrl } from "../utils/websocket";
 import { useStrategy } from "../context/StrategyContext";
 import StrategyControls from "./StrategyControls";
 
@@ -65,7 +66,7 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 
 	// WebSocket connection for real-time strategy updates
 	const webSocket = useWebSocket({
-		url: "ws://localhost:3001/ws/ohlcv", // Use the same unified WebSocket as the rest of the app
+		url: getWebSocketUrl("/ws/ohlcv"), // Use the same unified WebSocket as the rest of the app
 		onMessage: handleWebSocketMessage,
 		onStatusChange: (status: string) =>
 			console.log("WebSocket status:", status),
