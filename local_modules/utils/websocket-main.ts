@@ -7,6 +7,7 @@ import {
 	calculateStrategyIndicators,
 	calculateStrategyIndicatorsIncremental,
 } from "./strategyIndicators";
+import { strategyEngineIntegration } from "./strategy-engine";
 
 // CCXT Pro Exchange instance with proper configuration
 let exchange: any | null = null;
@@ -279,6 +280,9 @@ function handleOhlcvConnection(
 	// Initialize client config
 	clientConfigs.set(ws, { strategyId: null });
 
+	// Add client to strategy engine integration for strategy control messages
+	strategyEngineIntegration.addWebSocketClient(ws);
+
 	// Send initial connection confirmation
 	try {
 		const connectionMessage: any = {
@@ -347,8 +351,42 @@ function handleOhlcvConnection(
 
 	ws.on("message", async (msg) => {
 		try {
-			const data = JSON.parse(msg.toString());
+			console.log(`[DEBUG] Raw message received:`, msg.toString());
+			let data;
+			try {
+				data = JSON.parse(msg.toString());
+			} catch (parseError) {
+				console.error(`[DEBUG] Failed to parse JSON:`, parseError);
+				return;
+			}
+
+			// Check if data is a string (double-encoded JSON)
+			if (typeof data === "string") {
+				console.log(`[DEBUG] Data is string, parsing again:`, data);
+				try {
+					data = JSON.parse(data);
+				} catch (doubleParseError) {
+					console.error(
+						`[DEBUG] Failed to double-parse JSON:`,
+						doubleParseError
+					);
+					return;
+				}
+			}
+
+			console.log(`[DEBUG] Final parsed data:`, data);
+			console.log(`[DEBUG] Object keys:`, Object.keys(data));
+			console.log(`[DEBUG] Data type property:`, data.type);
+			console.log(`[DEBUG] Data type stringified:`, JSON.stringify(data.type));
+			console.log(`[DEBUG] Accessing data["type"]:`, data["type"]);
+			console.log(
+				`[DEBUG] Data.hasOwnProperty('type'):`,
+				data.hasOwnProperty("type")
+			);
 			console.log(`[OHLCV WS] Message from client ${clientId}:`, data);
+			console.log(
+				`[DEBUG] Message type: "${data.type}", typeof: ${typeof data.type}`
+			);
 
 			// Handle strategy config registration
 			if (data.type === "config" && data.strategyId) {
@@ -364,6 +402,132 @@ function handleOhlcvConnection(
 						strategyId: data.strategyId,
 					})
 				);
+				return;
+			}
+
+			// Handle strategy control messages (start/stop/pause/resume)
+			if (data.type === "strategy-control") {
+				try {
+					const { action, strategyId } = data;
+					let result: any;
+
+					console.log(`[Strategy Control] ${action} strategy: ${strategyId}`);
+
+					switch (action) {
+						case "start":
+							result = {
+								success: await strategyEngineIntegration.startStrategy(
+									strategyId
+								),
+								action: "start",
+								strategyId,
+								message: "Strategy start initiated",
+							};
+							break;
+						case "stop":
+							result = {
+								success: await strategyEngineIntegration.stopStrategy(
+									strategyId
+								),
+								action: "stop",
+								strategyId,
+								message: "Strategy stop initiated",
+							};
+							break;
+						case "pause":
+							result = {
+								success: await strategyEngineIntegration.pauseStrategy(
+									strategyId
+								),
+								action: "pause",
+								strategyId,
+								message: "Strategy pause initiated",
+							};
+							break;
+						case "resume":
+							result = {
+								success: await strategyEngineIntegration.resumeStrategy(
+									strategyId
+								),
+								action: "resume",
+								strategyId,
+								message: "Strategy resume initiated",
+							};
+							break;
+						default:
+							result = {
+								success: false,
+								action,
+								strategyId,
+								error: `Unknown action: ${action}`,
+							};
+					}
+
+					console.log(`[Strategy Control] Result:`, result);
+
+					// Send response back to client
+					const responseMessage = JSON.stringify({
+						type: "strategy-control-response",
+						...result,
+					});
+					console.log(`[Strategy Control] Sending response:`, responseMessage);
+					ws.send(responseMessage);
+				} catch (error) {
+					console.error(`[Strategy Control] Error:`, error);
+					const errorMessage = JSON.stringify({
+						type: "strategy-control-response",
+						success: false,
+						action: data.action,
+						strategyId: data.strategyId,
+						error: error instanceof Error ? error.message : String(error),
+					});
+					console.log(
+						`[Strategy Control] Sending error response:`,
+						errorMessage
+					);
+					ws.send(errorMessage);
+				}
+				return;
+			}
+
+			// Handle strategy status requests
+			if (data.type === "get-strategy-status") {
+				try {
+					console.log(
+						`[Strategy Status] Request for strategy status from client ${clientId}`
+					);
+
+					const strategies = strategyEngineIntegration.getStrategyList();
+					const states = strategyEngineIntegration.getStrategyStates();
+					const performance = strategyEngineIntegration.getPerformanceMetrics();
+
+					// Convert Map to object for JSON serialization
+					const statesObj = Object.fromEntries(states);
+					const performanceObj = Object.fromEntries(performance);
+
+					const response = {
+						type: "strategy-status-response",
+						data: {
+							success: true,
+							strategies: strategies,
+							states: statesObj,
+							performance: performanceObj,
+						},
+					};
+
+					console.log(`[Strategy Status] Sending response:`, response);
+					ws.send(JSON.stringify(response));
+				} catch (error) {
+					console.error(`[Strategy Status] Error:`, error);
+					const errorResponse = {
+						type: "strategy-status-response",
+						data: {
+							success: false,
+							error: error instanceof Error ? error.message : String(error),
+						},
+					};
+					ws.send(JSON.stringify(errorResponse));
+				}
 				return;
 			}
 

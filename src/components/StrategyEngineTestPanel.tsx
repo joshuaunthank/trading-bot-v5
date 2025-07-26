@@ -7,6 +7,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useWebSocket } from "../hooks/useWebSocket";
+import { useStrategy } from "../context/StrategyContext";
+import StrategyControls from "./StrategyControls";
 
 interface StrategyStatus {
 	id: string;
@@ -51,9 +53,15 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 	const [signals, setSignals] = useState<TradingSignal[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [selectedStrategy, setSelectedStrategy] = useState<string>(
-		"enhanced_rsi_ema_strategy"
-	);
+	const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+	// Use global strategy context
+	const {
+		selectedStrategyId,
+		setSelectedStrategyId,
+		availableStrategies,
+		setAvailableStrategies,
+	} = useStrategy();
 
 	// WebSocket connection for real-time strategy updates
 	const webSocket = useWebSocket({
@@ -69,7 +77,7 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 	// Handle WebSocket messages
 	function handleWebSocketMessage(data: any) {
 		try {
-			const message = JSON.parse(data);
+			const message = data; // data is already parsed by useWebSocket hook
 
 			switch (message.type) {
 				case "strategy-initial-status":
@@ -180,66 +188,28 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 		);
 	}, [webSocket]);
 
-	// Strategy control functions
-	const startStrategy = useCallback(
-		(strategyId: string) => {
-			setLoading(true);
-			setError(null);
-			webSocket.send(
-				JSON.stringify({
-					type: "strategy-control",
-					action: "start",
-					strategyId: strategyId,
-				})
-			);
-		},
-		[webSocket]
-	);
+	// Load available strategies when component mounts
+	useEffect(() => {
+		const loadStrategies = async () => {
+			try {
+				const response = await fetch("/api/v1/strategies");
+				if (response.ok) {
+					const strategiesData = await response.json();
+					const strategyIds = strategiesData.map((s: any) => s.id);
+					setAvailableStrategies(strategyIds);
 
-	const stopStrategy = useCallback(
-		(strategyId: string) => {
-			setLoading(true);
-			setError(null);
-			webSocket.send(
-				JSON.stringify({
-					type: "strategy-control",
-					action: "stop",
-					strategyId: strategyId,
-				})
-			);
-		},
-		[webSocket]
-	);
+					// Set first available strategy as default if none selected
+					if (!selectedStrategyId && strategyIds.length > 0) {
+						setSelectedStrategyId(strategyIds[0]);
+					}
+				}
+			} catch (error) {
+				console.error("Failed to load strategies:", error);
+			}
+		};
 
-	const pauseStrategy = useCallback(
-		(strategyId: string) => {
-			setLoading(true);
-			setError(null);
-			webSocket.send(
-				JSON.stringify({
-					type: "strategy-control",
-					action: "pause",
-					strategyId: strategyId,
-				})
-			);
-		},
-		[webSocket]
-	);
-
-	const resumeStrategy = useCallback(
-		(strategyId: string) => {
-			setLoading(true);
-			setError(null);
-			webSocket.send(
-				JSON.stringify({
-					type: "strategy-control",
-					action: "resume",
-					strategyId: strategyId,
-				})
-			);
-		},
-		[webSocket]
-	);
+		loadStrategies();
+	}, [selectedStrategyId, setSelectedStrategyId, setAvailableStrategies]);
 
 	// Initial load
 	useEffect(() => {
@@ -262,30 +232,6 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 	// Format time
 	const formatTime = (timestamp: number) => {
 		return new Date(timestamp).toLocaleTimeString();
-	};
-
-	// Format duration
-	const formatDuration = (ms: number) => {
-		const seconds = Math.floor(ms / 1000);
-		const minutes = Math.floor(seconds / 60);
-		const hours = Math.floor(minutes / 60);
-		return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
-	};
-
-	// Get status color
-	const getStatusColor = (status: string) => {
-		switch (status) {
-			case "running":
-				return "text-green-400";
-			case "stopped":
-				return "text-red-400";
-			case "paused":
-				return "text-yellow-400";
-			case "error":
-				return "text-red-300";
-			default:
-				return "text-gray-400";
-		}
 	};
 
 	return (
@@ -321,76 +267,103 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 					</div>
 				)}
 
-				{/* Strategy Controls */}
+				{/* Strategy Selection */}
 				<div className="mb-6">
-					<h3 className="text-lg font-semibold mb-4 text-white">
-						Strategy Controls
+					<h3 className="text-lg font-semibold mb-3 text-white">
+						Strategy Selection
 					</h3>
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-						{strategies.map((strategy) => (
-							<div
-								key={strategy.id}
-								className="border border-gray-600 rounded-lg p-4 bg-gray-700"
-							>
-								<div className="flex justify-between items-start mb-3">
-									<div>
-										<h4 className="font-medium text-white">{strategy.name}</h4>
-										<p className="text-sm text-gray-400">{strategy.id}</p>
-									</div>
-									<span
-										className={`text-sm font-medium ${getStatusColor(
-											strategy.status
-										)}`}
-									>
-										{strategy.status.toUpperCase()}
-									</span>
-								</div>
-
-								<div className="mb-3 text-sm text-gray-300">
-									<div>Signals: {strategy.performance?.totalSignals || 0}</div>
-									<div>Candles: {strategy.state?.totalCandles || 0}</div>
-									<div>
-										Uptime:{" "}
-										{strategy.performance?.uptime
-											? formatDuration(strategy.performance.uptime)
-											: "N/A"}
-									</div>
-								</div>
-
-								<div className="flex space-x-2">
-									<button
-										onClick={() => startStrategy(strategy.id)}
-										disabled={loading || strategy.status === "running"}
-										className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
-									>
-										Start
-									</button>
-									<button
-										onClick={() => stopStrategy(strategy.id)}
-										disabled={loading || strategy.status === "stopped"}
-										className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
-									>
-										Stop
-									</button>
-									<button
-										onClick={() => pauseStrategy(strategy.id)}
-										disabled={loading || strategy.status !== "running"}
-										className="px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
-									>
-										Pause
-									</button>
-									<button
-										onClick={() => resumeStrategy(strategy.id)}
-										disabled={loading || strategy.status !== "paused"}
-										className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
-									>
-										Resume
-									</button>
-								</div>
-							</div>
-						))}
+					<div className="flex items-center space-x-4">
+						<select
+							value={selectedStrategyId || ""}
+							onChange={(e) => setSelectedStrategyId(e.target.value || null)}
+							className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+						>
+							<option value="">Select a strategy...</option>
+							{availableStrategies.map((strategyId) => (
+								<option key={strategyId} value={strategyId}>
+									{strategyId}
+								</option>
+							))}
+						</select>
+						<span className="text-sm text-gray-400">
+							Selected: {selectedStrategyId || "None"}
+						</span>
 					</div>
 				</div>
+
+				{/* Strategy Status Display */}
+				{selectedStrategyId && (
+					<div className="mb-6">
+						<h3 className="text-lg font-semibold mb-3 text-white">
+							Strategy Status
+						</h3>
+						<div className="bg-gray-700 rounded-md p-4">
+							{strategies.find((s) => s.id === selectedStrategyId) ? (
+								<div className="grid grid-cols-2 gap-4 text-sm">
+									<div>
+										<span className="text-gray-400">Status:</span>
+										<span className="ml-2 font-medium text-white">
+											{
+												strategies.find((s) => s.id === selectedStrategyId)
+													?.status
+											}
+										</span>
+									</div>
+									<div>
+										<span className="text-gray-400">Total Signals:</span>
+										<span className="ml-2 font-medium text-white">
+											{strategies.find((s) => s.id === selectedStrategyId)
+												?.state.totalSignals || 0}
+										</span>
+									</div>
+									<div>
+										<span className="text-gray-400">Candles Processed:</span>
+										<span className="ml-2 font-medium text-white">
+											{strategies.find((s) => s.id === selectedStrategyId)
+												?.state.totalCandles || 0}
+										</span>
+									</div>
+									<div>
+										<span className="text-gray-400">Last Update:</span>
+										<span className="ml-2 font-medium text-white">
+											{strategies.find((s) => s.id === selectedStrategyId)
+												?.state.lastUpdate
+												? formatTime(
+														strategies.find((s) => s.id === selectedStrategyId)!
+															.state.lastUpdate
+												  )
+												: "Never"}
+										</span>
+									</div>
+								</div>
+							) : (
+								<div className="text-gray-400 text-center py-4">
+									No status data available for {selectedStrategyId}
+								</div>
+							)}
+						</div>
+					</div>
+				)}
+
+				{/* Strategy Controls - Using unified component */}
+				{selectedStrategyId && (
+					<StrategyControls
+						selectedStrategy={selectedStrategyId}
+						onStrategyStatusChange={(strategyId, status) => {
+							console.log(
+								`Strategy ${strategyId} status changed to: ${status}`
+							);
+							// Update local state if needed
+							setStrategies((prev) =>
+								prev.map((s) =>
+									s.id === strategyId ? { ...s, status: status as any } : s
+								)
+							);
+						}}
+						compact={false}
+						className="mb-6"
+					/>
+				)}
 
 				{/* Recent Signals */}
 				<div className="mb-6">

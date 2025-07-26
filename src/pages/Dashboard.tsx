@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useOhlcvWithIndicators } from "../hooks/useOhlcvWithIndicators";
 import StrategySelect from "../components/StrategySelect";
+import StrategyControls from "../components/StrategyControls";
 import MultiPanelChart from "../components/MultiPanelChart";
 import SummaryView from "../components/SummaryView";
 import ConfigModal from "../components/ConfigModal";
@@ -108,6 +109,9 @@ const EnhancedDashboard: React.FC = () => {
 	);
 	const [editingStrategy, setEditingStrategy] = useState<any>(null);
 
+	// Strategy control state
+	const [strategyStatus, setStrategyStatus] = useState<string>("stopped");
+
 	// WebSocket hook for OHLCV data
 	const {
 		fullDataset,
@@ -197,7 +201,6 @@ const EnhancedDashboard: React.FC = () => {
 				);
 			});
 
-			console.log("Extracted color map from strategy:", colorMap);
 			return colorMap;
 		},
 		[]
@@ -211,19 +214,11 @@ const EnhancedDashboard: React.FC = () => {
 				? extractColorsFromStrategy(detailedStrategy)
 				: {};
 
-			console.log(
-				`Getting color for indicator: ${indicatorId}, available colors:`,
-				strategyColors
-			);
-
 			// Handle multi-component indicators with specific component IDs
 			const lowerIndicatorId = indicatorId.toLowerCase();
 
 			// Try exact match first
 			if (strategyColors[lowerIndicatorId]) {
-				console.log(
-					`Found exact match: ${indicatorId} -> ${strategyColors[lowerIndicatorId]}`
-				);
 				return strategyColors[lowerIndicatorId];
 			}
 
@@ -261,9 +256,6 @@ const EnhancedDashboard: React.FC = () => {
 			// Try pattern matching for complex indicator names
 			for (const [colorKey, color] of Object.entries(strategyColors)) {
 				if (lowerIndicatorId.includes(colorKey)) {
-					console.log(
-						`Found pattern match: ${indicatorId} includes ${colorKey} -> ${color}`
-					);
 					return color;
 				}
 			}
@@ -321,21 +313,13 @@ const EnhancedDashboard: React.FC = () => {
 
 	// Convert backend indicators to chart format with strategy colors
 	const allChartIndicators = useMemo(() => {
-		console.log("=== Indicator Processing Debug ===");
-		console.log("detailedStrategy:", detailedStrategy);
-		console.log("backendIndicators from WebSocket:", backendIndicators);
-
 		const strategyColors = detailedStrategy
 			? extractColorsFromStrategy(detailedStrategy)
 			: {};
-		console.log("Extracted strategy colors:", strategyColors);
 
 		const chartIndicators = backendIndicators.map((indicator: any) => {
-			console.log(`Processing indicator:`, indicator);
-
 			// Get color from strategy config
 			const color = getIndicatorColor(indicator.id, indicator.name);
-			console.log(`Indicator ${indicator.id}: color = ${color}`);
 
 			return {
 				id: indicator.id,
@@ -347,7 +331,6 @@ const EnhancedDashboard: React.FC = () => {
 			};
 		});
 
-		console.log("Final chartIndicators:", chartIndicators);
 		return chartIndicators;
 	}, [
 		backendIndicators,
@@ -369,6 +352,15 @@ const EnhancedDashboard: React.FC = () => {
 				setLoading(true);
 				setError(null);
 			}
+		},
+		[]
+	);
+
+	// Handle strategy status changes from StrategyControls
+	const handleStrategyStatusChange = useCallback(
+		(strategyId: string, status: string) => {
+			console.log(`Strategy ${strategyId} status changed to: ${status}`);
+			setStrategyStatus(status);
 		},
 		[]
 	);
@@ -728,8 +720,6 @@ const EnhancedDashboard: React.FC = () => {
 						onCreateStrategy={() => setIsStrategyEditorOpen(true)}
 						onEditStrategy={handleEditStrategy}
 						onDeleteStrategy={handleDeleteStrategy}
-						onStartStrategy={async () => {}}
-						onStopStrategy={async () => {}}
 						loading={loading}
 						error={error}
 					/>

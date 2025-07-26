@@ -273,62 +273,6 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 						</>
 					)}
 
-					{/* Start and Stop strategy controls with single button which checks if the strategy is already running and updates once start/stop are clicked */}
-					{!strategyLoading && detailedStrategy && (
-						<div className="mt-4 flex items-center gap-2">
-							{/* {JSON.stringify(detailedStrategy)} */}
-							{detailedStrategy.status === "running" ? (
-								<button
-									onClick={async () => {
-										if (onStopStrategy && !actionLoading) {
-											try {
-												setActionLoading(true);
-												await onStopStrategy(detailedStrategy.id);
-												// Update status locally without full refetch to avoid clearing chart
-												setDetailedStrategy((prev) =>
-													prev ? { ...prev, status: "stopped" } : null
-												);
-											} catch (error) {
-												console.error("Error stopping strategy:", error);
-											} finally {
-												setActionLoading(false);
-											}
-										}
-									}}
-									disabled={actionLoading}
-									className="px-3 py-1 bg-red-700 hover:bg-red-600 disabled:bg-red-800 disabled:cursor-not-allowed text-white rounded text-xs"
-									title="Stop Strategy"
-								>
-									{actionLoading ? "Stopping..." : "Stop Strategy"}
-								</button>
-							) : (
-								<button
-									onClick={async () => {
-										if (onStartStrategy && !actionLoading) {
-											try {
-												setActionLoading(true);
-												await onStartStrategy(detailedStrategy.id);
-												// Update status locally without full refetch to avoid clearing chart
-												setDetailedStrategy((prev) =>
-													prev ? { ...prev, status: "running" } : null
-												);
-											} catch (error) {
-												console.error("Error starting strategy:", error);
-											} finally {
-												setActionLoading(false);
-											}
-										}
-									}}
-									disabled={actionLoading}
-									className="px-3 py-1 bg-green-700 hover:bg-green-600 disabled:bg-green-800 disabled:cursor-not-allowed text-white rounded text-xs"
-									title="Start Strategy"
-								>
-									{actionLoading ? "Starting..." : "Start Strategy"}
-								</button>
-							)}
-						</div>
-					)}
-
 					{!strategyLoading && !detailedStrategy && strategyError && (
 						<div className="text-center py-2">
 							<div className="text-xs text-red-400">
