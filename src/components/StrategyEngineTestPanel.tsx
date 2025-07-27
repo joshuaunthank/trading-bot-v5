@@ -6,8 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useWebSocket } from "../hooks/useWebSocket";
-import { getWebSocketUrl } from "../utils/websocket";
+import { useWebSocket } from "../context/WebSocketContext";
 import { useStrategy } from "../context/StrategyContext";
 import StrategyControls from "./StrategyControls";
 
@@ -64,16 +63,8 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 		setAvailableStrategies,
 	} = useStrategy();
 
-	// WebSocket connection for real-time strategy updates
-	const webSocket = useWebSocket({
-		url: getWebSocketUrl("/ws/ohlcv"), // Use the same unified WebSocket as the rest of the app
-		onMessage: handleWebSocketMessage,
-		onStatusChange: (status: string) =>
-			console.log("WebSocket status:", status),
-		onError: (error: Error) => console.error("WebSocket error:", error),
-		maxReconnectAttempts: 10,
-		reconnectInterval: 3000,
-	});
+	// Use shared WebSocket connection from context
+	const { connectionStatus, strategyStatus, sendMessage } = useWebSocket();
 
 	// Handle WebSocket messages
 	function handleWebSocketMessage(data: any) {
@@ -182,12 +173,10 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 
 	// Request strategy status
 	const requestStrategyStatus = useCallback(() => {
-		webSocket.send(
-			JSON.stringify({
-				type: "get-strategy-status",
-			})
-		);
-	}, [webSocket]);
+		sendMessage({
+			type: "get-strategy-status",
+		});
+	}, [sendMessage]);
 
 	// Load available strategies when component mounts
 	useEffect(() => {
@@ -198,11 +187,6 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 					const strategiesData = await response.json();
 					const strategyIds = strategiesData.map((s: any) => s.id);
 					setAvailableStrategies(strategyIds);
-
-					// Set first available strategy as default if none selected
-					if (!selectedStrategyId && strategyIds.length > 0) {
-						setSelectedStrategyId(strategyIds[0]);
-					}
 				}
 			} catch (error) {
 				console.error("Failed to load strategies:", error);
@@ -210,25 +194,25 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 		};
 
 		loadStrategies();
-	}, [selectedStrategyId, setSelectedStrategyId, setAvailableStrategies]);
+	}, [setAvailableStrategies]);
 
 	// Initial load
 	useEffect(() => {
-		if (webSocket.status === "Connected") {
+		if (connectionStatus === "connected") {
 			requestStrategyStatus();
 		}
-	}, [webSocket.status, requestStrategyStatus]);
+	}, [connectionStatus, requestStrategyStatus]);
 
 	// Auto-refresh every 30 seconds
 	useEffect(() => {
 		const interval = setInterval(() => {
-			if (webSocket.status === "Connected") {
+			if (connectionStatus === "connected") {
 				requestStrategyStatus();
 			}
 		}, 30000);
 
 		return () => clearInterval(interval);
-	}, [webSocket.status, requestStrategyStatus]);
+	}, [connectionStatus, requestStrategyStatus]);
 
 	// Format time
 	const formatTime = (timestamp: number) => {
@@ -245,16 +229,16 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 					<div className="flex items-center space-x-4">
 						<span
 							className={`text-sm ${
-								webSocket.status === "Connected"
+								connectionStatus === "connected"
 									? "text-green-400"
 									: "text-red-400"
 							}`}
 						>
-							WebSocket: {webSocket.status}
+							WebSocket: {connectionStatus}
 						</span>
 						<button
 							onClick={requestStrategyStatus}
-							disabled={webSocket.status !== "Connected"}
+							disabled={connectionStatus !== "connected"}
 							className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
 						>
 							Refresh
@@ -268,35 +252,12 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 					</div>
 				)}
 
-				{/* Strategy Selection */}
-				<div className="mb-6">
-					<h3 className="text-lg font-semibold mb-3 text-white">
-						Strategy Selection
-					</h3>
-					<div className="flex items-center space-x-4">
-						<select
-							value={selectedStrategyId || ""}
-							onChange={(e) => setSelectedStrategyId(e.target.value || null)}
-							className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-						>
-							<option value="">Select a strategy...</option>
-							{availableStrategies.map((strategyId) => (
-								<option key={strategyId} value={strategyId}>
-									{strategyId}
-								</option>
-							))}
-						</select>
-						<span className="text-sm text-gray-400">
-							Selected: {selectedStrategyId || "None"}
-						</span>
-					</div>
-				</div>
-
 				{/* Strategy Status Display */}
-				{selectedStrategyId && (
+				{selectedStrategyId ? (
 					<div className="mb-6">
 						<h3 className="text-lg font-semibold mb-3 text-white">
-							Strategy Status
+							Strategy Status:{" "}
+							<span className="text-blue-400">{selectedStrategyId}</span>
 						</h3>
 						<div className="bg-gray-700 rounded-md p-4">
 							{strategies.find((s) => s.id === selectedStrategyId) ? (
@@ -344,26 +305,23 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 							)}
 						</div>
 					</div>
+				) : (
+					<div className="mb-6 text-center py-8">
+						<div className="text-gray-400">
+							<p className="text-lg">No strategy selected</p>
+							<p className="text-sm mt-2">
+								Please select a strategy from the dropdown above to begin
+								testing
+							</p>
+						</div>
+					</div>
 				)}
 
 				{/* Strategy Controls - Using unified component */}
 				{selectedStrategyId && (
-					<StrategyControls
-						selectedStrategy={selectedStrategyId}
-						onStrategyStatusChange={(strategyId, status) => {
-							console.log(
-								`Strategy ${strategyId} status changed to: ${status}`
-							);
-							// Update local state if needed
-							setStrategies((prev) =>
-								prev.map((s) =>
-									s.id === strategyId ? { ...s, status: status as any } : s
-								)
-							);
-						}}
-						compact={false}
-						className="mb-6"
-					/>
+					<div className="mb-6">
+						<StrategyControls />
+					</div>
 				)}
 
 				{/* Recent Signals */}
@@ -432,7 +390,7 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 				{/* Connection Status */}
 				<div className="text-sm text-gray-400 border-t border-gray-600 pt-4">
 					<div className="flex justify-between">
-						<span>WebSocket Status: {webSocket.status}</span>
+						<span>WebSocket Status: {connectionStatus}</span>
 						<span>Strategies Loaded: {strategies.length}</span>
 						<span>Signals Received: {signals.length}</span>
 					</div>

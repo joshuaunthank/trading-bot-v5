@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useOhlcvWithIndicators } from "./useOhlcvWithIndicators";
 import { useStrategies } from "./useStrategies";
+import { useStrategy } from "../context/StrategyContext";
 import { strategyService } from "../services/strategyService";
 import { storage } from "../utils/storage";
 import { CONFIG } from "../utils/config";
@@ -21,9 +22,9 @@ export const useDashboard = () => {
 	// Data selection state (using localStorage)
 	const [symbol] = useState(() => storage.getSelectedSymbol());
 	const [timeframe] = useState(() => storage.getSelectedTimeframe());
-	const [selectedStrategyId, setSelectedStrategyId] = useState<string | null>(
-		() => storage.getSelectedStrategy()
-	);
+
+	// Use global strategy context instead of local state
+	const { selectedStrategyId, setSelectedStrategyId } = useStrategy();
 
 	// Modal states
 	const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
@@ -43,9 +44,13 @@ export const useDashboard = () => {
 		latestCandle,
 		indicators: backendIndicators,
 		connectionStatus: ohlcvConnectionStatus,
-		lastError: wsError,
 		reconnect: reconnectOhlcvWs,
-	} = useOhlcvWithIndicators(symbol, timeframe, selectedStrategyId);
+		disconnect: disconnectOhlcvWs,
+	} = useOhlcvWithIndicators({
+		symbol,
+		timeframe,
+		strategyId: selectedStrategyId || undefined,
+	});
 
 	const { strategies: availableStrategies, loadStrategies } = useStrategies();
 
@@ -227,12 +232,8 @@ export const useDashboard = () => {
 		}
 	}, [error]);
 
-	// Update WebSocket error
-	useEffect(() => {
-		if (wsError) {
-			setError(wsError.message || "WebSocket error occurred");
-		}
-	}, [wsError]);
+	// Update WebSocket error (removed as wsError is no longer available from useOhlcvWithIndicators)
+	// WebSocket errors are now handled by the shared WebSocket context
 
 	return {
 		// UI State
