@@ -1,8 +1,7 @@
 import React from "react";
-import UnifiedChart from "../UnifiedChart";
 import DataTable from "../DataTable";
+import TradingChart from "../TradingChart";
 import { OHLCVData, CalculatedIndicator } from "../../types/indicators";
-import { useUnifiedChart } from "../../hooks/useUnifiedChart";
 
 interface ChartTabProps {
 	// Chart data
@@ -24,34 +23,18 @@ const ChartTab: React.FC<ChartTabProps> = ({
 	loading,
 	error,
 }) => {
-	const {
-		handleTimeframeChange,
-		getOptimalHeight,
-		signals,
-		selectedTimeframe,
-	} = useUnifiedChart({
-		initialTimeframe: timeframe,
-		enableSignals: true,
-	});
-
-	// Calculate optimal chart height based on indicators
-	const chartHeight = getOptimalHeight(indicators);
-
 	return (
 		<div className="space-y-6">
-			{/* Unified Chart System */}
-			<div className="bg-gray-800 rounded-lg overflow-hidden">
-				<UnifiedChart
-					data={ohlcvData}
-					indicators={indicators}
-					symbol={symbol}
-					timeframe={selectedTimeframe || timeframe}
-					loading={loading}
-					height={chartHeight}
-					onTimeframeChange={handleTimeframeChange}
-					signals={signals}
-				/>
-			</div>
+			{/* Modern TradingView-Style Chart */}
+			<TradingChart
+				ohlcvData={ohlcvData}
+				indicators={indicators}
+				symbol={symbol}
+				timeframe={timeframe}
+				loading={loading}
+				error={error}
+				height={600}
+			/>
 
 			{/* Chart Stats */}
 			{!loading && ohlcvData.length > 0 && (
@@ -69,10 +52,8 @@ const ChartTab: React.FC<ChartTabProps> = ({
 						</div>
 					</div>
 					<div className="bg-gray-800 p-4 rounded-lg">
-						<div className="text-sm text-gray-400">Trading Signals</div>
-						<div className="text-lg font-semibold text-white">
-							{signals.length}
-						</div>
+						<div className="text-sm text-gray-400">Symbol</div>
+						<div className="text-lg font-semibold text-white">{symbol}</div>
 					</div>
 					<div className="bg-gray-800 p-4 rounded-lg">
 						<div className="text-sm text-gray-400">Last Price</div>
