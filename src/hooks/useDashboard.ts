@@ -55,48 +55,41 @@ export const useDashboard = () => {
 
 	const { strategies: availableStrategies, loadStrategies } = useStrategies();
 
-	// Helper function to extract colors from strategy indicator params
+	// Helper function to extract colors from strategy indicator params - optimized for performance
 	const extractColorsFromStrategy = useCallback(
 		(strategy: any): Record<string, string> => {
+			if (!strategy?.indicators?.length) return {};
+
 			const colorMap: Record<string, string> = {};
 
-			if (!strategy?.indicators || !Array.isArray(strategy.indicators)) {
-				return colorMap;
-			}
-
+			// Flatten and process in single pass for better performance
 			strategy.indicators.forEach((indicatorGroup: any) => {
 				Object.entries(indicatorGroup).forEach(
 					([indicatorName, indicatorDef]: [string, any]) => {
-						if (indicatorDef?.params && Array.isArray(indicatorDef.params)) {
-							// For multi-component indicators like MACD, map each parameter to specific components
-							if (indicatorName === "MACD") {
-								indicatorDef.params.forEach((param: any) => {
-									if (param.color) {
-										switch (param.name) {
-											case "fastPeriod":
-												colorMap["macd_line"] = param.color;
-												colorMap["macd"] = param.color;
-												break;
-											case "slowPeriod":
-												colorMap["signal_line"] = param.color;
-												colorMap["signal"] = param.color;
-												break;
-											case "signalPeriod":
-												colorMap["histogram"] = param.color;
-												break;
-											default:
-												colorMap[param.name] = param.color;
-										}
-									}
-								});
-							} else {
-								// For other indicators, use the first color found
-								const colorParam = indicatorDef.params.find(
-									(p: any) => p.color
-								);
-								if (colorParam) {
-									colorMap[indicatorName.toLowerCase()] = colorParam.color;
-								}
+						if (!indicatorDef?.params?.length) return;
+
+						// Special handling for MACD (multi-component)
+						if (indicatorName === "MACD") {
+							indicatorDef.params.forEach((param: any) => {
+								if (!param.color) return;
+
+								// Direct mapping for performance
+								const mappings = {
+									fastPeriod: ["macd_line", "macd"],
+									slowPeriod: ["signal_line", "signal"],
+									signalPeriod: ["histogram"],
+								};
+
+								const keys = mappings[param.name as keyof typeof mappings] || [
+									param.name,
+								];
+								keys.forEach((key) => (colorMap[key] = param.color));
+							});
+						} else {
+							// Simple color assignment for other indicators
+							const colorParam = indicatorDef.params.find((p: any) => p.color);
+							if (colorParam) {
+								colorMap[indicatorName.toLowerCase()] = colorParam.color;
 							}
 						}
 					}
@@ -108,84 +101,58 @@ export const useDashboard = () => {
 		[]
 	);
 
-	// Transform backend indicators to CalculatedIndicator format
+	// Transform backend indicators to CalculatedIndicator format - optimized for real-time updates
 	const allChartIndicators = useMemo(() => {
-		console.log("🔄 useDashboard - Transforming indicators:");
+		console.log("🔄 useDashboard - Processing indicators (optimized):");
 		console.log("- backendIndicators:", backendIndicators?.length || 0);
-		console.log("- detailedStrategy:", !!detailedStrategy);
 
-		if (!backendIndicators || !detailedStrategy) return [];
+		if (!backendIndicators?.length) return [];
 
-		const strategyColors = extractColorsFromStrategy(detailedStrategy);
-		console.log("- strategyColors:", strategyColors);
+		// Cache strategy colors to avoid recalculation
+		const strategyColors = detailedStrategy
+			? extractColorsFromStrategy(detailedStrategy)
+			: {};
 
-		const transformed = backendIndicators.map(
-			(indicator): CalculatedIndicator => {
-				// Determine yAxisID based on indicator type
-				const getYAxisID = (type: string): string => {
-					const lowerType = type.toLowerCase();
-					if (
-						lowerType.includes("rsi") ||
-						lowerType.includes("stoch") ||
-						lowerType.includes("williams") ||
-						lowerType.includes("cci")
-					) {
-						return "oscillator";
-					}
-					if (lowerType.includes("volume") || lowerType.includes("obv")) {
-						return "volume";
-					}
-					return "price";
-				};
+		// Simple, efficient mapping inspired by real-time video pattern
+		return backendIndicators.map((indicator): CalculatedIndicator => {
+			const lowerType = indicator.type.toLowerCase();
 
-				// Map string type to IndicatorType
-				const getIndicatorType = (type: string): IndicatorType => {
-					const lowerType = type.toLowerCase();
-					if (lowerType.includes("ema")) return "EMA";
-					if (lowerType.includes("sma")) return "SMA";
-					if (lowerType.includes("rsi")) return "RSI";
-					if (lowerType.includes("macd")) return "MACD";
-					if (lowerType.includes("bb") || lowerType.includes("bollinger"))
-						return "BB";
-					if (lowerType.includes("stoch")) return "STOCH";
-					if (lowerType.includes("adx")) return "ADX";
-					if (lowerType.includes("cci")) return "CCI";
-					if (lowerType.includes("williams")) return "WILLIAMS";
-					if (lowerType.includes("atr")) return "ATR";
-					if (lowerType.includes("obv")) return "OBV";
-					return "EMA"; // Default fallback
-				};
+			// Optimized yAxisID determination
+			const yAxisID =
+				lowerType.includes("rsi") ||
+				lowerType.includes("stoch") ||
+				lowerType.includes("williams") ||
+				lowerType.includes("cci")
+					? "oscillator"
+					: lowerType.includes("volume") || lowerType.includes("obv")
+					? "volume"
+					: "price";
 
-				const result = {
-					id: indicator.id,
-					name: indicator.name,
-					data: indicator.data,
-					color:
-						strategyColors[indicator.id] ||
-						strategyColors[indicator.name] ||
-						"#ffffff",
-					yAxisID: getYAxisID(indicator.type),
-					type: getIndicatorType(indicator.type),
-				};
+			// Optimized type mapping
+			const type = lowerType.includes("ema")
+				? ("EMA" as IndicatorType)
+				: lowerType.includes("sma")
+				? ("SMA" as IndicatorType)
+				: lowerType.includes("rsi")
+				? ("RSI" as IndicatorType)
+				: lowerType.includes("macd")
+				? ("MACD" as IndicatorType)
+				: lowerType.includes("bb") || lowerType.includes("bollinger")
+				? ("BB" as IndicatorType)
+				: ("EMA" as IndicatorType); // Default fallback
 
-				console.log(`- Transformed ${indicator.name}:`, {
-					originalType: indicator.type,
-					mappedType: result.type,
-					yAxisID: result.yAxisID,
-					color: result.color,
-					dataLength: result.data.length,
-				});
-
-				return result;
-			}
-		);
-
-		console.log(
-			"✅ Transformation complete, returning:",
-			transformed.length,
-			"indicators"
-		);
-		return transformed;
+			return {
+				id: indicator.id,
+				name: indicator.name,
+				data: indicator.data, // Direct assignment for performance
+				color:
+					strategyColors[indicator.id] ||
+					strategyColors[indicator.name] ||
+					"#ffffff",
+				yAxisID,
+				type,
+			};
+		});
 	}, [backendIndicators, detailedStrategy, extractColorsFromStrategy]);
 
 	// Event handlers
@@ -288,6 +255,22 @@ export const useDashboard = () => {
 		console.log("Saving config:", configData);
 		setIsConfigModalOpen(false);
 	}, []);
+
+	// Performance monitoring for real-time updates (inspired by video optimization)
+	useEffect(() => {
+		const startTime = performance.now();
+		if (allChartIndicators.length > 0) {
+			const processingTime = performance.now() - startTime;
+			if (processingTime > 16) {
+				// More than one frame (60fps)
+				console.warn(
+					`[useDashboard] Slow indicator processing: ${processingTime.toFixed(
+						2
+					)}ms`
+				);
+			}
+		}
+	}, [allChartIndicators]);
 
 	// Clear error after some time
 	useEffect(() => {

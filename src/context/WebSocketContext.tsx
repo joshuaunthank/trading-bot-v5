@@ -123,11 +123,13 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
 		ws.onmessage = (event) => {
 			try {
-				const message: WebSocketMessage = JSON.parse(event.data);
+				const message: any = JSON.parse(event.data);
 
 				switch (message.type) {
 					case "ohlcv":
 						const newOhlcvData = message.data as OHLCVData[];
+
+						// Handle OHLCV data updates
 						if (message.updateType === "full") {
 							setOhlcvData(newOhlcvData);
 						} else if (
@@ -148,9 +150,19 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 								return updated;
 							});
 						}
+
+						// Handle indicators data if present in the OHLCV message
+						if (message.indicators && typeof message.indicators === "object") {
+							console.log(
+								"[WebSocket] Received indicators in OHLCV message:",
+								Object.keys(message.indicators)
+							);
+							setIndicatorData(message.indicators as IndicatorData);
+						}
 						break;
 
 					case "indicators":
+						console.log("[WebSocket] Received standalone indicators message");
 						setIndicatorData(message.data as IndicatorData);
 						break;
 

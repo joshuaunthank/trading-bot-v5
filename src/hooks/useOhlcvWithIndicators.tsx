@@ -83,72 +83,179 @@ export const useOhlcvWithIndicators = (
 		return fullDataset[fullDataset.length - 1];
 	}, [fullDataset]);
 
-	// Process indicator data from shared WebSocket
+	// Process indicator data from shared WebSocket - handle both full and incremental updates
 	useEffect(() => {
+		console.log(
+			"[useOhlcvWithIndicators] Raw indicatorData received:",
+			Object.keys(indicatorData || {})
+		);
+
 		if (!indicatorData || Object.keys(indicatorData).length === 0) {
+			console.log("[useOhlcvWithIndicators] No indicator data to process");
 			return;
 		}
 
-		// Convert indicatorData object to BackendIndicatorResult format
+		// Handle both full and incremental indicator updates
 		const processedIndicators: BackendIndicatorResult[] = [];
 
-		// Get latest timestamp for alignment
-		const latestTimestamp = latestCandle?.timestamp || Date.now();
+		Object.entries(indicatorData).forEach(([key, indicatorInfo]) => {
+			console.log(`[useOhlcvWithIndicators] Processing indicator ${key}:`, {
+				hasId: "id" in (indicatorInfo as any),
+				hasData: "data" in (indicatorInfo as any),
+				dataLength: (indicatorInfo as any).data?.length || 0,
+				isNumber: typeof indicatorInfo === "number",
+			});
 
-		Object.entries(indicatorData).forEach(([key, value]) => {
-			if (value !== undefined && !processedIndicatorsRef.current.has(key)) {
-				// Create indicator result with single latest value
-				const indicatorResult: BackendIndicatorResult = {
-					id: key,
-					name: key.toUpperCase(),
-					type: key.includes("ema")
-						? "EMA"
-						: key.includes("rsi")
-						? "RSI"
-						: key.includes("macd")
-						? "MACD"
-						: key.includes("bb") || key.includes("bollinger")
-						? "BOLLINGER_BANDS"
-						: "OTHER",
-					data: [
-						{
+			// Full format with metadata (for initial load and new candles)
+			if (
+				indicatorInfo &&
+				typeof indicatorInfo === "object" &&
+				"id" in indicatorInfo &&
+				"data" in indicatorInfo
+			) {
+				const backendIndicator = indicatorInfo as BackendIndicatorResult;
+				console.log(
+					`[useOhlcvWithIndicators] Full format indicator ${key}: ${backendIndicator.data.length} data points`
+				);
+
+				processedIndicators.push({
+					id: backendIndicator.id,
+					name: backendIndicator.name,
+					type: backendIndicator.type,
+					data: backendIndicator.data,
+				});
+			}
+			// Incremental format (single values for live updates) - handle {x, y} objects
+			else if (
+				typeof indicatorInfo === "object" &&
+				indicatorInfo &&
+				"x" in indicatorInfo &&
+				"y" in indicatorInfo
+			) {
+				const incrementalPoint = indicatorInfo as { x: number; y: number };
+				console.log(
+					`[useOhlcvWithIndicators] Incremental point indicator ${key}:`,
+					incrementalPoint
+				);
+
+				// Find existing indicator and update its latest value
+				const existingIndicatorIndex = indicators.findIndex(
+					(ind) => ind.id === key
+				);
+				if (existingIndicatorIndex >= 0) {
+					// Update existing indicator's latest point
+					const existingIndicator = { ...indicators[existingIndicatorIndex] };
+					const updatedData = [...existingIndicator.data];
+
+					// Update or add the latest point
+					if (updatedData.length > 0) {
+						updatedData[updatedData.length - 1] = {
+							x: incrementalPoint.x,
+							y: incrementalPoint.y,
+						};
+					} else {
+						updatedData.push({
+							x: incrementalPoint.x,
+							y: incrementalPoint.y,
+						});
+					}
+
+					existingIndicator.data = updatedData;
+					processedIndicators.push(existingIndicator);
+				} else {
+					// Create new indicator for incremental update
+					processedIndicators.push({
+						id: key,
+						name: key.toUpperCase(),
+						type: key.includes("ema")
+							? "EMA"
+							: key.includes("rsi")
+							? "RSI"
+							: key.includes("macd")
+							? "MACD"
+							: key.includes("bb") || key.includes("bollinger")
+							? "BOLLINGER_BANDS"
+							: "OTHER",
+						data: [
+							{
+								x: incrementalPoint.x,
+								y: incrementalPoint.y,
+							},
+						],
+					});
+				}
+			}
+			// Simple number format (fallback)
+			else if (typeof indicatorInfo === "number") {
+				console.log(
+					`[useOhlcvWithIndicators] Simple value indicator ${key}:`,
+					indicatorInfo
+				);
+
+				const latestTimestamp = latestCandle?.timestamp || Date.now();
+
+				// Find existing indicator and update its latest value
+				const existingIndicatorIndex = indicators.findIndex(
+					(ind) => ind.id === key
+				);
+				if (existingIndicatorIndex >= 0) {
+					// Update existing indicator's latest point
+					const existingIndicator = { ...indicators[existingIndicatorIndex] };
+					const updatedData = [...existingIndicator.data];
+
+					// Update or add the latest point
+					if (updatedData.length > 0) {
+						updatedData[updatedData.length - 1] = {
 							x: latestTimestamp,
-							y: typeof value === "number" ? value : null,
-						},
-					],
-				};
+							y: indicatorInfo,
+						};
+					} else {
+						updatedData.push({
+							x: latestTimestamp,
+							y: indicatorInfo,
+						});
+					}
 
-				processedIndicators.push(indicatorResult);
-				processedIndicatorsRef.current.add(key);
+					existingIndicator.data = updatedData;
+					processedIndicators.push(existingIndicator);
+				} else {
+					// Create new indicator for incremental update
+					processedIndicators.push({
+						id: key,
+						name: key.toUpperCase(),
+						type: key.includes("ema")
+							? "EMA"
+							: key.includes("rsi")
+							? "RSI"
+							: key.includes("macd")
+							? "MACD"
+							: key.includes("bb") || key.includes("bollinger")
+							? "BOLLINGER_BANDS"
+							: "OTHER",
+						data: [
+							{
+								x: latestTimestamp,
+								y: indicatorInfo,
+							},
+						],
+					});
+				}
+			} else {
+				console.warn(
+					`[useOhlcvWithIndicators] Unexpected indicator format for ${key}:`,
+					indicatorInfo
+				);
 			}
 		});
 
+		console.log(
+			`[useOhlcvWithIndicators] Processed ${processedIndicators.length} indicators`
+		);
+
 		if (processedIndicators.length > 0) {
-			setIndicators((prev) => {
-				// Update existing indicators or add new ones
-				const updated = [...prev];
-
-				processedIndicators.forEach((newIndicator) => {
-					const existingIndex = updated.findIndex(
-						(ind) => ind.id === newIndicator.id
-					);
-					if (existingIndex >= 0) {
-						// Update existing indicator data
-						const existing = updated[existingIndex];
-						updated[existingIndex] = {
-							...existing,
-							data: [...existing.data, ...newIndicator.data],
-						};
-					} else {
-						// Add new indicator
-						updated.push(newIndicator);
-					}
-				});
-
-				return updated;
-			});
+			setIndicators(processedIndicators);
 		}
-	}, [indicatorData, latestCandle]);
+	}, [indicatorData]);
 
 	// Dummy functions to maintain interface compatibility
 	const reconnect = useCallback(() => {

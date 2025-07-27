@@ -277,8 +277,12 @@ function handleOhlcvConnection(
 		`[OHLCV WS] Added client ${clientId} to ${subscriptionKey}. Total clients: ${subscription.clients.size}`
 	);
 
-	// Initialize client config
-	clientConfigs.set(ws, { strategyId: null });
+	// Initialize client config with strategy ID from URL params
+	clientConfigs.set(ws, { strategyId: strategyId });
+
+	console.log(
+		`[OHLCV WS] Client ${clientId} config set with strategyId: ${strategyId}`
+	);
 
 	// Add client to strategy engine integration for strategy control messages
 	strategyEngineIntegration.addWebSocketClient(ws);
@@ -970,31 +974,29 @@ async function startWatchLoop(
 							let indicatorResults: any = {};
 							let indicatorUpdateType: "full" | "incremental" = updateType;
 
-							// Calculate indicators if strategy is selected
+							// Calculate indicators if strategy is selected - optimize for smooth updates
 							if (
 								config &&
 								config.strategyId &&
 								formattedDataForIndicators.length > 0
 							) {
+								console.log(
+									`[Indicators] Calculating indicators for strategy: ${config.strategyId} (${updateType})`
+								);
+
 								try {
-									if (updateType === "incremental") {
-										// For incremental updates, get only latest values
-										indicatorResults = calculateStrategyIndicatorsIncremental(
-											config.strategyId,
-											formattedDataForIndicators
-										);
-										indicatorUpdateType = "incremental";
-										console.log(
-											`[Indicators] Sending incremental indicators for strategy: ${config.strategyId}`
-										);
-									} else {
-										// For full updates, get complete historical arrays with metadata
+									if (updateType === "full") {
+										// For full updates (initial load, new candle), get complete arrays
 										const fullResults = calculateStrategyIndicators(
 											config.strategyId,
 											formattedDataForIndicators
 										);
 
-										// Convert to format expected by frontend - include full metadata
+										console.log(
+											`[Indicators] Full calculation: ${fullResults.length} indicators`
+										);
+
+										// Convert to consistent format expected by frontend
 										indicatorResults = {};
 										for (const result of fullResults) {
 											indicatorResults[result.id] = {
@@ -1004,36 +1006,53 @@ async function startWatchLoop(
 												data: result.data,
 											};
 										}
-
 										indicatorUpdateType = "full";
+									} else {
+										// For incremental updates (live price changes), get only latest values for smooth updates
+										const incrementalResults =
+											calculateStrategyIndicatorsIncremental(
+												config.strategyId,
+												formattedDataForIndicators
+											);
+
 										console.log(
-											`[Indicators] Calculating and sending full indicators for strategy: ${config.strategyId}`
+											`[Indicators] Incremental calculation: ${
+												Object.keys(incrementalResults).length
+											} indicators`
 										);
+
+										indicatorResults = incrementalResults;
+										indicatorUpdateType = "incremental";
 									}
+
+									console.log(
+										`[Indicators] Sending ${indicatorUpdateType} indicators for strategy: ${config.strategyId}`
+									);
 								} catch (e) {
 									console.error(
 										`[Indicators] Error calculating indicators for strategy ${config.strategyId}:`,
 										e
 									);
-									indicatorResults = { error: "Indicator calculation failed" };
+									indicatorResults = {};
 								}
 							}
 
+							// Send appropriate data format for smooth chart updates
 							const dataToSend =
 								updateType === "incremental"
-									? [formattedData[formattedData.length - 1]]
-									: formattedData;
+									? [formattedData[formattedData.length - 1]] // Only latest candle for smooth updates
+									: formattedData; // Complete dataset for initial load
 
 							ws.send(
 								JSON.stringify({
 									type: "ohlcv",
 									symbol,
 									timeframe,
-									updateType,
+									updateType, // "full" for initial/new candle, "incremental" for live updates
 									data: dataToSend,
 									timestamp: Date.now(),
 									indicators: indicatorResults,
-									indicatorUpdateType,
+									indicatorUpdateType, // Match the data update type
 									strategyId: config?.strategyId || null,
 								})
 							);

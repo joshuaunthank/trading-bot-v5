@@ -152,7 +152,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
 		setPanels(organizePanels());
 	}, [organizePanels]);
 
-	// Track last known price for live price marker
+	// Track last known price for live price marker and handle smooth updates
 	useEffect(() => {
 		console.log(
 			"[TradingChart] OHLCV data updated:",
@@ -163,8 +163,70 @@ const TradingChart: React.FC<TradingChartProps> = ({
 			const currentPrice = ohlcvData[ohlcvData.length - 1].close;
 			console.log("[TradingChart] Latest price:", currentPrice);
 			setLastKnownPrice(currentPrice);
+
+			// Update existing charts with new data instead of recreating them
+			updateChartsData();
 		}
 	}, [ohlcvData]);
+
+	// Function to update chart data without recreating charts
+	const updateChartsData = useCallback(() => {
+		if (ohlcvData.length === 0) return;
+
+		Object.entries(chartRefs.current).forEach(([panelId, chart]) => {
+			if (!chart) return;
+
+			try {
+				// Find panel using current panels state
+				const currentPanels = organizePanels();
+				const panel = currentPanels.find((p) => p.id === panelId);
+				if (!panel) return;
+
+				console.log(`[TradingChart] Updating data for panel: ${panelId}`);
+
+				// Update OHLCV data for price panels
+				if (panel.type === "price" && ohlcvData.length > 0) {
+					const candlestickDataset = chart.data.datasets.find(
+						(d: any) => d.type === "candlestick" || d.label?.includes("Price")
+					);
+
+					if (candlestickDataset) {
+						candlestickDataset.data = ohlcvData.map((candle) => ({
+							x: candle.timestamp,
+							o: candle.open,
+							h: candle.high,
+							l: candle.low,
+							c: candle.close,
+						}));
+					}
+				}
+
+				// Update indicator data
+				panel.indicators.forEach((indicator) => {
+					const dataset = chart.data.datasets.find(
+						(d: any) => d.label === indicator.name
+					);
+					if (dataset && indicator.data) {
+						// Filter out null values and ensure proper typing
+						dataset.data = indicator.data
+							.filter((point) => point.y !== null)
+							.map((point) => ({
+								x: point.x,
+								y: point.y as number,
+							}));
+					}
+				});
+
+				// Smooth update without animation for live data
+				chart.update("none");
+			} catch (error) {
+				console.error(
+					`[TradingChart] Error updating chart data for panel ${panelId}:`,
+					error
+				);
+			}
+		});
+	}, [ohlcvData, organizePanels]);
 
 	// Debug indicators
 	useEffect(() => {
@@ -445,8 +507,19 @@ const TradingChart: React.FC<TradingChartProps> = ({
 		[ohlcvData, symbol, onZoomChange]
 	);
 
-	// Create/update charts
+	// Create/update charts - only recreate when necessary
 	useEffect(() => {
+		// Only recreate charts if panels have changed or if charts don't exist
+		const needsRecreation =
+			panels.some((panel) => !chartRefs.current[panel.id]) ||
+			Object.keys(chartRefs.current).length !== panels.length;
+
+		if (!needsRecreation && ohlcvData.length > 0) {
+			console.log("[TradingChart] Charts exist, updating data only");
+			updateChartsData();
+			return;
+		}
+
 		if (loading || ohlcvData.length === 0) return;
 
 		console.log(
@@ -577,7 +650,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
 				}
 			});
 		};
-	}, [panels, createChartConfig, loading, ohlcvData.length]);
+	}, [panels, createChartConfig, loading]); // Removed updateChartsData to prevent unnecessary recreations
 
 	// Sync zoom across all charts
 	useEffect(() => {
