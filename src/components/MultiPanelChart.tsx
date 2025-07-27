@@ -4,12 +4,24 @@ import Loader from "./Loader";
 import { CalculatedIndicator, OHLCVData } from "../types/indicators";
 import { categorizeIndicators, getPanelHeight } from "./ChartPanelUtils";
 
+// Flexible indicator type for compatibility
+type FlexibleIndicator =
+	| CalculatedIndicator
+	| {
+			id: string;
+			name: string;
+			type: string;
+			data: Array<{ x: number; y: number | null }>;
+			color?: string;
+			yAxisID?: string;
+	  };
+
 interface MultiPanelChartProps {
 	data: OHLCVData[];
 	symbol: string;
 	timeframe: string;
 	loading?: boolean;
-	indicators?: CalculatedIndicator[];
+	indicators?: FlexibleIndicator[];
 	onTimeframeChange?: (timeframe: string) => void;
 }
 
@@ -63,7 +75,19 @@ const MultiPanelChart: React.FC<MultiPanelChartProps> = ({
 	}, []);
 
 	// Categorize indicators by type
-	const categorizedIndicators = categorizeIndicators(indicators);
+	// Convert flexible indicators to CalculatedIndicator format
+	const normalizedIndicators: CalculatedIndicator[] = (indicators || []).map(
+		(indicator) => ({
+			id: indicator.id,
+			name: indicator.name,
+			data: indicator.data,
+			color: indicator.color || "#ffffff",
+			yAxisID: indicator.yAxisID || "right-axis",
+			type: indicator.type as any, // Type assertion for now
+		})
+	);
+
+	const categorizedIndicators = categorizeIndicators(normalizedIndicators);
 	const hasOscillators = categorizedIndicators.oscillator.length > 0;
 	const hasVolume = categorizedIndicators.volume.length > 0;
 
