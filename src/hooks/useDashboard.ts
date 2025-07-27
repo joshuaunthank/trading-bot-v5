@@ -10,6 +10,7 @@ import { useStrategy } from "../context/StrategyContext";
 import { strategyService } from "../services/strategyService";
 import { storage } from "../utils/storage";
 import { CONFIG } from "../utils/config";
+import { CalculatedIndicator, IndicatorType } from "../types/indicators";
 
 export type TabId = "chart" | "testing";
 
@@ -107,20 +108,84 @@ export const useDashboard = () => {
 		[]
 	);
 
-	// Combine backend indicators with color information
+	// Transform backend indicators to CalculatedIndicator format
 	const allChartIndicators = useMemo(() => {
-		if (!backendIndicators || !detailedStrategy) return backendIndicators || [];
+		console.log("🔄 useDashboard - Transforming indicators:");
+		console.log("- backendIndicators:", backendIndicators?.length || 0);
+		console.log("- detailedStrategy:", !!detailedStrategy);
+
+		if (!backendIndicators || !detailedStrategy) return [];
 
 		const strategyColors = extractColorsFromStrategy(detailedStrategy);
+		console.log("- strategyColors:", strategyColors);
 
-		return backendIndicators.map((indicator) => ({
-			...indicator,
-			// Add color property if it doesn't exist
-			color:
-				strategyColors[indicator.id] ||
-				strategyColors[indicator.name] ||
-				"#ffffff",
-		}));
+		const transformed = backendIndicators.map(
+			(indicator): CalculatedIndicator => {
+				// Determine yAxisID based on indicator type
+				const getYAxisID = (type: string): string => {
+					const lowerType = type.toLowerCase();
+					if (
+						lowerType.includes("rsi") ||
+						lowerType.includes("stoch") ||
+						lowerType.includes("williams") ||
+						lowerType.includes("cci")
+					) {
+						return "oscillator";
+					}
+					if (lowerType.includes("volume") || lowerType.includes("obv")) {
+						return "volume";
+					}
+					return "price";
+				};
+
+				// Map string type to IndicatorType
+				const getIndicatorType = (type: string): IndicatorType => {
+					const lowerType = type.toLowerCase();
+					if (lowerType.includes("ema")) return "EMA";
+					if (lowerType.includes("sma")) return "SMA";
+					if (lowerType.includes("rsi")) return "RSI";
+					if (lowerType.includes("macd")) return "MACD";
+					if (lowerType.includes("bb") || lowerType.includes("bollinger"))
+						return "BB";
+					if (lowerType.includes("stoch")) return "STOCH";
+					if (lowerType.includes("adx")) return "ADX";
+					if (lowerType.includes("cci")) return "CCI";
+					if (lowerType.includes("williams")) return "WILLIAMS";
+					if (lowerType.includes("atr")) return "ATR";
+					if (lowerType.includes("obv")) return "OBV";
+					return "EMA"; // Default fallback
+				};
+
+				const result = {
+					id: indicator.id,
+					name: indicator.name,
+					data: indicator.data,
+					color:
+						strategyColors[indicator.id] ||
+						strategyColors[indicator.name] ||
+						"#ffffff",
+					yAxisID: getYAxisID(indicator.type),
+					type: getIndicatorType(indicator.type),
+				};
+
+				console.log(`- Transformed ${indicator.name}:`, {
+					originalType: indicator.type,
+					mappedType: result.type,
+					yAxisID: result.yAxisID,
+					color: result.color,
+					dataLength: result.data.length,
+				});
+
+				return result;
+			}
+		);
+
+		console.log(
+			"✅ Transformation complete, returning:",
+			transformed.length,
+			"indicators"
+		);
+		return transformed;
 	}, [backendIndicators, detailedStrategy, extractColorsFromStrategy]);
 
 	// Event handlers
