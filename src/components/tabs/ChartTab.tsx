@@ -1,5 +1,4 @@
 import React from "react";
-import StrategySelect from "../StrategySelect";
 import MultiPanelChart from "../MultiPanelChart";
 import DataTable from "../DataTable";
 import { OHLCVData } from "../../types/indicators";
@@ -15,14 +14,6 @@ type ChartIndicator = {
 };
 
 interface ChartTabProps {
-	// Strategy data
-	availableStrategies: any[];
-	selectedStrategyId: string | null;
-	onStrategySelect: (strategyId: string | null) => void;
-	onCreateStrategy: () => void;
-	onEditStrategy: (strategyId: string) => void;
-	onDeleteStrategy: (strategyId: string) => void;
-
 	// Chart data
 	ohlcvData: OHLCVData[];
 	indicators: ChartIndicator[];
@@ -35,12 +26,6 @@ interface ChartTabProps {
 }
 
 const ChartTab: React.FC<ChartTabProps> = ({
-	availableStrategies,
-	selectedStrategyId,
-	onStrategySelect,
-	onCreateStrategy,
-	onEditStrategy,
-	onDeleteStrategy,
 	ohlcvData,
 	indicators,
 	symbol,
@@ -50,18 +35,6 @@ const ChartTab: React.FC<ChartTabProps> = ({
 }) => {
 	return (
 		<div className="space-y-6">
-			{/* Strategy Selection */}
-			<StrategySelect
-				strategies={availableStrategies || []}
-				selectedStrategyId={selectedStrategyId}
-				onStrategySelect={onStrategySelect}
-				onCreateStrategy={onCreateStrategy}
-				onEditStrategy={onEditStrategy}
-				onDeleteStrategy={onDeleteStrategy}
-				loading={loading}
-				error={error}
-			/>
-
 			{/* Chart */}
 			<MultiPanelChart
 				data={ohlcvData}

@@ -7,6 +7,7 @@ import React from "react";
 import { useDashboard } from "../hooks/useDashboard";
 import ConnectionStatus from "../components/ConnectionStatus";
 import TabNavigation from "../components/ui/TabNavigation";
+import StrategySelect from "../components/StrategySelect";
 import ChartTab from "../components/tabs/ChartTab";
 import TestingTab from "../components/tabs/TestingTab";
 import ConfigModal from "../components/ConfigModal";
@@ -102,6 +103,18 @@ const Dashboard: React.FC = () => {
 
 			{/* Main Content */}
 			<main className="p-4">
+				{/* Strategy Selection - Global for all tabs */}
+				<div className="mb-6">
+					<StrategySelect
+						strategies={availableStrategies || []}
+						selectedStrategyId={selectedStrategyId}
+						onStrategySelect={handleStrategySelect}
+						onCreateStrategy={onCreateStrategy}
+						onEditStrategy={handleEditStrategy}
+						onDeleteStrategy={handleDeleteStrategy}
+					/>
+				</div>
+
 				{/* Tab Navigation */}
 				<TabNavigation
 					tabs={tabs}
@@ -113,12 +126,6 @@ const Dashboard: React.FC = () => {
 				{/* Tab Content */}
 				{activeTab === "chart" && (
 					<ChartTab
-						availableStrategies={availableStrategies || []}
-						selectedStrategyId={selectedStrategyId}
-						onStrategySelect={handleStrategySelect}
-						onCreateStrategy={onCreateStrategy}
-						onEditStrategy={handleEditStrategy}
-						onDeleteStrategy={handleDeleteStrategy}
 						ohlcvData={ohlcvData}
 						indicators={indicators}
 						symbol={getSymbolLabel(symbol)}
