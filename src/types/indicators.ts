@@ -5,7 +5,7 @@
 
 export interface IndicatorValue {
 	x: number; // timestamp
-	y: number | null; // value (null for missing/NaN values that Chart.js should skip)
+	y: number | null; // value (null for missing/NaN values that D3.js should skip)
 }
 
 export interface CalculatedIndicator {

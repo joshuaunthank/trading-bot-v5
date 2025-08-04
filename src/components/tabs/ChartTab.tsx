@@ -1,6 +1,6 @@
 import React from "react";
 import DataTable from "../DataTable";
-import TradingChart from "../TradingChart";
+import D3StreamingChart from "../D3StreamingChart";
 import { OHLCVData, CalculatedIndicator } from "../../types/indicators";
 
 interface ChartTabProps {
@@ -25,14 +25,12 @@ const ChartTab: React.FC<ChartTabProps> = ({
 }) => {
 	return (
 		<div className="space-y-6">
-			{/* Modern TradingView-Style Chart */}
-			<TradingChart
+			{/* Modern D3.js Streaming Chart */}
+			<D3StreamingChart
 				ohlcvData={ohlcvData}
 				indicators={indicators}
 				symbol={symbol}
 				timeframe={timeframe}
-				loading={loading}
-				error={error}
 				height={600}
 			/>
 
