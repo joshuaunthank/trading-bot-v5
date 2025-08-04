@@ -77,18 +77,30 @@ function getIndicatorCalculator(type: string): Function | null {
  */
 export function loadStrategy(strategyId: string): any | null {
 	try {
+		console.log(`[Strategy] Loading strategy: ${strategyId}`);
 		const strategyPath = path.join(STRATEGIES_DIR, `${strategyId}.json`);
 		if (!fs.existsSync(strategyPath)) {
-			console.error(`[Strategy] Strategy file not found: ${strategyId}`);
+			console.error(
+				`[Strategy] Strategy file not found: ${strategyId} at ${strategyPath}`
+			);
 			return null;
 		}
 
 		const strategyData = JSON.parse(fs.readFileSync(strategyPath, "utf8"));
 		console.log(
-			`[Strategy] Loaded strategy: ${strategyId} with ${
+			`[Strategy] ✅ Loaded strategy: ${strategyId} with ${
 				strategyData.indicators?.length || 0
 			} indicators`
 		);
+
+		// Debug: Log the actual indicators being loaded
+		if (strategyData.indicators) {
+			console.log(
+				`[Strategy] Indicators for ${strategyId}:`,
+				strategyData.indicators.map((ind: any) => Object.keys(ind)).flat()
+			);
+		}
+
 		return strategyData;
 	} catch (error) {
 		console.error(`[Strategy] Error loading strategy ${strategyId}:`, error);

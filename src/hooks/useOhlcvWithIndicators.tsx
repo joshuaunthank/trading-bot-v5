@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useWebSocket } from "../context/WebSocketContext";
+import { useStrategy } from "../context/StrategyContext";
 
 interface OHLCVCandle {
 	timestamp: number;
@@ -53,18 +54,15 @@ interface UseOHLCVWithIndicatorsOptions {
 export const useOhlcvWithIndicators = (
 	options: UseOHLCVWithIndicatorsOptions = {}
 ): OHLCVWithIndicatorsResult => {
-	const {
-		symbol = "BTC/USDT",
-		timeframe = "1h",
-		limit = 1000,
-		strategyId = null,
-	} = options;
+	const { symbol = "BTC/USDT", timeframe = "1h", limit = 1000 } = options;
 
+	const { selectedStrategyId } = useStrategy();
 	const { ohlcvData, indicatorData, connectionStatus, sendMessage } =
 		useWebSocket();
 
 	const [indicators, setIndicators] = useState<BackendIndicatorResult[]>([]);
 	const processedIndicatorsRef = useRef<Set<string>>(new Set());
+	const lastStrategyIdRef = useRef<string | null>(null);
 
 	// Convert shared WebSocket OHLCV data to expected format
 	const fullDataset = useMemo(() => {
@@ -83,6 +81,18 @@ export const useOhlcvWithIndicators = (
 		return fullDataset[fullDataset.length - 1];
 	}, [fullDataset]);
 
+	// Clear indicators when strategy changes
+	useEffect(() => {
+		if (lastStrategyIdRef.current !== selectedStrategyId) {
+			console.log(
+				`[useOhlcvWithIndicators] 🔄 Strategy changed from '${lastStrategyIdRef.current}' to '${selectedStrategyId}' - clearing indicators`
+			);
+			setIndicators([]);
+			processedIndicatorsRef.current.clear();
+			lastStrategyIdRef.current = selectedStrategyId;
+		}
+	}, [selectedStrategyId]);
+
 	// Process indicator data from shared WebSocket - now simplified since context handles accumulation
 	useEffect(() => {
 		console.log(
@@ -95,7 +105,10 @@ export const useOhlcvWithIndicators = (
 		);
 
 		if (!indicatorData || Object.keys(indicatorData).length === 0) {
-			console.log("[useOhlcvWithIndicators] No indicator data to process");
+			console.log(
+				"[useOhlcvWithIndicators] No indicator data to process - clearing local indicators"
+			);
+			setIndicators([]);
 			return;
 		}
 
@@ -181,7 +194,7 @@ export const useOhlcvWithIndicators = (
 		latestCandle,
 		fullDataset,
 		indicators,
-		strategyId,
+		strategyId: selectedStrategyId,
 		connectionStatus,
 		reconnect,
 		disconnect,

@@ -256,7 +256,22 @@ function handleOhlcvConnection(
 	if (url.searchParams.get("strategy")) {
 		strategyId = url.searchParams.get("strategy")!;
 		console.log(
-			`[OHLCV WS] Client ${clientId} also subscribing to strategy: ${strategyId}`
+			`[OHLCV WS] 🎯 Client ${clientId} also subscribing to strategy: ${strategyId}`
+		);
+		console.log(`[OHLCV WS] 🔍 Full URL: ${url.href}`);
+		console.log(
+			`[OHLCV WS] 🔍 Strategy param from URL: ${url.searchParams.get(
+				"strategy"
+			)}`
+		);
+	} else {
+		console.log(
+			`[OHLCV WS] ⚠️ No strategy parameter in URL for client ${clientId}`
+		);
+		console.log(`[OHLCV WS] 🔍 Full URL: ${url.href}`);
+		console.log(
+			`[OHLCV WS] 🔍 Available URL params:`,
+			Array.from(url.searchParams.entries())
 		);
 	}
 
@@ -281,8 +296,12 @@ function handleOhlcvConnection(
 	clientConfigs.set(ws, { strategyId: strategyId });
 
 	console.log(
-		`[OHLCV WS] Client ${clientId} config set with strategyId: ${strategyId}`
+		`[OHLCV WS] 🎯 Client ${clientId} config set with strategyId: ${strategyId}`
 	);
+	console.log(`[OHLCV WS] 🔍 Client config object:`, {
+		strategyId: strategyId,
+	});
+	console.log(`[OHLCV WS] 📋 Total client configs:`, clientConfigs.size);
 
 	// Add client to strategy engine integration for strategy control messages
 	strategyEngineIntegration.addWebSocketClient(ws);
@@ -981,12 +1000,25 @@ async function startWatchLoop(
 								formattedDataForIndicators.length > 0
 							) {
 								console.log(
-									`[Indicators] Calculating indicators for strategy: ${config.strategyId} (${updateType})`
+									`[Indicators] 🎯 CLIENT CONFIG DEBUG - Processing strategy: ${config.strategyId} (${updateType})`
+								);
+								console.log(`[Indicators] 🔍 Client WebSocket config:`, config);
+								console.log(
+									`[Indicators] 📋 Available strategies in system:`,
+									require("fs")
+										.readdirSync(
+											require("path").join(__dirname, "../db/strategies")
+										)
+										.filter((f: string) => f.endsWith(".json"))
+										.map((f: string) => f.replace(".json", ""))
 								);
 
 								try {
 									if (updateType === "full") {
 										// For full updates (initial load, new candle), get complete arrays
+										console.log(
+											`[Indicators] 🚀 Calling calculateStrategyIndicators with strategy: ${config.strategyId}`
+										);
 										const fullResults = calculateStrategyIndicators(
 											config.strategyId,
 											formattedDataForIndicators

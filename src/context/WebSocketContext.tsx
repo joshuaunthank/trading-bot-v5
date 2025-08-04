@@ -115,6 +115,11 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			setConnectionStatus("connected");
 			reconnectAttempts.current = 0;
 
+			// Debug: Log the strategy being sent
+			console.log(
+				`[SharedWebSocket] 🎯 Strategy ID for subscription: ${selectedStrategyId}`
+			);
+
 			// Send initial subscription message
 			const subscriptionMessage = {
 				type: "subscribe",
@@ -124,10 +129,23 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			};
 
 			console.log(
-				"[SharedWebSocket] Sending subscription:",
+				"[SharedWebSocket] 🚀 Sending subscription:",
 				subscriptionMessage
 			);
 			ws.send(JSON.stringify(subscriptionMessage));
+
+			// Force strategy update to ensure backend uses correct strategy
+			if (selectedStrategyId) {
+				const strategyUpdateMessage = {
+					type: "subscribe-strategy",
+					strategyId: selectedStrategyId,
+				};
+				console.log(
+					"[SharedWebSocket] 🔄 Force strategy update:",
+					strategyUpdateMessage
+				);
+				ws.send(JSON.stringify(strategyUpdateMessage));
+			}
 
 			// Request full historical data to ensure we get complete indicator datasets
 			setTimeout(() => {
@@ -139,7 +157,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 						strategy: selectedStrategyId || undefined,
 					};
 					console.log(
-						"[SharedWebSocket] Requesting full data refresh:",
+						"[SharedWebSocket] 🔄 Requesting full data refresh:",
 						refreshMessage
 					);
 					ws.send(JSON.stringify(refreshMessage));
@@ -518,9 +536,24 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
 	// Connect on mount and when strategy changes
 	useEffect(() => {
-		connect();
+		// Clear existing indicator data when strategy changes to prevent stale data
+		console.log(
+			`[WebSocket] Strategy changed to: ${selectedStrategyId}, clearing indicator data`
+		);
+		setIndicatorData({});
+		setOhlcvData([]);
+		setStrategyStatus(null);
+
+		// Disconnect existing connection and connect with new strategy
+		disconnect();
+
+		// Small delay to ensure clean disconnection before reconnecting
+		const reconnectTimeout = setTimeout(() => {
+			connect();
+		}, 100);
 
 		return () => {
+			clearTimeout(reconnectTimeout);
 			disconnect();
 		};
 	}, [selectedStrategyId]);
