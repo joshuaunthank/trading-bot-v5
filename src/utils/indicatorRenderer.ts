@@ -32,8 +32,26 @@ export const DEFAULT_INDICATOR_STYLES: IndicatorStyles = {
 		yAxisID: "price",
 		renderType: "line",
 	},
+	SMA_10: {
+		color: "#2ecc71",
+		strokeWidth: 2,
+		yAxisID: "price",
+		renderType: "line",
+	},
+	SMA_30: {
+		color: "#3498db",
+		strokeWidth: 2,
+		yAxisID: "price",
+		renderType: "line",
+	},
 	rsi_14: {
 		color: "#45b7d1",
+		strokeWidth: 2,
+		yAxisID: "oscillator",
+		renderType: "line",
+	},
+	ATR_14: {
+		color: "#e67e22",
 		strokeWidth: 2,
 		yAxisID: "oscillator",
 		renderType: "line",
@@ -57,6 +75,24 @@ export const DEFAULT_INDICATOR_STYLES: IndicatorStyles = {
 		opacity: 0.8,
 		yAxisID: "price",
 		renderType: "line",
+	},
+	MACD_12_26_9_macd: {
+		color: "#e74c3c",
+		strokeWidth: 2,
+		yAxisID: "oscillator",
+		renderType: "line",
+	},
+	MACD_12_26_9_signal: {
+		color: "#f39c12",
+		strokeWidth: 2,
+		yAxisID: "oscillator",
+		renderType: "line",
+	},
+	MACD_12_26_9_histogram: {
+		color: "#95a5a6",
+		strokeWidth: 1,
+		yAxisID: "oscillator",
+		renderType: "histogram",
 	},
 	macd_line: {
 		color: "#e74c3c",
@@ -83,6 +119,7 @@ export class IndicatorRenderer {
 	private xScale: d3.ScaleTime<number, number>;
 	private yScale: d3.ScaleLinear<number, number>;
 	private styles: IndicatorStyles;
+	private warnedMissingStyles = new Set<string>(); // Track warned indicators
 
 	constructor(
 		chartGroup: d3.Selection<any, unknown, null, undefined>,
@@ -216,9 +253,13 @@ export class IndicatorRenderer {
 
 				const config = this.styles[indicator.id];
 				if (!config) {
-					console.warn(
-						`[IndicatorRenderer] No style configuration for indicator ${indicator.id}, using default line style`
-					);
+					// Only warn once per missing indicator style
+					if (!this.warnedMissingStyles.has(indicator.id)) {
+						console.warn(
+							`[IndicatorRenderer] No style configuration for indicator ${indicator.id}, using default line style`
+						);
+						this.warnedMissingStyles.add(indicator.id);
+					}
 					// Use default line style for unknown indicators
 					this.renderLineIndicator(indicator, {
 						color: "#666666",
