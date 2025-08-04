@@ -34,13 +34,8 @@ export const StrategyProvider: React.FC<StrategyProviderProps> = ({
 	// Initialize with a working strategy from localStorage or default
 	const [selectedStrategyId, setSelectedStrategyId] = useState<string | null>(
 		() => {
-			// Force clear any potentially corrupted localStorage data
-			localStorage.removeItem("globalSelectedStrategy");
-			const defaultStrategy = "simple_ema_rsi";
-			console.log(
-				`[StrategyContext] 🎯 Forcing default strategy: ${defaultStrategy}`
-			);
-			return defaultStrategy; // Always use simple_ema_rsi for now
+			const stored = localStorage.getItem("globalSelectedStrategy");
+			return stored && stored !== "null" ? stored : "simple_ema_rsi";
 		}
 	);
 

@@ -178,10 +178,6 @@ export class IndicatorRenderer {
 			return;
 		}
 
-		console.log(
-			`[IndicatorRenderer] Rendering line indicator ${indicator.id} with ${validData.length} points`
-		);
-
 		const line = d3
 			.line<{ x: number; y: number }>()
 			.x((d) => this.xScale(new Date(d.x)))
@@ -203,10 +199,6 @@ export class IndicatorRenderer {
 	 * Render all indicators with comprehensive validation and error handling
 	 */
 	public renderIndicators(indicators: CalculatedIndicator[]): void {
-		console.log(
-			`[IndicatorRenderer] Starting render of ${indicators.length} indicators`
-		);
-
 		// Clear previous indicators
 		this.chartGroup.selectAll(".indicator-line").remove();
 		this.chartGroup.selectAll(".indicator-band").remove();
@@ -263,10 +255,6 @@ export class IndicatorRenderer {
 				failedCount++;
 			}
 		});
-
-		console.log(
-			`[IndicatorRenderer] Completed: ${renderedCount} rendered, ${failedCount} failed`
-		);
 	}
 
 	/**

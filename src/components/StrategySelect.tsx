@@ -66,7 +66,6 @@ const StrategySelect: React.FC<StrategySelectProps> = ({
 			setStrategyError(null);
 
 			const detailed = await strategyService.getDetailedStrategy(strategyId);
-			console.log("Fetched detailed strategy:", detailed);
 
 			setDetailedStrategy(detailed);
 			// Pass the detailed strategy data back to parent

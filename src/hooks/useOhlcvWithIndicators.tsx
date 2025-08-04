@@ -84,30 +84,15 @@ export const useOhlcvWithIndicators = (
 	// Clear indicators when strategy changes
 	useEffect(() => {
 		if (lastStrategyIdRef.current !== selectedStrategyId) {
-			console.log(
-				`[useOhlcvWithIndicators] 🔄 Strategy changed from '${lastStrategyIdRef.current}' to '${selectedStrategyId}' - clearing indicators`
-			);
 			setIndicators([]);
 			processedIndicatorsRef.current.clear();
 			lastStrategyIdRef.current = selectedStrategyId;
 		}
 	}, [selectedStrategyId]);
 
-	// Process indicator data from shared WebSocket - now simplified since context handles accumulation
+	// Process indicator data from shared WebSocket
 	useEffect(() => {
-		console.log(
-			"[useOhlcvWithIndicators] Raw indicatorData received:",
-			Object.keys(indicatorData || {})
-		);
-		console.log(
-			"[useOhlcvWithIndicators] Full indicatorData structure:",
-			indicatorData
-		);
-
 		if (!indicatorData || Object.keys(indicatorData).length === 0) {
-			console.log(
-				"[useOhlcvWithIndicators] No indicator data to process - clearing local indicators"
-			);
 			setIndicators([]);
 			return;
 		}
@@ -116,14 +101,6 @@ export const useOhlcvWithIndicators = (
 		const processedIndicators: BackendIndicatorResult[] = [];
 
 		Object.entries(indicatorData).forEach(([key, indicatorInfo]) => {
-			console.log(`[useOhlcvWithIndicators] Processing indicator ${key}:`, {
-				hasId: "id" in (indicatorInfo as any),
-				hasData: "data" in (indicatorInfo as any),
-				dataLength: (indicatorInfo as any).data?.length || 0,
-				type: typeof indicatorInfo,
-				keys: Object.keys(indicatorInfo as any),
-			});
-
 			// Full format with metadata (already accumulated by WebSocket context)
 			if (
 				indicatorInfo &&
@@ -132,62 +109,28 @@ export const useOhlcvWithIndicators = (
 				"data" in indicatorInfo
 			) {
 				const backendIndicator = indicatorInfo as BackendIndicatorResult;
-				console.log(
-					`[useOhlcvWithIndicators] ✅ Processing accumulated indicator ${key}: ${backendIndicator.data.length} data points`
-				);
-
 				processedIndicators.push({
 					id: backendIndicator.id,
 					name: backendIndicator.name,
 					type: backendIndicator.type,
 					data: backendIndicator.data,
 				});
-			} else {
-				console.warn(
-					`[useOhlcvWithIndicators] ❌ Unexpected indicator format for ${key}:`,
-					indicatorInfo
-				);
 			}
 		});
-
-		console.log(
-			`[useOhlcvWithIndicators] Processed ${
-				processedIndicators.length
-			} indicators from ${Object.keys(indicatorData).length} received`
-		);
 
 		// Update indicators state
 		if (processedIndicators.length > 0) {
 			setIndicators(processedIndicators);
-			console.log(
-				`[useOhlcvWithIndicators] ✅ Updated indicators state with ${processedIndicators.length} indicators`
-			);
-
-			// Log the data length for each indicator
-			processedIndicators.forEach((ind) => {
-				const validPoints = ind.data.filter(
-					(d) => d.y !== null && !isNaN(d.y)
-				).length;
-				console.log(
-					`  - ${ind.id}: ${validPoints}/${ind.data.length} valid points`
-				);
-			});
-		} else {
-			console.log("[useOhlcvWithIndicators] ⚠️ No indicators processed");
 		}
 	}, [indicatorData]);
 
 	// Dummy functions to maintain interface compatibility
 	const reconnect = useCallback(() => {
-		console.log(
-			"[useOhlcvWithIndicators] Reconnect handled by shared WebSocket context"
-		);
+		// Handled by shared WebSocket context
 	}, []);
 
 	const disconnect = useCallback(() => {
-		console.log(
-			"[useOhlcvWithIndicators] Disconnect handled by shared WebSocket context"
-		);
+		// Handled by shared WebSocket context
 	}, []);
 
 	return {

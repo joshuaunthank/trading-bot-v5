@@ -125,17 +125,15 @@ const StrategyEngineTestPanel: React.FC<StrategyEngineTestPanelProps> = ({
 	// Handle signal generation
 	const handleSignalGenerated = useCallback((signal: TradingSignal) => {
 		setSignals((prev) => [signal, ...prev.slice(0, 49)]); // Keep last 50 signals
-		console.log("🚨 Trading Signal:", signal);
 	}, []);
 
 	// Handle strategy events
 	const handleStrategyEvent = useCallback((event: any) => {
-		console.log("📊 Strategy Event:", event);
+		// Process strategy events
 	}, []);
 
 	// Handle strategy control response
 	const handleStrategyControlResponse = useCallback((response: any) => {
-		console.log("Strategy Control Response:", response);
 		if (response.result.success) {
 			// Refresh strategy status
 			requestStrategyStatus();

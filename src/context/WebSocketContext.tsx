@@ -115,11 +115,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			setConnectionStatus("connected");
 			reconnectAttempts.current = 0;
 
-			// Debug: Log the strategy being sent
-			console.log(
-				`[SharedWebSocket] 🎯 Strategy ID for subscription: ${selectedStrategyId}`
-			);
-
 			// Send initial subscription message
 			const subscriptionMessage = {
 				type: "subscribe",
@@ -128,10 +123,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 				strategy: selectedStrategyId || undefined,
 			};
 
-			console.log(
-				"[SharedWebSocket] 🚀 Sending subscription:",
-				subscriptionMessage
-			);
 			ws.send(JSON.stringify(subscriptionMessage));
 
 			// Force strategy update to ensure backend uses correct strategy
@@ -140,10 +131,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 					type: "subscribe-strategy",
 					strategyId: selectedStrategyId,
 				};
-				console.log(
-					"[SharedWebSocket] 🔄 Force strategy update:",
-					strategyUpdateMessage
-				);
 				ws.send(JSON.stringify(strategyUpdateMessage));
 			}
 
@@ -156,10 +143,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 						timeframe: "1h",
 						strategy: selectedStrategyId || undefined,
 					};
-					console.log(
-						"[SharedWebSocket] 🔄 Requesting full data refresh:",
-						refreshMessage
-					);
 					ws.send(JSON.stringify(refreshMessage));
 				}
 			}, 100); // Small delay to ensure server is ready
@@ -197,44 +180,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
 						// Handle indicators data if present in the OHLCV message
 						if (message.indicators && typeof message.indicators === "object") {
-							console.log(
-								"[WebSocket] Received indicators in OHLCV message:",
-								Object.keys(message.indicators)
-							);
-							console.log(
-								"[WebSocket] Raw indicators data:",
-								message.indicators
-							);
-							console.log(
-								"[WebSocket] Raw indicators type:",
-								typeof message.indicators
-							);
-
-							// Enhanced validation
-							const indicatorKeys = Object.keys(message.indicators);
-							console.log("[WebSocket] Indicator validation:");
-							indicatorKeys.forEach((key) => {
-								const indicator = message.indicators[key];
-								console.log(
-									`  - ${key}: ${
-										indicator?.data?.length || 0
-									} data points, type: ${indicator?.type || "unknown"}`
-								);
-								if (indicator?.data?.length > 0) {
-									const validPoints = indicator.data.filter(
-										(d: any) => d.y !== null && !isNaN(d.y)
-									).length;
-									console.log(
-										`    Valid points: ${validPoints}/${indicator.data.length}`
-									);
-								}
-							});
-
-							console.log(
-								"[WebSocket] Sample indicator structure:",
-								Object.values(message.indicators)[0]
-							);
-
 							// Determine if this is full or incremental indicator data
 							const sampleIndicator = Object.values(
 								message.indicators
@@ -252,25 +197,11 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 								"x" in sampleIndicator &&
 								"y" in sampleIndicator;
 
-							console.log(
-								`[WebSocket] Indicator format: ${
-									isFullFormat
-										? "FULL"
-										: isIncrementalFormat
-										? "INCREMENTAL"
-										: "UNKNOWN"
-								}`
-							);
-
 							if (isFullFormat) {
 								// Full format - replace all indicator data
-								console.log("[WebSocket] ✅ Setting full indicator data");
 								setIndicatorData(message.indicators as IndicatorData);
 							} else if (isIncrementalFormat) {
 								// Incremental format - merge with existing data
-								console.log(
-									"[WebSocket] ⚡ Merging incremental indicator data"
-								);
 								setIndicatorData((prevIndicators) => {
 									const updatedIndicators = { ...prevIndicators };
 
@@ -310,9 +241,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 															...existingIndicator,
 															data: updatedData,
 														};
-														console.log(
-															`[WebSocket] Updated ${key}: ${updatedData.length} total points`
-														);
 													}
 												} else {
 													// Create new indicator from incremental data (should not normally happen)
@@ -343,24 +271,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 						break;
 
 					case "indicators":
-						console.log("[WebSocket] Received standalone indicators message");
-						console.log(
-							"[WebSocket] Standalone indicators data:",
-							message.data
-						);
-						console.log(
-							"[WebSocket] Standalone indicators type:",
-							typeof message.data
-						);
-						console.log(
-							"[WebSocket] Standalone indicators keys:",
-							Object.keys(message.data || {})
-						);
-						console.log(
-							"[WebSocket] Sample standalone indicator structure:",
-							Object.values(message.data || {})[0]
-						);
-
 						// Apply same full/incremental logic for standalone indicators
 						if (message.data && typeof message.data === "object") {
 							const sampleIndicator = Object.values(message.data)[0] as any;
@@ -377,27 +287,11 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 								"x" in sampleIndicator &&
 								"y" in sampleIndicator;
 
-							console.log(
-								`[WebSocket] Standalone format: ${
-									isFullFormat
-										? "FULL"
-										: isIncrementalFormat
-										? "INCREMENTAL"
-										: "UNKNOWN"
-								}`
-							);
-
 							if (isFullFormat) {
 								// Full format - replace all indicator data
-								console.log(
-									"[WebSocket] ✅ Setting full standalone indicator data"
-								);
 								setIndicatorData(message.data as IndicatorData);
 							} else if (isIncrementalFormat) {
 								// Incremental format - merge with existing data
-								console.log(
-									"[WebSocket] ⚡ Merging incremental standalone indicator data"
-								);
 								setIndicatorData((prevIndicators) => {
 									const updatedIndicators = { ...prevIndicators };
 
@@ -437,9 +331,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 															...existingIndicator,
 															data: updatedData,
 														};
-														console.log(
-															`[WebSocket] Updated standalone ${key}: ${updatedData.length} total points`
-														);
 													}
 												} else {
 													// Create new indicator from incremental data
@@ -537,9 +428,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 	// Connect on mount and when strategy changes
 	useEffect(() => {
 		// Clear existing indicator data when strategy changes to prevent stale data
-		console.log(
-			`[WebSocket] Strategy changed to: ${selectedStrategyId}, clearing indicator data`
-		);
 		setIndicatorData({});
 		setOhlcvData([]);
 		setStrategyStatus(null);

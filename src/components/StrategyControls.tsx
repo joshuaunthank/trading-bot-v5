@@ -12,7 +12,6 @@ export const StrategyControls: React.FC = () => {
 			return;
 		}
 
-		console.log(`Starting strategy: ${selectedStrategyId}`);
 		sendMessage({
 			type: "strategy_control",
 			action: "start",
@@ -26,7 +25,6 @@ export const StrategyControls: React.FC = () => {
 			return;
 		}
 
-		console.log(`Stopping strategy: ${selectedStrategyId}`);
 		sendMessage({
 			type: "strategy_control",
 			action: "stop",
@@ -40,7 +38,6 @@ export const StrategyControls: React.FC = () => {
 			return;
 		}
 
-		console.log(`Pausing strategy: ${selectedStrategyId}`);
 		sendMessage({
 			type: "strategy_control",
 			action: "pause",

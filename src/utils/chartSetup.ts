@@ -1,7 +1,6 @@
 import * as d3 from "d3";
 
 // D3.js Chart Configuration and Utilities for Trading Bot
-console.log("[D3 Chart Setup] Initializing D3.js charting system...");
 
 // Chart dimensions and layout configuration
 export const CHART_CONFIG = {
@@ -159,9 +158,6 @@ export const PerformanceMonitor = {
 		return sum / PerformanceMonitor.updateTimes.length;
 	},
 };
-
-console.log("[D3 Chart Setup] ✅ D3.js charting system initialized");
-console.log("[D3 Chart Setup] Configuration:", CHART_CONFIG);
 
 // Export D3 instance for convenience
 export { d3 };

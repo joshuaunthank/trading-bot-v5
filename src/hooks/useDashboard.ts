@@ -103,12 +103,8 @@ export const useDashboard = () => {
 
 	// Transform backend indicators to CalculatedIndicator format - optimized for real-time updates
 	const allChartIndicators = useMemo(() => {
-		console.log("🔄 useDashboard - Processing indicators (optimized):");
-		console.log("- backendIndicators:", backendIndicators?.length || 0);
-		console.log("- Raw backendIndicators structure:", backendIndicators);
-
-		if (!backendIndicators?.length) {
-			console.log("🔄 useDashboard - No backend indicators to process");
+		// Process indicators for chart display
+		if (!backendIndicators || backendIndicators.length === 0) {
 			return [];
 		}
 
@@ -117,37 +113,23 @@ export const useDashboard = () => {
 			? extractColorsFromStrategy(detailedStrategy)
 			: {};
 
-		console.log("- Strategy colors extracted:", strategyColors);
-
 		// Enhanced validation and mapping
 		const result = backendIndicators
 			.filter((indicator) => {
 				// Comprehensive validation
 				if (!indicator) {
-					console.warn("❌ Invalid indicator: null/undefined");
 					return false;
 				}
 				if (!indicator.id) {
-					console.warn("❌ Invalid indicator: missing ID", indicator);
 					return false;
 				}
 				if (!indicator.data || !Array.isArray(indicator.data)) {
-					console.warn(
-						`❌ Invalid indicator ${indicator.id}: missing/invalid data`,
-						indicator.data
-					);
 					return false;
 				}
 				if (indicator.data.length === 0) {
-					console.warn(
-						`❌ Invalid indicator ${indicator.id}: empty data array`
-					);
 					return false;
 				}
 
-				console.log(
-					`✅ Valid indicator ${indicator.id}: ${indicator.data.length} data points`
-				);
 				return true;
 			})
 			.map((indicator): CalculatedIndicator => {
@@ -190,7 +172,6 @@ export const useDashboard = () => {
 				};
 			});
 
-		console.log("- Final processed indicators:", result);
 		return result;
 	}, [backendIndicators, detailedStrategy, extractColorsFromStrategy]);
 
@@ -239,7 +220,6 @@ export const useDashboard = () => {
 			setLoading(true);
 			try {
 				// TODO: Implement delete strategy API call
-				console.log("Delete strategy:", strategyId);
 				await loadStrategies();
 
 				// If we deleted the currently selected strategy, clear selection
@@ -263,10 +243,8 @@ export const useDashboard = () => {
 			try {
 				if (editingStrategyId) {
 					// TODO: Implement update strategy API call
-					console.log("Update strategy:", editingStrategyId, strategyData);
 				} else {
 					// TODO: Implement create strategy API call
-					console.log("Create strategy:", strategyData);
 				}
 
 				await loadStrategies();
@@ -291,7 +269,6 @@ export const useDashboard = () => {
 
 	const handleSaveConfig = useCallback((configData: any) => {
 		// Implementation for saving configuration
-		console.log("Saving config:", configData);
 		setIsConfigModalOpen(false);
 	}, []);
 

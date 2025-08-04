@@ -56,7 +56,6 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 			const entry = entries[0];
 			if (entry) {
 				const { width } = entry.contentRect;
-				console.log("[D3Chart] Container resized to:", { width, height });
 				setDimensions({ width, height });
 			}
 		});
@@ -97,9 +96,6 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 	useEffect(() => {
 		if (!svgRef.current) return;
 
-		console.log(
-			"[D3StreamingChart] Initializing HIGH-FREQUENCY chart with ZOOM/PAN"
-		);
 		const svg = d3.select(svgRef.current);
 		svg.selectAll("*").remove();
 
@@ -174,31 +170,7 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 		const timeSinceLastUpdate = now - lastUpdateRef.current;
 		lastUpdateRef.current = now;
 
-		// Enhanced indicator debugging
-		console.log(`[D3Chart] Received ${indicators.length} indicators:`);
-		indicators.forEach((ind, idx) => {
-			console.log(
-				`  ${idx + 1}. ID: ${ind.id}, Data points: ${
-					ind.data?.length || 0
-				}, Type: ${ind.type || "unknown"}`
-			);
-			if (ind.data && ind.data.length > 0) {
-				const validPoints = ind.data.filter(
-					(d) => d.y !== null && !isNaN(d.y)
-				).length;
-				const samplePoint = ind.data[ind.data.length - 1];
-				console.log(
-					`     Valid points: ${validPoints}/${ind.data.length}, Latest: {x: ${samplePoint?.x}, y: ${samplePoint?.y}}`
-				);
-			}
-		});
-
-		// Minimal performance logging (only every 100th update)
-		if (updateCountRef.current % 100 === 0) {
-			console.log(
-				`[D3Chart] Render #${updateCountRef.current}: ${ohlcvData.length} candles, ${indicators.length} indicators (${timeSinceLastUpdate}ms)`
-			);
-		}
+		// Removed verbose indicator logging for production
 
 		const svg = d3.select(svgRef.current);
 		const chartGroup = svg.select(".chart-group");
@@ -349,10 +321,6 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 			.attr("stroke-width", 1);
 
 		// ✅ COMPREHENSIVE INDICATOR RENDERING SYSTEM
-		console.log(
-			`[D3Chart] Starting comprehensive indicator rendering for ${indicators.length} indicators`
-		);
-
 		const indicatorRenderer = new IndicatorRenderer(
 			chartGroup,
 			transformedXScale,
@@ -361,8 +329,6 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 
 		// Render all indicators with proper validation and error handling
 		indicatorRenderer.renderIndicators(indicators);
-
-		console.log(`[D3Chart] Completed indicator rendering`);
 
 		// Add zoom-aware axes
 		const xAxis = d3.axisBottom(transformedXScale).ticks(6);
