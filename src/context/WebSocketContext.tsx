@@ -18,7 +18,12 @@ export interface OHLCVData {
 }
 
 export interface IndicatorData {
-	[key: string]: number | undefined;
+	[key: string]: {
+		id: string;
+		name: string;
+		type: string;
+		data: Array<{ x: number; y: number | null }>;
+	};
 }
 
 export interface StrategyStatusData {
@@ -111,14 +116,35 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			reconnectAttempts.current = 0;
 
 			// Send initial subscription message
-			ws.send(
-				JSON.stringify({
-					type: "subscribe",
-					symbol: "BTC/USDT",
-					timeframe: "1h",
-					strategy: selectedStrategyId || undefined,
-				})
+			const subscriptionMessage = {
+				type: "subscribe",
+				symbol: "BTC/USDT",
+				timeframe: "1h",
+				strategy: selectedStrategyId || undefined,
+			};
+
+			console.log(
+				"[SharedWebSocket] Sending subscription:",
+				subscriptionMessage
 			);
+			ws.send(JSON.stringify(subscriptionMessage));
+
+			// Request full historical data to ensure we get complete indicator datasets
+			setTimeout(() => {
+				if (ws.readyState === WebSocket.OPEN) {
+					const refreshMessage = {
+						type: "requestFullData",
+						symbol: "BTC/USDT",
+						timeframe: "1h",
+						strategy: selectedStrategyId || undefined,
+					};
+					console.log(
+						"[SharedWebSocket] Requesting full data refresh:",
+						refreshMessage
+					);
+					ws.send(JSON.stringify(refreshMessage));
+				}
+			}, 100); // Small delay to ensure server is ready
 		};
 
 		ws.onmessage = (event) => {
@@ -157,13 +183,272 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 								"[WebSocket] Received indicators in OHLCV message:",
 								Object.keys(message.indicators)
 							);
-							setIndicatorData(message.indicators as IndicatorData);
+							console.log(
+								"[WebSocket] Raw indicators data:",
+								message.indicators
+							);
+							console.log(
+								"[WebSocket] Raw indicators type:",
+								typeof message.indicators
+							);
+
+							// Enhanced validation
+							const indicatorKeys = Object.keys(message.indicators);
+							console.log("[WebSocket] Indicator validation:");
+							indicatorKeys.forEach((key) => {
+								const indicator = message.indicators[key];
+								console.log(
+									`  - ${key}: ${
+										indicator?.data?.length || 0
+									} data points, type: ${indicator?.type || "unknown"}`
+								);
+								if (indicator?.data?.length > 0) {
+									const validPoints = indicator.data.filter(
+										(d: any) => d.y !== null && !isNaN(d.y)
+									).length;
+									console.log(
+										`    Valid points: ${validPoints}/${indicator.data.length}`
+									);
+								}
+							});
+
+							console.log(
+								"[WebSocket] Sample indicator structure:",
+								Object.values(message.indicators)[0]
+							);
+
+							// Determine if this is full or incremental indicator data
+							const sampleIndicator = Object.values(
+								message.indicators
+							)[0] as any;
+							const isFullFormat =
+								sampleIndicator &&
+								typeof sampleIndicator === "object" &&
+								"id" in sampleIndicator &&
+								"data" in sampleIndicator &&
+								Array.isArray(sampleIndicator.data);
+
+							const isIncrementalFormat =
+								sampleIndicator &&
+								typeof sampleIndicator === "object" &&
+								"x" in sampleIndicator &&
+								"y" in sampleIndicator;
+
+							console.log(
+								`[WebSocket] Indicator format: ${
+									isFullFormat
+										? "FULL"
+										: isIncrementalFormat
+										? "INCREMENTAL"
+										: "UNKNOWN"
+								}`
+							);
+
+							if (isFullFormat) {
+								// Full format - replace all indicator data
+								console.log("[WebSocket] ✅ Setting full indicator data");
+								setIndicatorData(message.indicators as IndicatorData);
+							} else if (isIncrementalFormat) {
+								// Incremental format - merge with existing data
+								console.log(
+									"[WebSocket] ⚡ Merging incremental indicator data"
+								);
+								setIndicatorData((prevIndicators) => {
+									const updatedIndicators = { ...prevIndicators };
+
+									Object.entries(message.indicators).forEach(
+										([key, incrementalValue]) => {
+											if (
+												typeof incrementalValue === "object" &&
+												incrementalValue &&
+												"x" in incrementalValue &&
+												"y" in incrementalValue
+											) {
+												const point = incrementalValue as {
+													x: number;
+													y: number;
+												};
+
+												if (updatedIndicators[key]) {
+													// Update existing indicator - append/update latest point
+													const existingIndicator = updatedIndicators[
+														key
+													] as any;
+													if (
+														existingIndicator.data &&
+														Array.isArray(existingIndicator.data)
+													) {
+														// Update the last point in the existing data array
+														const updatedData = [...existingIndicator.data];
+														if (updatedData.length > 0) {
+															// Replace the last point with the new incremental value
+															updatedData[updatedData.length - 1] = point;
+														} else {
+															// If no existing data, add the point
+															updatedData.push(point);
+														}
+
+														updatedIndicators[key] = {
+															...existingIndicator,
+															data: updatedData,
+														};
+														console.log(
+															`[WebSocket] Updated ${key}: ${updatedData.length} total points`
+														);
+													}
+												} else {
+													// Create new indicator from incremental data (should not normally happen)
+													console.warn(
+														`[WebSocket] Creating new indicator ${key} from incremental data`
+													);
+													updatedIndicators[key] = {
+														id: key,
+														name: key,
+														type: "unknown",
+														data: [point],
+													};
+												}
+											}
+										}
+									);
+
+									return updatedIndicators;
+								});
+							} else {
+								// Unknown format - fallback to direct assignment
+								console.warn(
+									"[WebSocket] Unknown indicator format, using direct assignment"
+								);
+								setIndicatorData(message.indicators as IndicatorData);
+							}
 						}
 						break;
 
 					case "indicators":
 						console.log("[WebSocket] Received standalone indicators message");
-						setIndicatorData(message.data as IndicatorData);
+						console.log(
+							"[WebSocket] Standalone indicators data:",
+							message.data
+						);
+						console.log(
+							"[WebSocket] Standalone indicators type:",
+							typeof message.data
+						);
+						console.log(
+							"[WebSocket] Standalone indicators keys:",
+							Object.keys(message.data || {})
+						);
+						console.log(
+							"[WebSocket] Sample standalone indicator structure:",
+							Object.values(message.data || {})[0]
+						);
+
+						// Apply same full/incremental logic for standalone indicators
+						if (message.data && typeof message.data === "object") {
+							const sampleIndicator = Object.values(message.data)[0] as any;
+							const isFullFormat =
+								sampleIndicator &&
+								typeof sampleIndicator === "object" &&
+								"id" in sampleIndicator &&
+								"data" in sampleIndicator &&
+								Array.isArray(sampleIndicator.data);
+
+							const isIncrementalFormat =
+								sampleIndicator &&
+								typeof sampleIndicator === "object" &&
+								"x" in sampleIndicator &&
+								"y" in sampleIndicator;
+
+							console.log(
+								`[WebSocket] Standalone format: ${
+									isFullFormat
+										? "FULL"
+										: isIncrementalFormat
+										? "INCREMENTAL"
+										: "UNKNOWN"
+								}`
+							);
+
+							if (isFullFormat) {
+								// Full format - replace all indicator data
+								console.log(
+									"[WebSocket] ✅ Setting full standalone indicator data"
+								);
+								setIndicatorData(message.data as IndicatorData);
+							} else if (isIncrementalFormat) {
+								// Incremental format - merge with existing data
+								console.log(
+									"[WebSocket] ⚡ Merging incremental standalone indicator data"
+								);
+								setIndicatorData((prevIndicators) => {
+									const updatedIndicators = { ...prevIndicators };
+
+									Object.entries(message.data).forEach(
+										([key, incrementalValue]) => {
+											if (
+												typeof incrementalValue === "object" &&
+												incrementalValue &&
+												"x" in incrementalValue &&
+												"y" in incrementalValue
+											) {
+												const point = incrementalValue as {
+													x: number;
+													y: number;
+												};
+
+												if (updatedIndicators[key]) {
+													// Update existing indicator - append/update latest point
+													const existingIndicator = updatedIndicators[
+														key
+													] as any;
+													if (
+														existingIndicator.data &&
+														Array.isArray(existingIndicator.data)
+													) {
+														// Update the last point in the existing data array
+														const updatedData = [...existingIndicator.data];
+														if (updatedData.length > 0) {
+															// Replace the last point with the new incremental value
+															updatedData[updatedData.length - 1] = point;
+														} else {
+															// If no existing data, add the point
+															updatedData.push(point);
+														}
+
+														updatedIndicators[key] = {
+															...existingIndicator,
+															data: updatedData,
+														};
+														console.log(
+															`[WebSocket] Updated standalone ${key}: ${updatedData.length} total points`
+														);
+													}
+												} else {
+													// Create new indicator from incremental data
+													console.warn(
+														`[WebSocket] Creating new standalone indicator ${key} from incremental data`
+													);
+													updatedIndicators[key] = {
+														id: key,
+														name: key,
+														type: "unknown",
+														data: [point],
+													};
+												}
+											}
+										}
+									);
+
+									return updatedIndicators;
+								});
+							} else {
+								// Unknown format - fallback to direct assignment
+								console.warn(
+									"[WebSocket] Unknown standalone indicator format, using direct assignment"
+								);
+								setIndicatorData(message.data as IndicatorData);
+							}
+						}
 						break;
 
 					case "strategy_status":

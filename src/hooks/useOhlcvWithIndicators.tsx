@@ -83,11 +83,15 @@ export const useOhlcvWithIndicators = (
 		return fullDataset[fullDataset.length - 1];
 	}, [fullDataset]);
 
-	// Process indicator data from shared WebSocket - handle both full and incremental updates
+	// Process indicator data from shared WebSocket - now simplified since context handles accumulation
 	useEffect(() => {
 		console.log(
 			"[useOhlcvWithIndicators] Raw indicatorData received:",
 			Object.keys(indicatorData || {})
+		);
+		console.log(
+			"[useOhlcvWithIndicators] Full indicatorData structure:",
+			indicatorData
 		);
 
 		if (!indicatorData || Object.keys(indicatorData).length === 0) {
@@ -95,7 +99,7 @@ export const useOhlcvWithIndicators = (
 			return;
 		}
 
-		// Handle both full and incremental indicator updates
+		// Convert WebSocket context data to component format
 		const processedIndicators: BackendIndicatorResult[] = [];
 
 		Object.entries(indicatorData).forEach(([key, indicatorInfo]) => {
@@ -103,10 +107,11 @@ export const useOhlcvWithIndicators = (
 				hasId: "id" in (indicatorInfo as any),
 				hasData: "data" in (indicatorInfo as any),
 				dataLength: (indicatorInfo as any).data?.length || 0,
-				isNumber: typeof indicatorInfo === "number",
+				type: typeof indicatorInfo,
+				keys: Object.keys(indicatorInfo as any),
 			});
 
-			// Full format with metadata (for initial load and new candles)
+			// Full format with metadata (already accumulated by WebSocket context)
 			if (
 				indicatorInfo &&
 				typeof indicatorInfo === "object" &&
@@ -115,7 +120,7 @@ export const useOhlcvWithIndicators = (
 			) {
 				const backendIndicator = indicatorInfo as BackendIndicatorResult;
 				console.log(
-					`[useOhlcvWithIndicators] Full format indicator ${key}: ${backendIndicator.data.length} data points`
+					`[useOhlcvWithIndicators] ✅ Processing accumulated indicator ${key}: ${backendIndicator.data.length} data points`
 				);
 
 				processedIndicators.push({
@@ -124,136 +129,38 @@ export const useOhlcvWithIndicators = (
 					type: backendIndicator.type,
 					data: backendIndicator.data,
 				});
-			}
-			// Incremental format (single values for live updates) - handle {x, y} objects
-			else if (
-				typeof indicatorInfo === "object" &&
-				indicatorInfo &&
-				"x" in indicatorInfo &&
-				"y" in indicatorInfo
-			) {
-				const incrementalPoint = indicatorInfo as { x: number; y: number };
-				console.log(
-					`[useOhlcvWithIndicators] Incremental point indicator ${key}:`,
-					incrementalPoint
-				);
-
-				// Find existing indicator and update its latest value
-				const existingIndicatorIndex = indicators.findIndex(
-					(ind) => ind.id === key
-				);
-				if (existingIndicatorIndex >= 0) {
-					// Update existing indicator's latest point
-					const existingIndicator = { ...indicators[existingIndicatorIndex] };
-					const updatedData = [...existingIndicator.data];
-
-					// Update or add the latest point
-					if (updatedData.length > 0) {
-						updatedData[updatedData.length - 1] = {
-							x: incrementalPoint.x,
-							y: incrementalPoint.y,
-						};
-					} else {
-						updatedData.push({
-							x: incrementalPoint.x,
-							y: incrementalPoint.y,
-						});
-					}
-
-					existingIndicator.data = updatedData;
-					processedIndicators.push(existingIndicator);
-				} else {
-					// Create new indicator for incremental update
-					processedIndicators.push({
-						id: key,
-						name: key.toUpperCase(),
-						type: key.includes("ema")
-							? "EMA"
-							: key.includes("rsi")
-							? "RSI"
-							: key.includes("macd")
-							? "MACD"
-							: key.includes("bb") || key.includes("bollinger")
-							? "BOLLINGER_BANDS"
-							: "OTHER",
-						data: [
-							{
-								x: incrementalPoint.x,
-								y: incrementalPoint.y,
-							},
-						],
-					});
-				}
-			}
-			// Simple number format (fallback)
-			else if (typeof indicatorInfo === "number") {
-				console.log(
-					`[useOhlcvWithIndicators] Simple value indicator ${key}:`,
-					indicatorInfo
-				);
-
-				const latestTimestamp = latestCandle?.timestamp || Date.now();
-
-				// Find existing indicator and update its latest value
-				const existingIndicatorIndex = indicators.findIndex(
-					(ind) => ind.id === key
-				);
-				if (existingIndicatorIndex >= 0) {
-					// Update existing indicator's latest point
-					const existingIndicator = { ...indicators[existingIndicatorIndex] };
-					const updatedData = [...existingIndicator.data];
-
-					// Update or add the latest point
-					if (updatedData.length > 0) {
-						updatedData[updatedData.length - 1] = {
-							x: latestTimestamp,
-							y: indicatorInfo,
-						};
-					} else {
-						updatedData.push({
-							x: latestTimestamp,
-							y: indicatorInfo,
-						});
-					}
-
-					existingIndicator.data = updatedData;
-					processedIndicators.push(existingIndicator);
-				} else {
-					// Create new indicator for incremental update
-					processedIndicators.push({
-						id: key,
-						name: key.toUpperCase(),
-						type: key.includes("ema")
-							? "EMA"
-							: key.includes("rsi")
-							? "RSI"
-							: key.includes("macd")
-							? "MACD"
-							: key.includes("bb") || key.includes("bollinger")
-							? "BOLLINGER_BANDS"
-							: "OTHER",
-						data: [
-							{
-								x: latestTimestamp,
-								y: indicatorInfo,
-							},
-						],
-					});
-				}
 			} else {
 				console.warn(
-					`[useOhlcvWithIndicators] Unexpected indicator format for ${key}:`,
+					`[useOhlcvWithIndicators] ❌ Unexpected indicator format for ${key}:`,
 					indicatorInfo
 				);
 			}
 		});
 
 		console.log(
-			`[useOhlcvWithIndicators] Processed ${processedIndicators.length} indicators`
+			`[useOhlcvWithIndicators] Processed ${
+				processedIndicators.length
+			} indicators from ${Object.keys(indicatorData).length} received`
 		);
 
+		// Update indicators state
 		if (processedIndicators.length > 0) {
 			setIndicators(processedIndicators);
+			console.log(
+				`[useOhlcvWithIndicators] ✅ Updated indicators state with ${processedIndicators.length} indicators`
+			);
+
+			// Log the data length for each indicator
+			processedIndicators.forEach((ind) => {
+				const validPoints = ind.data.filter(
+					(d) => d.y !== null && !isNaN(d.y)
+				).length;
+				console.log(
+					`  - ${ind.id}: ${validPoints}/${ind.data.length} valid points`
+				);
+			});
+		} else {
+			console.log("[useOhlcvWithIndicators] ⚠️ No indicators processed");
 		}
 	}, [indicatorData]);
 

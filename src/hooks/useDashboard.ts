@@ -105,54 +105,93 @@ export const useDashboard = () => {
 	const allChartIndicators = useMemo(() => {
 		console.log("🔄 useDashboard - Processing indicators (optimized):");
 		console.log("- backendIndicators:", backendIndicators?.length || 0);
+		console.log("- Raw backendIndicators structure:", backendIndicators);
 
-		if (!backendIndicators?.length) return [];
+		if (!backendIndicators?.length) {
+			console.log("🔄 useDashboard - No backend indicators to process");
+			return [];
+		}
 
 		// Cache strategy colors to avoid recalculation
 		const strategyColors = detailedStrategy
 			? extractColorsFromStrategy(detailedStrategy)
 			: {};
 
-		// Simple, efficient mapping inspired by real-time video pattern
-		return backendIndicators.map((indicator): CalculatedIndicator => {
-			const lowerType = indicator.type.toLowerCase();
+		console.log("- Strategy colors extracted:", strategyColors);
 
-			// Optimized yAxisID determination
-			const yAxisID =
-				lowerType.includes("rsi") ||
-				lowerType.includes("stoch") ||
-				lowerType.includes("williams") ||
-				lowerType.includes("cci")
-					? "oscillator"
-					: lowerType.includes("volume") || lowerType.includes("obv")
-					? "volume"
-					: "price";
+		// Enhanced validation and mapping
+		const result = backendIndicators
+			.filter((indicator) => {
+				// Comprehensive validation
+				if (!indicator) {
+					console.warn("❌ Invalid indicator: null/undefined");
+					return false;
+				}
+				if (!indicator.id) {
+					console.warn("❌ Invalid indicator: missing ID", indicator);
+					return false;
+				}
+				if (!indicator.data || !Array.isArray(indicator.data)) {
+					console.warn(
+						`❌ Invalid indicator ${indicator.id}: missing/invalid data`,
+						indicator.data
+					);
+					return false;
+				}
+				if (indicator.data.length === 0) {
+					console.warn(
+						`❌ Invalid indicator ${indicator.id}: empty data array`
+					);
+					return false;
+				}
 
-			// Optimized type mapping
-			const type = lowerType.includes("ema")
-				? ("EMA" as IndicatorType)
-				: lowerType.includes("sma")
-				? ("SMA" as IndicatorType)
-				: lowerType.includes("rsi")
-				? ("RSI" as IndicatorType)
-				: lowerType.includes("macd")
-				? ("MACD" as IndicatorType)
-				: lowerType.includes("bb") || lowerType.includes("bollinger")
-				? ("BB" as IndicatorType)
-				: ("EMA" as IndicatorType); // Default fallback
+				console.log(
+					`✅ Valid indicator ${indicator.id}: ${indicator.data.length} data points`
+				);
+				return true;
+			})
+			.map((indicator): CalculatedIndicator => {
+				const lowerType = indicator.type.toLowerCase();
 
-			return {
-				id: indicator.id,
-				name: indicator.name,
-				data: indicator.data, // Direct assignment for performance
-				color:
-					strategyColors[indicator.id] ||
-					strategyColors[indicator.name] ||
-					"#ffffff",
-				yAxisID,
-				type,
-			};
-		});
+				// Optimized yAxisID determination
+				const yAxisID =
+					lowerType.includes("rsi") ||
+					lowerType.includes("stoch") ||
+					lowerType.includes("williams") ||
+					lowerType.includes("cci")
+						? "oscillator"
+						: lowerType.includes("volume") || lowerType.includes("obv")
+						? "volume"
+						: "price";
+
+				// Optimized type mapping
+				const type = lowerType.includes("ema")
+					? ("EMA" as IndicatorType)
+					: lowerType.includes("sma")
+					? ("SMA" as IndicatorType)
+					: lowerType.includes("rsi")
+					? ("RSI" as IndicatorType)
+					: lowerType.includes("macd")
+					? ("MACD" as IndicatorType)
+					: lowerType.includes("bb") || lowerType.includes("bollinger")
+					? ("BB" as IndicatorType)
+					: ("EMA" as IndicatorType); // Default fallback
+
+				return {
+					id: indicator.id,
+					name: indicator.name,
+					data: indicator.data, // Direct assignment for performance
+					color:
+						strategyColors[indicator.id] ||
+						strategyColors[indicator.name] ||
+						"#ffffff",
+					yAxisID,
+					type,
+				};
+			});
+
+		console.log("- Final processed indicators:", result);
+		return result;
 	}, [backendIndicators, detailedStrategy, extractColorsFromStrategy]);
 
 	// Event handlers

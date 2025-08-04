@@ -1043,19 +1043,37 @@ async function startWatchLoop(
 									? [formattedData[formattedData.length - 1]] // Only latest candle for smooth updates
 									: formattedData; // Complete dataset for initial load
 
-							ws.send(
-								JSON.stringify({
-									type: "ohlcv",
-									symbol,
-									timeframe,
-									updateType, // "full" for initial/new candle, "incremental" for live updates
-									data: dataToSend,
-									timestamp: Date.now(),
-									indicators: indicatorResults,
-									indicatorUpdateType, // Match the data update type
-									strategyId: config?.strategyId || null,
-								})
+							const messageToSend = {
+								type: "ohlcv",
+								symbol,
+								timeframe,
+								updateType, // "full" for initial/new candle, "incremental" for live updates
+								data: dataToSend,
+								timestamp: Date.now(),
+								indicators: indicatorResults,
+								indicatorUpdateType, // Match the data update type
+								strategyId: config?.strategyId || null,
+							};
+
+							console.log(
+								`[Main WS] Sending message with indicators: ${
+									Object.keys(indicatorResults).length
+								} indicators`
 							);
+							if (Object.keys(indicatorResults).length > 0) {
+								console.log(
+									`[Main WS] Indicator keys:`,
+									Object.keys(indicatorResults)
+								);
+								// Log first indicator structure for debugging
+								const firstKey = Object.keys(indicatorResults)[0];
+								console.log(
+									`[Main WS] Sample indicator structure:`,
+									JSON.stringify(indicatorResults[firstKey], null, 2)
+								);
+							}
+
+							ws.send(JSON.stringify(messageToSend));
 						}
 					} catch (e) {
 						console.error(`[Main WS] Error sending data to client:`, e);

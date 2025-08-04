@@ -6,6 +6,7 @@ import {
 	PerformanceMonitor,
 } from "../utils/chartSetup";
 import { OHLCVData, CalculatedIndicator } from "../types/indicators";
+import { IndicatorRenderer } from "../utils/indicatorRenderer";
 
 interface StreamingChartProps {
 	symbol: string;
@@ -173,6 +174,25 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 		const timeSinceLastUpdate = now - lastUpdateRef.current;
 		lastUpdateRef.current = now;
 
+		// Enhanced indicator debugging
+		console.log(`[D3Chart] Received ${indicators.length} indicators:`);
+		indicators.forEach((ind, idx) => {
+			console.log(
+				`  ${idx + 1}. ID: ${ind.id}, Data points: ${
+					ind.data?.length || 0
+				}, Type: ${ind.type || "unknown"}`
+			);
+			if (ind.data && ind.data.length > 0) {
+				const validPoints = ind.data.filter(
+					(d) => d.y !== null && !isNaN(d.y)
+				).length;
+				const samplePoint = ind.data[ind.data.length - 1];
+				console.log(
+					`     Valid points: ${validPoints}/${ind.data.length}, Latest: {x: ${samplePoint?.x}, y: ${samplePoint?.y}}`
+				);
+			}
+		});
+
 		// Minimal performance logging (only every 100th update)
 		if (updateCountRef.current % 100 === 0) {
 			console.log(
@@ -328,23 +348,21 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 			)
 			.attr("stroke-width", 1);
 
-		// Draw EMA indicator with zoom-aware positioning
-		const emaIndicator = indicators.find((ind) => ind.id === "ema_20");
-		if (emaIndicator && emaIndicator.data.length > 0) {
-			const line = d3
-				.line<any>()
-				.x((d) => transformedXScale(new Date(d.x)))
-				.y((d) => transformedYScale(d.y))
-				.curve(d3.curveMonotoneX);
+		// ✅ COMPREHENSIVE INDICATOR RENDERING SYSTEM
+		console.log(
+			`[D3Chart] Starting comprehensive indicator rendering for ${indicators.length} indicators`
+		);
 
-			chartGroup
-				.append("path")
-				.datum(emaIndicator.data)
-				.attr("fill", "none")
-				.attr("stroke", "#ff6b35")
-				.attr("stroke-width", 2)
-				.attr("d", line);
-		}
+		const indicatorRenderer = new IndicatorRenderer(
+			chartGroup,
+			transformedXScale,
+			transformedYScale
+		);
+
+		// Render all indicators with proper validation and error handling
+		indicatorRenderer.renderIndicators(indicators);
+
+		console.log(`[D3Chart] Completed indicator rendering`);
 
 		// Add zoom-aware axes
 		const xAxis = d3.axisBottom(transformedXScale).ticks(6);
