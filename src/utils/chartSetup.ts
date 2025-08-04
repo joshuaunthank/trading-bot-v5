@@ -40,29 +40,34 @@ export const CHART_CONFIG = {
 
 // Utility functions for D3.js charts
 export const ChartUtils = {
-	// Calculate chart dimensions excluding margins
-	getInnerDimensions: () => ({
+	// Calculate chart dimensions excluding margins - now accepts dynamic dimensions
+	getInnerDimensions: (width?: number, height?: number) => ({
 		width:
-			CHART_CONFIG.width - CHART_CONFIG.margin.left - CHART_CONFIG.margin.right,
+			(width || CHART_CONFIG.width) -
+			CHART_CONFIG.margin.left -
+			CHART_CONFIG.margin.right,
 		height:
-			CHART_CONFIG.height -
+			(height || CHART_CONFIG.height) -
 			CHART_CONFIG.margin.top -
 			CHART_CONFIG.margin.bottom,
 	}),
 
-	// Calculate panel heights based on configuration
-	getPanelHeights: () => {
-		const { height } = ChartUtils.getInnerDimensions();
+	// Calculate panel heights based on configuration - now accepts dynamic height
+	getPanelHeights: (height?: number) => {
+		const innerHeight =
+			(height || CHART_CONFIG.height) -
+			CHART_CONFIG.margin.top -
+			CHART_CONFIG.margin.bottom;
 		return {
-			price: height * CHART_CONFIG.panels.price,
-			volume: height * CHART_CONFIG.panels.volume,
-			oscillator: height * CHART_CONFIG.panels.oscillator,
+			price: innerHeight * CHART_CONFIG.panels.price,
+			volume: innerHeight * CHART_CONFIG.panels.volume,
+			oscillator: innerHeight * CHART_CONFIG.panels.oscillator,
 		};
 	},
 
-	// Get Y positions for each panel
-	getPanelPositions: () => {
-		const heights = ChartUtils.getPanelHeights();
+	// Get Y positions for each panel - now accepts dynamic height
+	getPanelPositions: (height?: number) => {
+		const heights = ChartUtils.getPanelHeights(height);
 		return {
 			price: 0,
 			volume: heights.price,
@@ -90,10 +95,13 @@ export const ChartUtils = {
 		}
 	},
 
-	// Calculate candlestick width based on data density
-	calculateCandleWidth: (xScale: any, dataLength: number) => {
-		const { width } = ChartUtils.getInnerDimensions();
-		const availableWidth = width * 0.8; // 80% of width for candles
+	// Calculate candlestick width based on data density - now accepts dynamic width
+	calculateCandleWidth: (xScale: any, dataLength: number, width?: number) => {
+		const innerWidth =
+			(width || CHART_CONFIG.width) -
+			CHART_CONFIG.margin.left -
+			CHART_CONFIG.margin.right;
+		const availableWidth = innerWidth * 0.8; // 80% of width for candles
 		return Math.max(1, Math.min(8, availableWidth / dataLength));
 	},
 

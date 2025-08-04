@@ -27,21 +27,78 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 	className = "",
 }) => {
 	const svgRef = useRef<SVGSVGElement>(null);
+	const containerRef = useRef<HTMLDivElement>(null);
 	const [isInitialized, setIsInitialized] = useState(false);
 	const lastUpdateRef = useRef<number>(0);
 	const updateCountRef = useRef<number>(0);
 
-	// Chart dimensions
-	const width = CHART_CONFIG.width;
+	// Responsive dimensions
+	const [dimensions, setDimensions] = useState({ width: 1200, height: height });
+
+	// Zoom state management
+	const [zoomTransform, setZoomTransform] = useState<d3.ZoomTransform>(
+		d3.zoomIdentity
+	);
+	const zoomBehaviorRef = useRef<d3.ZoomBehavior<
+		SVGSVGElement,
+		unknown
+	> | null>(null);
+
+	// Auto-scale toggle state
+	const [isAutoScale, setIsAutoScale] = useState(true); // Start with auto-scale enabled
+
+	// Responsive resize observer
+	useEffect(() => {
+		if (!containerRef.current) return;
+
+		const resizeObserver = new ResizeObserver((entries) => {
+			const entry = entries[0];
+			if (entry) {
+				const { width } = entry.contentRect;
+				console.log("[D3Chart] Container resized to:", { width, height });
+				setDimensions({ width, height });
+			}
+		});
+
+		resizeObserver.observe(containerRef.current);
+
+		return () => {
+			resizeObserver.disconnect();
+		};
+	}, [height]);
+
+	// Auto-fit function to show all data (full reset)
+	const fitToData = () => {
+		if (!svgRef.current || !zoomBehaviorRef.current || ohlcvData.length === 0)
+			return;
+
+		const svg = d3.select(svgRef.current);
+		svg
+			.transition()
+			.duration(750)
+			.call(zoomBehaviorRef.current.transform, d3.zoomIdentity);
+	};
+
+	// Toggle auto-scale mode
+	const toggleAutoScale = () => {
+		const newAutoScale = !isAutoScale;
+		setIsAutoScale(newAutoScale);
+		// Auto-scale doesn't reset zoom - it just changes how Y-axis scaling works
+	};
+
+	// Chart dimensions - responsive
+	const width = dimensions.width;
 	const margin = CHART_CONFIG.margin;
 	const innerWidth = width - margin.left - margin.right;
 	const innerHeight = height - margin.top - margin.bottom;
 
-	// Initialize chart ONCE
+	// Initialize chart ONCE with zoom behavior
 	useEffect(() => {
-		if (!svgRef.current || isInitialized) return;
+		if (!svgRef.current) return;
 
-		console.log("[D3StreamingChart] Initializing HIGH-FREQUENCY chart ONCE");
+		console.log(
+			"[D3StreamingChart] Initializing HIGH-FREQUENCY chart with ZOOM/PAN"
+		);
 		const svg = d3.select(svgRef.current);
 		svg.selectAll("*").remove();
 
@@ -56,19 +113,58 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 			.attr("class", "chart-group")
 			.attr("transform", `translate(${margin.left},${margin.top})`);
 
-		// Add background rectangle for chart area
+		// Add background rectangle for chart area (with zoom interaction)
 		chartGroup
 			.append("rect")
+			.attr("class", "chart-background")
 			.attr("width", innerWidth)
 			.attr("height", innerHeight)
 			.attr("fill", "rgba(0,0,0,0.1)")
 			.attr("stroke", "#333")
-			.attr("stroke-width", 1);
+			.attr("stroke-width", 1)
+			.style("cursor", "crosshair");
+
+		// Create zoom behavior
+		const zoom = d3
+			.zoom<SVGSVGElement, unknown>()
+			.scaleExtent([0.1, 50]) // Allow 10x zoom out, 50x zoom in
+			.extent([
+				[0, 0],
+				[width, height],
+			])
+			.on("zoom", (event) => {
+				const transform = event.transform;
+				setZoomTransform(transform);
+
+				// Notify parent of zoom changes if callback provided
+				if (onZoomChange && ohlcvData.length > 0) {
+					const xExtent = d3.extent(ohlcvData, (d) => new Date(d.timestamp));
+					if (xExtent[0] && xExtent[1]) {
+						const xScale = d3
+							.scaleTime()
+							.domain(xExtent as [Date, Date])
+							.range([0, innerWidth]);
+
+						const transformedScale = transform.rescaleX(xScale);
+						const domain = transformedScale.domain();
+						onZoomChange(domain[0], domain[1]);
+					}
+				}
+			});
+
+		// Add double-click to reset zoom
+		svg.on("dblclick.zoom", () => {
+			svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
+		});
+
+		// Apply zoom behavior to SVG
+		svg.call(zoom);
+		zoomBehaviorRef.current = zoom;
 
 		setIsInitialized(true);
-	}, []); // Initialize only once
+	}, [width, height, innerWidth, innerHeight]); // Re-initialize when dimensions change
 
-	// INSTANT D3.js candlestick chart rendering - high-frequency trading optimized
+	// INSTANT D3.js candlestick chart rendering with ZOOM/PAN support
 	useEffect(() => {
 		if (!isInitialized || !svgRef.current || ohlcvData.length === 0) return;
 
@@ -87,40 +183,122 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 		const svg = d3.select(svgRef.current);
 		const chartGroup = svg.select(".chart-group");
 
-		// Remove existing chart content for fresh render
-		chartGroup.selectAll("*").remove();
+		// Remove existing chart content but keep background
+		chartGroup.selectAll("*:not(.chart-background)").remove();
 
-		// Setup scales
+		// Setup base scales
 		const xExtent = d3.extent(ohlcvData, (d) => new Date(d.timestamp));
-		const yExtent = d3.extent(ohlcvData, (d) => Math.max(d.high, d.low));
+		const yExtentHigh = d3.extent(ohlcvData, (d) => d.high);
+		const yExtentLow = d3.extent(ohlcvData, (d) => d.low);
 
-		if (!xExtent[0] || !xExtent[1] || !yExtent[0] || !yExtent[1]) return;
+		if (
+			!xExtent[0] ||
+			!xExtent[1] ||
+			!yExtentHigh[0] ||
+			!yExtentHigh[1] ||
+			!yExtentLow[0] ||
+			!yExtentLow[1]
+		)
+			return;
 
+		// Base X scale
 		const xScale = d3
 			.scaleTime()
 			.domain(xExtent as [Date, Date])
 			.range([0, innerWidth]);
 
+		// Apply zoom transform to X scale to get visible time range
+		const transformedXScale = zoomTransform.rescaleX(xScale);
+		const visibleTimeRange = transformedXScale.domain();
+
+		// Filter data to only visible candles for auto-scaling Y-axis
+		const visibleData = ohlcvData.filter((d) => {
+			const date = new Date(d.timestamp);
+			return date >= visibleTimeRange[0] && date <= visibleTimeRange[1];
+		});
+
+		// Calculate Y-axis domain based on auto-scale mode
+		let yMin, yMax;
+		if (isAutoScale && visibleData.length > 0) {
+			// Auto-scale: fit Y-axis to visible data only
+			const visibleYExtentHigh = d3.extent(visibleData, (d) => d.high);
+			const visibleYExtentLow = d3.extent(visibleData, (d) => d.low);
+
+			if (
+				visibleYExtentHigh[0] &&
+				visibleYExtentHigh[1] &&
+				visibleYExtentLow[0] &&
+				visibleYExtentLow[1]
+			) {
+				let dataYMin = visibleYExtentLow[0];
+				let dataYMax = visibleYExtentHigh[1];
+
+				// Also consider EMA indicator values in the visible range
+				const emaIndicator = indicators.find((ind) => ind.id === "ema_20");
+				if (emaIndicator && emaIndicator.data.length > 0) {
+					const visibleEmaData = emaIndicator.data.filter((d) => {
+						const date = new Date(d.x);
+						return date >= visibleTimeRange[0] && date <= visibleTimeRange[1];
+					});
+
+					if (visibleEmaData.length > 0) {
+						const emaExtent = d3.extent(visibleEmaData, (d) => d.y);
+						if (emaExtent[0] && emaExtent[1]) {
+							dataYMin = Math.min(dataYMin, emaExtent[0]);
+							dataYMax = Math.max(dataYMax, emaExtent[1]);
+						}
+					}
+				}
+
+				// Increased padding for better visibility
+				yMin = dataYMin * 0.995; // 0.5% padding below
+				yMax = dataYMax * 1.005; // 0.5% padding above
+			} else {
+				// Fallback to full data
+				yMin = yExtentLow[0] * 0.995;
+				yMax = yExtentHigh[1] * 1.005;
+			}
+		} else {
+			// Fixed scale: use full data range and apply zoom transform
+			yMin = yExtentLow[0] * 0.995;
+			yMax = yExtentHigh[1] * 1.005;
+		}
+
+		// Create Y scale
 		const yScale = d3
 			.scaleLinear()
-			.domain(yExtent as [number, number])
-			.nice()
+			.domain([yMin, yMax])
 			.range([innerHeight, 0]);
 
-		// Draw candlesticks
-		const candleWidth = Math.max(1, (innerWidth / ohlcvData.length) * 0.8);
+		// Apply zoom transform to Y scale only if NOT in auto-scale mode
+		const transformedYScale = isAutoScale
+			? yScale
+			: zoomTransform.rescaleY(yScale);
 
-		// Candlestick bodies
+		// Calculate dynamic candle width based on zoom level
+		const candleWidth = Math.max(
+			0.5,
+			Math.min(20, (innerWidth / Math.max(visibleData.length, 1)) * 0.8)
+		);
+
+		// Draw candlesticks with zoom-aware positioning
 		chartGroup
 			.selectAll(".candle-body")
 			.data(ohlcvData)
 			.enter()
 			.append("rect")
 			.attr("class", "candle-body")
-			.attr("x", (d) => xScale(new Date(d.timestamp)) - candleWidth / 2)
-			.attr("y", (d) => yScale(Math.max(d.open, d.close)))
+			.attr(
+				"x",
+				(d) => transformedXScale(new Date(d.timestamp)) - candleWidth / 2
+			)
+			.attr("y", (d) => transformedYScale(Math.max(d.open, d.close)))
 			.attr("width", candleWidth)
-			.attr("height", (d) => Math.abs(yScale(d.open) - yScale(d.close)))
+			.attr(
+				"height",
+				(d) =>
+					Math.abs(transformedYScale(d.open) - transformedYScale(d.close)) || 1
+			)
 			.attr("fill", (d) =>
 				d.close >= d.open
 					? CHART_CONFIG.colors.bullish
@@ -132,17 +310,17 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 					: CHART_CONFIG.colors.bearish
 			);
 
-		// Candlestick wicks
+		// Candlestick wicks with zoom-aware positioning
 		chartGroup
 			.selectAll(".candle-wick")
 			.data(ohlcvData)
 			.enter()
 			.append("line")
 			.attr("class", "candle-wick")
-			.attr("x1", (d) => xScale(new Date(d.timestamp)))
-			.attr("x2", (d) => xScale(new Date(d.timestamp)))
-			.attr("y1", (d) => yScale(d.high))
-			.attr("y2", (d) => yScale(d.low))
+			.attr("x1", (d) => transformedXScale(new Date(d.timestamp)))
+			.attr("x2", (d) => transformedXScale(new Date(d.timestamp)))
+			.attr("y1", (d) => transformedYScale(d.high))
+			.attr("y2", (d) => transformedYScale(d.low))
 			.attr("stroke", (d) =>
 				d.close >= d.open
 					? CHART_CONFIG.colors.bullish
@@ -150,13 +328,13 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 			)
 			.attr("stroke-width", 1);
 
-		// Draw EMA indicator if available
+		// Draw EMA indicator with zoom-aware positioning
 		const emaIndicator = indicators.find((ind) => ind.id === "ema_20");
 		if (emaIndicator && emaIndicator.data.length > 0) {
 			const line = d3
 				.line<any>()
-				.x((d) => xScale(new Date(d.x)))
-				.y((d) => yScale(d.y))
+				.x((d) => transformedXScale(new Date(d.x)))
+				.y((d) => transformedYScale(d.y))
 				.curve(d3.curveMonotoneX);
 
 			chartGroup
@@ -168,23 +346,37 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 				.attr("d", line);
 		}
 
-		// Add axes
-		const xAxis = d3.axisBottom(xScale).ticks(6);
-		const yAxis = d3.axisLeft(yScale).ticks(8);
+		// Add zoom-aware axes
+		const xAxis = d3.axisBottom(transformedXScale).ticks(6);
+		const yAxis = d3.axisLeft(transformedYScale).ticks(8);
 
 		chartGroup
 			.append("g")
+			.attr("class", "x-axis")
 			.attr("transform", `translate(0,${innerHeight})`)
 			.call(xAxis)
 			.attr("color", CHART_CONFIG.colors.text);
 
-		chartGroup.append("g").call(yAxis).attr("color", CHART_CONFIG.colors.text);
-	}, [ohlcvData, indicators, isInitialized, innerWidth, innerHeight]);
+		chartGroup
+			.append("g")
+			.attr("class", "y-axis")
+			.call(yAxis)
+			.attr("color", CHART_CONFIG.colors.text);
+	}, [
+		ohlcvData,
+		indicators,
+		isInitialized,
+		innerWidth,
+		innerHeight,
+		zoomTransform,
+		isAutoScale,
+	]);
 
 	return (
 		<div
+			ref={containerRef}
 			className={`d3-streaming-chart ${className}`}
-			style={{ position: "relative" }}
+			style={{ position: "relative", width: "100%", height: `${height}px` }}
 		>
 			<svg
 				ref={svgRef}
@@ -195,7 +387,7 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 				}}
 			/>
 
-			{/* High-frequency trading info overlay */}
+			{/* High-frequency trading info overlay with zoom controls */}
 			<div
 				style={{
 					position: "absolute",
@@ -223,8 +415,57 @@ export const D3StreamingChart: React.FC<StreamingChartProps> = ({
 						{ChartUtils.formatPrice(ohlcvData[ohlcvData.length - 1].close)}
 					</div>
 				)}
-				<div style={{ fontSize: "12px", color: "#888" }}>
+				<div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>
 					INSTANT STREAMING • NO DELAYS
+				</div>
+				<div style={{ fontSize: "11px", color: "#666", marginTop: "2px" }}>
+					{isAutoScale
+						? "� Auto-Scale: ON | Toggle to enable zoom/pan"
+						: "�🖱️ Scroll: Zoom | Drag: Pan | Double-click: Reset"}
+				</div>
+				<div
+					style={{
+						marginTop: "6px",
+						display: "flex",
+						alignItems: "center",
+						gap: "8px",
+					}}
+				>
+					<span style={{ fontSize: "11px", color: "#ccc" }}>Auto-Scale:</span>
+					<button
+						onClick={toggleAutoScale}
+						style={{
+							padding: "3px 6px",
+							background: isAutoScale ? "#00ff00" : "#666",
+							color: isAutoScale ? "#000" : "#fff",
+							border: "none",
+							borderRadius: "12px",
+							fontSize: "10px",
+							cursor: "pointer",
+							fontWeight: "bold",
+							minWidth: "45px",
+							transition: "all 0.2s ease",
+						}}
+					>
+						{isAutoScale ? "ON" : "OFF"}
+					</button>
+					{!isAutoScale && (
+						<button
+							onClick={fitToData}
+							style={{
+								padding: "3px 6px",
+								background: "#ff6b35",
+								color: "white",
+								border: "none",
+								borderRadius: "3px",
+								fontSize: "10px",
+								cursor: "pointer",
+								fontWeight: "bold",
+							}}
+						>
+							📐 Fit
+						</button>
+					)}
 				</div>
 			</div>
 		</div>
