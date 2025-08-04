@@ -38,8 +38,9 @@ interface ChartPanel {
 	showTimeAxis: boolean;
 }
 
-// Chart styling constants
-const margin = { top: 20, right: 60, bottom: 40, left: 10 };
+// Chart styling constants - Optimized for better readability and spacing
+const margin = { top: 5, right: 70, bottom: 25, left: 15 };
+const panelGap = 2; // Minimal gap between panels
 const backgroundColor = "#1a1a1a";
 const gridColor = "#333";
 const textColor = "#ccc";
@@ -89,8 +90,8 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 		const panelList: ChartPanel[] = [];
 		let currentY = 0;
 
-		// Price panel (always present, 70% of height)
-		const priceHeight = Math.floor(height * 0.7);
+		// Price panel (always present, 75% of height for better readability)
+		const priceHeight = Math.floor(height * 0.75);
 		panelList.push({
 			id: "price",
 			type: "price",
@@ -99,11 +100,11 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 			indicators: priceIndicators,
 			showTimeAxis: false,
 		});
-		currentY += priceHeight;
+		currentY += priceHeight + panelGap;
 
-		// Volume panel (15% of height if we have volume data)
+		// Volume panel (12% of height if we have volume data)
 		if (ohlcvData.some((d) => d.volume > 0) || volumeIndicators.length > 0) {
-			const volumeHeight = Math.floor(height * 0.15);
+			const volumeHeight = Math.floor(height * 0.12);
 			panelList.push({
 				id: "volume",
 				type: "volume",
@@ -112,7 +113,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 				indicators: volumeIndicators,
 				showTimeAxis: false,
 			});
-			currentY += volumeHeight;
+			currentY += volumeHeight + panelGap;
 		}
 
 		// Oscillator panel (remaining height)
@@ -214,21 +215,44 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 			let yScale: d3.ScaleLinear<number, number>;
 
 			if (panel.type === "price") {
-				// Price scale based on OHLC data
+				// Dynamic price scale based on visible data for better chart utilization
+				const visibleTimeRange = zoomedXScale.domain();
+				const visibleData = ohlcvData.filter((d) => {
+					const timestamp = new Date(d.timestamp);
+					return (
+						timestamp >= visibleTimeRange[0] && timestamp <= visibleTimeRange[1]
+					);
+				});
+
+				// Use visible data if available, otherwise fall back to all data
+				const dataForScale = visibleData.length > 0 ? visibleData : ohlcvData;
 				const priceExtent = d3.extent(
-					ohlcvData.flatMap((d) => [d.high, d.low])
+					dataForScale.flatMap((d) => [d.high, d.low])
 				) as [number, number];
-				yScale = d3
-					.scaleLinear()
-					.domain(priceExtent)
-					.range([panelHeight, 0])
-					.nice();
-			} else if (panel.type === "volume") {
-				// Volume scale
-				const volumeExtent = [0, d3.max(ohlcvData, (d) => d.volume) || 1] as [
-					number,
-					number
+
+				// Add padding to the price range (5% on each side)
+				const priceRange = priceExtent[1] - priceExtent[0];
+				const padding = priceRange * 0.05;
+				const paddedExtent: [number, number] = [
+					priceExtent[0] - padding,
+					priceExtent[1] + padding,
 				];
+
+				yScale = d3.scaleLinear().domain(paddedExtent).range([panelHeight, 0]);
+			} else if (panel.type === "volume") {
+				// Dynamic volume scale based on visible data
+				const visibleTimeRange = zoomedXScale.domain();
+				const visibleData = ohlcvData.filter((d) => {
+					const timestamp = new Date(d.timestamp);
+					return (
+						timestamp >= visibleTimeRange[0] && timestamp <= visibleTimeRange[1]
+					);
+				});
+
+				const dataForScale = visibleData.length > 0 ? visibleData : ohlcvData;
+				const maxVolume = d3.max(dataForScale, (d) => d.volume) || 1;
+				const volumeExtent = [0, maxVolume * 1.05] as [number, number]; // 5% padding on top
+
 				yScale = d3.scaleLinear().domain(volumeExtent).range([panelHeight, 0]);
 			} else {
 				// Oscillator scale (typically 0-100 or -1 to 1)
@@ -246,7 +270,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 					.nice();
 			}
 
-			// Add background
+			// Add background with border
 			panelGroup
 				.append("rect")
 				.attr("width", innerWidth)
@@ -254,6 +278,21 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 				.attr("fill", backgroundColor)
 				.attr("stroke", gridColor)
 				.attr("stroke-width", 1);
+
+			// Create clipping path to prevent content from going outside panel bounds
+			const clipId = `clip-${panel.id}-${Date.now()}`;
+			panelGroup
+				.append("defs")
+				.append("clipPath")
+				.attr("id", clipId)
+				.append("rect")
+				.attr("width", innerWidth)
+				.attr("height", panelHeight);
+
+			// Create content group with clipping
+			const contentGroup = panelGroup
+				.append("g")
+				.attr("clip-path", `url(#${clipId})`);
 
 			// Add grid lines
 			const xAxis = d3
@@ -265,7 +304,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 				.tickSize(innerWidth)
 				.tickFormat(() => "");
 
-			panelGroup
+			contentGroup
 				.append("g")
 				.attr("class", "grid")
 				.call(yAxis)
@@ -274,7 +313,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 				.attr("stroke-width", 0.5)
 				.attr("opacity", 0.3);
 
-			panelGroup
+			contentGroup
 				.append("g")
 				.attr("class", "grid")
 				.attr("transform", `translate(0, ${panelHeight})`)
@@ -287,7 +326,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 			// Render content based on panel type
 			if (panel.type === "price") {
 				renderCandlesticks(
-					panelGroup,
+					contentGroup,
 					zoomedXScale,
 					yScale,
 					innerWidth,
@@ -295,7 +334,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 				);
 			} else if (panel.type === "volume") {
 				renderVolumeBars(
-					panelGroup,
+					contentGroup,
 					zoomedXScale,
 					yScale,
 					innerWidth,
@@ -306,18 +345,19 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 			// Render indicators for this panel
 			if (panel.indicators.length > 0) {
 				const indicatorRenderer = new IndicatorRenderer(
-					panelGroup,
+					contentGroup,
 					zoomedXScale,
 					yScale
 				);
 				indicatorRenderer.renderIndicators(panel.indicators);
 			}
 
-			// Add time axis only for bottom panel
+			// Add time axis only for bottom panel with better formatting
 			if (panel.showTimeAxis) {
 				const timeAxis = d3
 					.axisBottom(zoomedXScale)
-					.tickFormat((d) => d3.timeFormat("%H:%M")(d as Date));
+					.ticks(Math.max(4, Math.min(12, innerWidth / 100))) // Adaptive tick count
+					.tickFormat((d) => d3.timeFormat("%m/%d %H:%M")(d as Date));
 
 				panelGroup
 					.append("g")
@@ -325,13 +365,25 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 					.attr("transform", `translate(0, ${panelHeight})`)
 					.call(timeAxis as any)
 					.selectAll("text")
-					.attr("fill", textColor);
+					.attr("fill", textColor)
+					.attr("font-size", "11px")
+					.style("text-anchor", "middle");
 			}
 
-			// Add right-side price scale
+			// Add right-side price scale with better formatting
 			const priceAxis = d3
 				.axisRight(yScale)
-				.tickFormat((d) => d3.format(".4f")(d as number));
+				.ticks(Math.max(3, Math.min(8, panelHeight / 40))) // Adaptive tick count
+				.tickFormat((d) => {
+					const value = d as number;
+					if (panel.type === "volume") {
+						return d3.format(".2s")(value); // Scientific notation for volume
+					} else if (value > 1000) {
+						return d3.format(".2s")(value); // K, M notation for large numbers
+					} else {
+						return d3.format(".2f")(value); // 2 decimal places for smaller numbers
+					}
+				});
 
 			panelGroup
 				.append("g")
@@ -339,31 +391,42 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 				.attr("transform", `translate(${innerWidth}, 0)`)
 				.call(priceAxis as any)
 				.selectAll("text")
-				.attr("fill", textColor);
+				.attr("fill", textColor)
+				.attr("font-size", "10px")
+				.style("text-anchor", "start")
+				.attr("dx", "0.3em");
 
-			// Panel label
+			// Panel label with better positioning
 			panelGroup
 				.append("text")
-				.attr("x", 10)
-				.attr("y", 20)
+				.attr("x", 8)
+				.attr("y", 15)
 				.attr("fill", textColor)
-				.attr("font-size", "12px")
+				.attr("font-size", "10px")
 				.attr("font-weight", "bold")
+				.attr("opacity", 0.8)
 				.text(panel.type.toUpperCase());
 		});
 
-		// Setup zoom behavior
+		// Setup natural zoom behavior with minimal constraints
 		const zoom = d3
 			.zoom<SVGSVGElement, unknown>()
-			.scaleExtent([0.5, 20])
+			.scaleExtent([0.1, 200]) // Wide zoom range for detailed analysis
 			.on("zoom", (event) => {
 				const newTransform = event.transform;
-				setZoomTransform(newTransform);
-			});
 
+				// Simply lock vertical translation but allow complete horizontal freedom
+				const naturalTransform = d3.zoomIdentity
+					.translate(newTransform.x, 0) // Lock Y to 0, allow any X
+					.scale(newTransform.k);
+
+				setZoomTransform(naturalTransform);
+			});
 		svg.call(zoom);
 
-		console.log("[TradingViewChart] Chart render complete");
+		console.log(
+			"[TradingViewChart] Chart render complete with improved zoom controls"
+		);
 	}, [ohlcvData, panels, dimensions, zoomTransform]);
 
 	// Candlestick rendering function
@@ -381,19 +444,38 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 			firstCandle: ohlcvData[0],
 		});
 
-		const candleWidth = Math.max(1, (width / ohlcvData.length) * 0.8);
+		// Calculate adaptive candle width based on zoom level and data density
+		const zoomLevel = d3.zoomTransform(group.node() || document.body).k;
+		const adaptiveWidth = Math.max(
+			0.5,
+			Math.min(20, (width / ohlcvData.length) * 0.8 * zoomLevel)
+		);
+		const candleWidth = Math.max(1, adaptiveWidth);
+
+		// Filter data to only visible candles for better performance
+		const visibleData = ohlcvData.filter((d) => {
+			const x = xScale(new Date(d.timestamp));
+			return x >= -candleWidth && x <= width + candleWidth;
+		});
+
+		console.log(
+			"[TradingViewChart] Rendering",
+			visibleData.length,
+			"visible candles of",
+			ohlcvData.length,
+			"total"
+		);
 
 		// Add candlesticks
 		const candles = group
 			.selectAll(".candle")
-			.data(ohlcvData)
+			.data(visibleData)
 			.enter()
 			.append("g")
 			.attr("class", "candle");
 
-		console.log("[TradingViewChart] Created", candles.size(), "candle groups");
-
-		// High-low lines
+		// High-low lines with improved stroke width for zoom
+		const strokeWidth = Math.max(0.5, Math.min(2, zoomLevel * 0.8));
 		candles
 			.append("line")
 			.attr("x1", (d) => xScale(new Date(d.timestamp)))
@@ -401,20 +483,25 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 			.attr("y1", (d) => yScale(d.high))
 			.attr("y2", (d) => yScale(d.low))
 			.attr("stroke", (d) => (d.close >= d.open ? "#26a69a" : "#ef5350"))
-			.attr("stroke-width", 1);
+			.attr("stroke-width", strokeWidth);
 
-		// Open-close rectangles
+		// Open-close rectangles with minimum height for better visibility
 		candles
 			.append("rect")
 			.attr("x", (d) => xScale(new Date(d.timestamp)) - candleWidth / 2)
 			.attr("y", (d) => yScale(Math.max(d.open, d.close)))
 			.attr("width", candleWidth)
-			.attr("height", (d) => Math.abs(yScale(d.open) - yScale(d.close)) || 1)
+			.attr("height", (d) =>
+				Math.max(1, Math.abs(yScale(d.open) - yScale(d.close)))
+			)
 			.attr("fill", (d) => (d.close >= d.open ? "#26a69a" : "#ef5350"))
 			.attr("stroke", (d) => (d.close >= d.open ? "#26a69a" : "#ef5350"))
-			.attr("stroke-width", 1);
+			.attr("stroke-width", Math.max(0.5, strokeWidth * 0.8))
+			.attr("opacity", 0.9);
 
-		console.log("[TradingViewChart] Candlesticks rendered");
+		console.log(
+			"[TradingViewChart] Candlesticks rendered with adaptive sizing"
+		);
 	};
 
 	// Render volume bars
@@ -425,21 +512,34 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 		width: number,
 		height: number
 	) => {
-		const barWidth = Math.max(1, (width / ohlcvData.length) * 0.6);
+		// Calculate adaptive bar width based on zoom level
+		const zoomLevel = d3.zoomTransform(group.node() || document.body).k;
+		const adaptiveBarWidth = Math.max(
+			0.8,
+			Math.min(12, (width / ohlcvData.length) * 0.7 * zoomLevel)
+		);
+		const barWidth = Math.max(1, adaptiveBarWidth);
+
+		// Filter data to only visible bars for better performance
+		const visibleData = ohlcvData.filter((d) => {
+			const x = xScale(new Date(d.timestamp));
+			return x >= -barWidth && x <= width + barWidth;
+		});
 
 		const bars = group
 			.selectAll(".volume-bar")
-			.data(ohlcvData)
+			.data(visibleData)
 			.enter()
 			.append("rect")
 			.attr("class", "volume-bar")
 			.attr("x", (d) => xScale(new Date(d.timestamp)) - barWidth / 2)
 			.attr("y", (d) => yScale(d.volume))
 			.attr("width", barWidth)
-			.attr("height", (d) => height - yScale(d.volume))
-			.attr("fill", (d) => (d.close >= d.open ? "#26a69a44" : "#ef535044"))
+			.attr("height", (d) => Math.max(1, height - yScale(d.volume)))
+			.attr("fill", (d) => (d.close >= d.open ? "#26a69a88" : "#ef535088"))
 			.attr("stroke", (d) => (d.close >= d.open ? "#26a69a" : "#ef5350"))
-			.attr("stroke-width", 0.5);
+			.attr("stroke-width", Math.max(0.2, Math.min(0.8, zoomLevel * 0.3)))
+			.attr("opacity", Math.max(0.6, Math.min(0.95, zoomLevel * 0.4 + 0.5)));
 	};
 
 	// Render chart when data or dimensions change
