@@ -1,307 +1,282 @@
-# Trading Bot v5 - Architecture Overview
+# Architecture Overview
 
-## Project Summary
+## System Architecture
 
-Trading Bot v5 is a professional React TypeScript application for real-time cryptocurrency trading analysis with advanced charting, indicator calculation, and strategy management capabilities.
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Frontend UI   │◄──►│  Express Server  │◄──►│ CCXT/Binance   │
+│                 │    │                  │    │                 │
+│ • D3.js Charts  │    │ • REST API       │    │ • Live Data     │
+│ • React/TS UI   │    │ • WebSocket      │    │ • Trading       │
+│ • Strategy Mgmt │    │ • Strategy Store │    │ • Orders        │
+│ • Data Tables   │    │ • File Storage   │    │ • Positions     │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
 
-## Technology Stack
+## Frontend Architecture (React/TypeScript)
 
-### Frontend Core
-
-- **React 18.2.0** - Modern UI with concurrent features
-- **TypeScript 5.x** - Type-safe development
-- **Vite 4.x** - Fast build tool and dev server
-- **Tailwind CSS 3.x** - Utility-first styling
-
-### Data Visualization
-
-- **D3.js v7.9.0** - Advanced real-time charting system
-- **Chart.js** - Fallback charting with candlestick support
-- **Custom Multi-Panel Charts** - Price, volume, and oscillator panels
-
-### Real-Time Communication
-
-- **WebSocket API** - Real-time OHLCV and indicator data streaming
-- **Strategy-Aware Streaming** - Dynamic indicator calculation based on selected strategy
-
-### State Management
-
-- **React Context** - Global state for strategies and WebSocket connections
-- **Custom Hooks** - Reusable data access patterns
-- **Local Storage** - Persistent user preferences
-
-## Application Architecture
-
-### Folder Structure
+### Component Structure
 
 ```
 src/
-├── components/          # Reusable UI components
-│   ├── charts/         # Chart-specific components
-│   ├── strategy/       # Strategy management components
-│   └── [component].tsx # Individual components
-├── context/            # Global state providers
-│   ├── StrategyContext.tsx    # Strategy selection
-│   └── WebSocketContext.tsx  # Real-time data
-├── hooks/              # Custom React hooks
-│   ├── useDashboard.ts       # Dashboard data management
-│   ├── useOhlcvWithIndicators.tsx  # Unified data access
-│   └── [hook].tsx            # Specialized hooks
-├── pages/              # Route-based page components
-├── services/           # API and external service interfaces
-├── types/              # TypeScript type definitions
-├── utils/              # Utility functions and helpers
-└── main.tsx           # Application entry point
+├── components/
+│   ├── TradingViewChart.tsx     # D3.js professional charts
+│   ├── StrategyControls.tsx     # Strategy management UI
+│   ├── DataTable.tsx           # Live OHLCV data display
+│   ├── ConnectionStatus.tsx     # WebSocket status indicator
+│   └── tabs/
+│       ├── ChartTab.tsx        # Chart view container
+│       └── TestingTab.tsx      # Strategy testing interface
+├── hooks/
+│   ├── useWebSocket.tsx        # OHLCV data streaming
+│   ├── useStrategies.tsx       # Strategy CRUD operations
+│   └── useDashboard.ts         # Main dashboard state
+├── context/
+│   ├── StrategyContext.tsx     # Global strategy state
+│   └── WebSocketContext.tsx    # WebSocket data management
+└── services/
+    └── strategyService.ts      # API communication
 ```
 
-## Core Components
-
-### 1. Global State Management
-
-#### StrategyContext (`src/context/StrategyContext.tsx`)
-
-- **Purpose**: Global strategy selection and persistence
-- **Features**:
-  - Strategy list management
-  - Selected strategy persistence (localStorage)
-  - Loading and error states
-- **Used By**: All strategy-related components
-
-#### WebSocketContext (`src/context/WebSocketContext.tsx`)
-
-- **Purpose**: Real-time data streaming and connection management
-- **Features**:
-  - Strategy-aware indicator streaming
-  - OHLCV data management
-  - Automatic reconnection
-  - Connection status tracking
-- **Data Flow**: Backend → WebSocket → Context → Components
-
-### 2. Data Processing Layer
-
-#### useOhlcvWithIndicators Hook (`src/hooks/useOhlcvWithIndicators.tsx`)
-
-- **Purpose**: Unified access to OHLCV and indicator data
-- **Features**:
-  - Strategy change detection
-  - Automatic state clearing on strategy switch
-  - Data validation and filtering
-- **Integration**: WebSocketContext + StrategyContext
-
-#### useDashboard Hook (`src/hooks/useDashboard.ts`)
-
-- **Purpose**: Dashboard-level data orchestration
-- **Features**:
-  - Indicator color extraction from strategy configs
-  - Chart-ready data transformation
-  - Strategy CRUD operations
-  - Performance monitoring
-
-### 3. Visualization System
-
-#### TradingChart Component (`src/components/TradingChart.tsx`)
-
-- **Purpose**: Multi-panel real-time chart visualization
-- **Features**:
-  - Dynamic panel creation (price, volume, oscillator)
-  - Real-time data updates
-  - Zoom preservation
-  - Live price markers
-- **Technology**: D3.js primary, Chart.js fallback
-
-#### Chart Panel System
-
-- **Price Panel**: Candlestick charts with overlaid indicators (EMA, SMA, Bollinger Bands)
-- **Volume Panel**: Volume bars with volume-based indicators
-- **Oscillator Panel**: Bounded indicators (RSI, Stochastic, CCI)
-
-### 4. Strategy Management
-
-#### Strategy Selection (`src/components/StrategySelect.tsx`)
-
-- **Purpose**: Strategy selection and detailed loading
-- **Features**:
-  - Strategy list display
-  - Detailed strategy fetching
-  - Error handling and loading states
-
-#### Strategy Controls (`src/components/StrategyControls.tsx`)
-
-- **Purpose**: Strategy execution control
-- **Features**:
-  - Start/Stop/Pause actions
-  - WebSocket command sending
-  - Connection status validation
-
-#### Strategy Editor (`src/components/strategy/StrategyEditor.tsx`)
-
-- **Purpose**: Strategy creation and modification
-- **Features**:
-  - Dynamic indicator parameter forms
-  - Validation and submission
-  - Integration with strategy API
-
-## Data Flow Patterns
-
-### 1. Real-Time Data Flow
+### Data Flow (Frontend)
 
 ```
-Backend WebSocket Server
-↓
-WebSocketContext (Global State)
-↓
-useOhlcvWithIndicators (Data Processing)
-↓
-TradingChart (Visualization)
+WebSocket → useWebSocket → Context → Components → D3.js Charts
+     ↓
+REST API → Services → Context → Components → UI Updates
 ```
 
-### 2. Strategy Management Flow
+## Backend Architecture (Express/TypeScript)
+
+### Module Structure
 
 ```
-User Action (Strategy Selection)
-↓
-StrategyContext (Global State Update)
-↓
-WebSocketContext (Strategy-Specific Data Request)
-↓
-useDashboard (Strategy Details & Indicators)
-↓
-Components (UI Updates)
+local_modules/
+├── routes/
+│   ├── routes-api.ts           # API router setup
+│   └── apiRoutes/
+│       ├── routes-strategy.ts   # Strategy endpoints
+│       ├── routes-indicators.ts # Indicator endpoints
+│       ├── routes-trading.ts    # Trading endpoints (empty)
+│       └── routes-performance.ts # Performance endpoints (stub)
+├── utils/
+│   ├── websocket-main.ts       # CCXT Pro WebSocket server
+│   ├── strategy-engine.ts      # Strategy execution framework
+│   ├── strategyIndicators.ts   # Indicator calculations
+│   └── config.ts              # Configuration management
+├── db/
+│   ├── strategies/             # JSON strategy files
+│   └── indicators/             # JSON indicator definitions
+└── types/
+    └── index.ts               # TypeScript definitions
 ```
 
-### 3. Chart Update Flow
+### API Layer Architecture
 
 ```
-Real-Time Data → useOhlcvWithIndicators → TradingChart → D3.js Render
+Express Router
+├── /api/v1/strategies          # Strategy CRUD & control
+├── /api/v1/indicators          # Indicator metadata & calculations
+├── /api/v1/performance         # Performance metrics (stub)
+└── /ws/ohlcv                  # WebSocket OHLCV + strategy data
 ```
 
-## Key Features
+## Data Architecture
 
-### Real-Time Capabilities
+### WebSocket-Only Data Model
 
-- **Live OHLCV Data**: Streaming candlestick data with sub-second updates
-- **Dynamic Indicators**: Real-time calculation of technical indicators
-- **Strategy-Driven Updates**: Indicator calculations change based on selected strategy
-- **Connection Resilience**: Automatic reconnection and error recovery
+```
+CCXT Pro → WebSocket Server → Frontend Components
+    ↓
+No REST API for OHLCV data (WebSocket-only for real-time)
+```
 
-### Chart System
+### Storage Architecture
 
-- **Multi-Panel Layout**: Automatic panel creation based on indicator types
-- **Zoom Preservation**: Maintains user zoom levels across data updates
-- **Performance Optimized**: Efficient data updates without full re-renders
-- **Responsive Design**: Adapts to different screen sizes
+```
+File-Based Storage (Database-Ready)
+├── strategies/
+│   ├── strategy1.json          # Strategy configuration
+│   ├── strategy2.json          # Strategy configuration
+│   └── ...
+├── indicators/
+│   ├── indicator1.json         # Indicator metadata
+│   ├── indicator2.json         # Indicator metadata
+│   └── ...
+└── (Future: trades/, performance/, users/)
+```
 
-### Strategy System
+## Real-Time Data Flow
 
-- **File-Based Strategies**: Backend strategy loading from configuration files
-- **Dynamic Indicators**: Strategy-specific indicator combinations
-- **Real-Time Switching**: Change strategies without losing chart state
-- **Persistent Selection**: User strategy preference saved locally
+### OHLCV Data Streaming
 
-## Performance Optimizations
+```
+Binance Exchange
+    ↓ (CCXT Pro)
+WebSocket Server (/ws/ohlcv)
+    ↓ (WebSocket)
+Frontend useWebSocket Hook
+    ↓ (React Context)
+TradingViewChart Component
+    ↓ (D3.js)
+Live Chart Rendering
+```
 
-### Frontend Optimizations
+### Strategy Data Integration
 
-- **React.memo**: Prevents unnecessary component re-renders
-- **useMemo/useCallback**: Expensive calculations and event handlers cached
-- **Selective Re-rendering**: Only update charts when data actually changes
-- **Efficient Data Structures**: Optimized data formats for chart libraries
+```
+Strategy Configuration (JSON)
+    ↓
+Strategy Engine (framework)
+    ↓ (WebSocket)
+Frontend Strategy Controls
+    ↓ (UI Updates)
+Chart Overlays & Indicators
+```
 
-### Data Management
+## Technology Stack
 
-- **Strategy-Aware Caching**: Cache indicator data per strategy
-- **Incremental Updates**: Only process new data points
-- **Connection Pooling**: Reuse WebSocket connections
-- **Error Boundaries**: Graceful handling of data processing errors
+### Frontend Stack
 
-## Testing Strategy
+- **React 19**: Component framework
+- **TypeScript**: Type safety
+- **D3.js**: Professional chart rendering
+- **TailwindCSS**: Utility-first styling
+- **Vite**: Build tool and dev server
 
-### Unit Testing
+### Backend Stack
 
-- **Component Testing**: Individual component functionality
-- **Hook Testing**: Custom hook behavior and state management
-- **Utility Testing**: Data processing and calculation functions
+- **Express**: Web server framework
+- **CCXT Pro**: Exchange integration
+- **WebSocket (ws)**: Real-time communication
+- **TypeScript**: Backend type safety
+- **Technical Indicators**: Calculation library
 
-### Integration Testing
+### Development Stack
 
-- **Context Integration**: Global state provider interactions
-- **WebSocket Testing**: Real-time data flow validation
-- **Chart Integration**: Visualization with real data
+- **Node.js 18+**: Runtime environment
+- **npm**: Package management
+- **ESLint/Prettier**: Code formatting
+- **Concurrently**: Development server coordination
 
-### E2E Testing
+## Current Implementation Status
 
-- **User Workflows**: Complete user journeys
-- **Strategy Switching**: End-to-end strategy management
-- **Real-Time Updates**: Live data processing validation
+### ✅ Fully Implemented
+
+1. **WebSocket Infrastructure**
+
+   - CCXT Pro integration with Binance
+   - Real-time OHLCV data streaming (1000+ candles)
+   - Client connection management
+   - Error handling and reconnection
+
+2. **Frontend Dashboard**
+
+   - Professional D3.js charts with TradingView styling
+   - Multi-panel layout (price, volume, oscillators)
+   - Real-time chart updates
+   - Strategy management UI
+   - Responsive design
+
+3. **API Structure**
+   - RESTful endpoint organization
+   - Strategy CRUD operations
+   - File-based storage system
+   - TypeScript type definitions
+
+### ⚠️ Partially Implemented
+
+1. **Strategy Engine**
+
+   - Framework exists in `strategy-engine.ts`
+   - API endpoints structured but no execution logic
+   - WebSocket integration prepared but not active
+
+2. **Indicator System**
+   - Basic calculation capability
+   - Metadata management
+   - Chart overlay framework ready
+
+### ❌ Not Implemented
+
+1. **Trading Engine**
+
+   - No order placement logic
+   - No position management
+   - No risk management implementation
+
+2. **Performance Tracking**
+   - No trade logging
+   - No P&L calculations
+   - No performance metrics
+
+## Security Architecture
+
+### Current Security Measures
+
+- Environment variable management (`.env`)
+- CORS configuration
+- Input validation (basic)
+- File system access controls
+
+### Missing Security Features
+
+- User authentication
+- API rate limiting
+- Secure credential storage
+- Audit logging
+
+## Scalability Considerations
+
+### Current Limitations
+
+- File-based storage (not scalable)
+- Single-process architecture
+- No caching layer
+- No load balancing
+
+### Future Scaling Path
+
+1. **Database Migration**: PostgreSQL for structured data
+2. **Microservices**: Separate strategy and trading engines
+3. **Caching**: Redis for performance optimization
+4. **Container Deployment**: Docker for consistent environments
+
+## Integration Points
+
+### External Services
+
+- **Binance API**: Market data and trading
+- **CCXT**: Exchange abstraction layer
+- **Technical Indicators Library**: Mathematical calculations
+
+### Internal Services
+
+- **WebSocket Server**: Real-time data distribution
+- **Strategy Engine**: Business logic processing
+- **File Storage**: Configuration and data persistence
 
 ## Development Workflow
 
-### Code Organization
+### Current Development Setup
 
-- **TypeScript First**: Strict typing throughout the application
-- **Component Composition**: Reusable, composable components
-- **Hook Patterns**: Custom hooks for data access and business logic
-- **Service Layer**: Clean API integration patterns
+```bash
+npm run dev  # Starts both frontend and backend
+├── Frontend: http://localhost:5173 (Vite)
+└── Backend: http://localhost:3001 (Express)
+```
 
-### Build Process
+### File Organization Philosophy
 
-- **Vite Build**: Fast development and optimized production builds
-- **TypeScript Compilation**: Type checking and transpilation
-- **Asset Optimization**: Code splitting and lazy loading
-- **Environment Configuration**: Development/production environment handling
+- **Modular backend**: Separate concerns by domain
+- **Component-based frontend**: Reusable UI components
+- **Type-safe**: TypeScript throughout
+- **Configuration-driven**: JSON-based strategy definitions
 
-## Security Considerations
+## Next Architecture Steps
 
-### Data Security
-
-- **Input Validation**: All user inputs validated and sanitized
-- **Type Safety**: TypeScript prevents runtime type errors
-- **Error Boundaries**: Graceful error handling prevents crashes
-
-### Connection Security
-
-- **WebSocket Security**: Secure WebSocket connections (WSS)
-- **Authentication**: Strategy access control (when implemented)
-- **Rate Limiting**: Protection against excessive requests
-
-## Deployment Architecture
-
-### Frontend Deployment
-
-- **Static Site Generation**: Vite builds to static assets
-- **CDN Distribution**: Fast global content delivery
-- **Environment Variables**: Configuration through environment files
-
-### Backend Integration
-
-- **WebSocket Endpoints**: Real-time data streaming
-- **REST API**: Strategy management and configuration
-- **CORS Configuration**: Secure cross-origin requests
-
-## Future Enhancements
-
-### Planned Features
-
-- **Multi-Symbol Support**: Trading multiple cryptocurrency pairs
-- **Advanced Charting**: Additional chart types and indicators
-- **Strategy Backtesting**: Historical strategy performance analysis
-- **Portfolio Management**: Multi-strategy portfolio tracking
-
-### Technical Improvements
-
-- **WebWorkers**: Offload heavy calculations to background threads
-- **Caching Layer**: Redis-based caching for improved performance
-- **Real-Time Alerts**: Push notifications for trading signals
-- **Mobile Optimization**: Enhanced mobile trading experience
-
-## Conclusion
-
-Trading Bot v5 represents a professional-grade trading application with:
-
-- ✅ **Real-Time Performance**: Sub-second data updates and chart rendering
-- ✅ **Type-Safe Development**: Full TypeScript coverage for reliability
-- ✅ **Scalable Architecture**: Modular design for easy feature additions
-- ✅ **User Experience**: Intuitive interface with persistent preferences
-- ✅ **Production Ready**: Error handling, logging, and performance monitoring
-
-The application successfully demonstrates modern React development practices with real-time data processing, advanced visualization, and professional-grade code organization.
+1. **Strategy Execution Engine**: Implement core trading logic
+2. **Trading Engine Integration**: Add CCXT trading functions
+3. **Performance System**: Build comprehensive tracking
+4. **Database Migration**: Move from files to PostgreSQL
+5. **Microservice Separation**: Split into focused services

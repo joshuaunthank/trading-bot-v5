@@ -143,49 +143,17 @@ export class IndicatorRenderer {
 	}
 
 	/**
-	 * Validate indicator data format and log issues
+	 * Validate indicator data format
 	 */
 	private validateIndicator(indicator: CalculatedIndicator): boolean {
-		if (!indicator) {
-			console.warn("[IndicatorRenderer] Null indicator received");
-			return false;
-		}
-
-		if (!indicator.id) {
-			console.warn("[IndicatorRenderer] Indicator missing ID:", indicator);
-			return false;
-		}
-
-		if (!indicator.data || !Array.isArray(indicator.data)) {
-			console.warn(
-				`[IndicatorRenderer] Indicator ${indicator.id} missing or invalid data:`,
-				indicator.data
-			);
-			return false;
-		}
-
-		if (indicator.data.length === 0) {
-			console.warn(
-				`[IndicatorRenderer] Indicator ${indicator.id} has empty data array`
-			);
-			return false;
-		}
-
-		// Check data point format
-		const samplePoint = indicator.data[0];
-		if (
-			!samplePoint ||
-			typeof samplePoint.x === "undefined" ||
-			typeof samplePoint.y === "undefined"
-		) {
-			console.warn(
-				`[IndicatorRenderer] Indicator ${indicator.id} has invalid data point format:`,
-				samplePoint
-			);
-			return false;
-		}
-
-		return true;
+		return !!(
+			indicator?.id &&
+			indicator?.data &&
+			Array.isArray(indicator.data) &&
+			indicator.data.length > 0 &&
+			indicator.data[0]?.x !== undefined &&
+			indicator.data[0]?.y !== undefined
+		);
 	}
 
 	/**
@@ -209,9 +177,6 @@ export class IndicatorRenderer {
 		const validData = this.filterValidData(indicator.data);
 
 		if (validData.length === 0) {
-			console.warn(
-				`[IndicatorRenderer] No valid data points for ${indicator.id}`
-			);
 			return;
 		}
 
@@ -233,7 +198,91 @@ export class IndicatorRenderer {
 	}
 
 	/**
-	 * Render all indicators with comprehensive validation and error handling
+	 * Render a histogram indicator (for MACD histogram)
+	 */
+	private renderHistogramIndicator(
+		indicator: CalculatedIndicator,
+		config: IndicatorRenderConfig
+	): void {
+		const validData = this.filterValidData(indicator.data);
+
+		if (validData.length === 0) {
+			return;
+		}
+
+		const barWidth = Math.max(
+			1,
+			((this.xScale.range()[1] - this.xScale.range()[0]) / validData.length) *
+				0.8
+		);
+		const zeroY = this.yScale(0);
+
+		this.chartGroup
+			.selectAll(`.histogram-bar-${indicator.id}`)
+			.data(validData)
+			.enter()
+			.append("rect")
+			.attr("class", `indicator-histogram histogram-bar-${indicator.id}`)
+			.attr("x", (d) => this.xScale(new Date(d.x)) - barWidth / 2)
+			.attr("y", (d) => Math.min(this.yScale(d.y), zeroY))
+			.attr("width", barWidth)
+			.attr("height", (d) => Math.abs(this.yScale(d.y) - zeroY))
+			.attr("fill", (d) => (d.y >= 0 ? config.color : config.color))
+			.attr("opacity", config.opacity || 0.7);
+	}
+
+	/**
+	 * Render a band indicator (for Bollinger Bands fill area)
+	 */
+	private renderBandIndicator(
+		indicators: CalculatedIndicator[],
+		config: IndicatorRenderConfig,
+		bandType: string
+	): void {
+		// Find upper and lower band indicators
+		const upperBand = indicators.find((ind) => ind.id.includes("upper"));
+		const lowerBand = indicators.find((ind) => ind.id.includes("lower"));
+
+		if (!upperBand || !lowerBand) {
+			return;
+		}
+
+		const upperData = this.filterValidData(upperBand.data);
+		const lowerData = this.filterValidData(lowerBand.data);
+
+		if (upperData.length === 0 || lowerData.length === 0) {
+			return;
+		}
+
+		// Create area between upper and lower bands
+		const area = d3
+			.area<{ x: number; upper: number; lower: number }>()
+			.x((d) => this.xScale(new Date(d.x)))
+			.y0((d) => this.yScale(d.lower))
+			.y1((d) => this.yScale(d.upper))
+			.curve(d3.curveMonotoneX);
+
+		// Combine upper and lower data
+		const combinedData = upperData
+			.map((upper, i) => {
+				const lower = lowerData.find((l) => l.x === upper.x);
+				return lower ? { x: upper.x, upper: upper.y, lower: lower.y } : null;
+			})
+			.filter(Boolean) as { x: number; upper: number; lower: number }[];
+
+		if (combinedData.length > 0) {
+			this.chartGroup
+				.append("path")
+				.datum(combinedData)
+				.attr("class", `indicator-band indicator-${bandType}`)
+				.attr("d", area)
+				.attr("fill", config.color)
+				.attr("opacity", config.opacity || 0.1);
+		}
+	}
+
+	/**
+	 * Render all indicators with proper type handling
 	 */
 	public renderIndicators(indicators: CalculatedIndicator[]): void {
 		// Clear previous indicators
@@ -241,59 +290,84 @@ export class IndicatorRenderer {
 		this.chartGroup.selectAll(".indicator-band").remove();
 		this.chartGroup.selectAll(".indicator-histogram").remove();
 
-		let renderedCount = 0;
-		let failedCount = 0;
+		// Group indicators for band rendering (Bollinger Bands)
+		const bandGroups = new Map<string, CalculatedIndicator[]>();
+		const singleIndicators: CalculatedIndicator[] = [];
 
 		indicators.forEach((indicator) => {
-			try {
-				if (!this.validateIndicator(indicator)) {
-					failedCount++;
-					return;
-				}
+			if (!this.validateIndicator(indicator)) {
+				return;
+			}
 
+			// Group Bollinger Bands for area rendering
+			if (indicator.id.includes("bollingerBands")) {
+				const baseKey = indicator.id.replace(/_upper|_middle|_lower/, "");
+				if (!bandGroups.has(baseKey)) {
+					bandGroups.set(baseKey, []);
+				}
+				bandGroups.get(baseKey)!.push(indicator);
+			} else {
+				singleIndicators.push(indicator);
+			}
+		});
+
+		// Render band groups first (so they appear behind lines)
+		bandGroups.forEach((bandIndicators, bandKey) => {
+			const config = this.styles[bandIndicators[0].id] || {
+				color: "#9b59b6",
+				strokeWidth: 1,
+				renderType: "band",
+			};
+			this.renderBandIndicator(bandIndicators, config, bandKey);
+
+			// Also render individual band lines
+			bandIndicators.forEach((indicator) => {
+				const lineConfig = this.styles[indicator.id];
+				if (lineConfig) {
+					this.renderLineIndicator(indicator, lineConfig);
+				}
+			});
+		});
+
+		// Render individual indicators
+		singleIndicators.forEach((indicator) => {
+			try {
 				const config = this.styles[indicator.id];
 				if (!config) {
-					// Only warn once per missing indicator style
+					// Use default style for unknown indicators
 					if (!this.warnedMissingStyles.has(indicator.id)) {
 						console.warn(
-							`[IndicatorRenderer] No style configuration for indicator ${indicator.id}, using default line style`
+							`[IndicatorRenderer] No style for ${indicator.id}, using default`
 						);
 						this.warnedMissingStyles.add(indicator.id);
 					}
-					// Use default line style for unknown indicators
 					this.renderLineIndicator(indicator, {
 						color: "#666666",
 						strokeWidth: 1.5,
 						renderType: "line",
 					});
-				} else {
-					switch (config.renderType) {
-						case "line":
-							this.renderLineIndicator(indicator, config);
-							break;
-						case "band":
-							// TODO: Implement band rendering for Bollinger Bands fill areas
-							this.renderLineIndicator(indicator, config);
-							break;
-						case "histogram":
-							// TODO: Implement histogram rendering for MACD histogram
-							this.renderLineIndicator(indicator, config);
-							break;
-						default:
-							console.warn(
-								`[IndicatorRenderer] Unknown render type ${config.renderType} for ${indicator.id}`
-							);
-							this.renderLineIndicator(indicator, config);
-					}
+					return;
 				}
 
-				renderedCount++;
+				switch (config.renderType) {
+					case "line":
+						this.renderLineIndicator(indicator, config);
+						break;
+					case "histogram":
+						this.renderHistogramIndicator(indicator, config);
+						break;
+					case "band":
+						// Bands are handled in groups above
+						this.renderLineIndicator(indicator, config);
+						break;
+					default:
+						this.renderLineIndicator(indicator, config);
+				}
 			} catch (error) {
 				console.error(
-					`[IndicatorRenderer] Failed to render indicator ${indicator.id}:`,
+					`[IndicatorRenderer] Failed to render ${indicator.id}:`,
 					error
 				);
-				failedCount++;
 			}
 		});
 	}

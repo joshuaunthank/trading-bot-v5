@@ -62,17 +62,6 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 		d3.zoomIdentity
 	);
 
-	// Debug logging
-	useEffect(() => {
-		console.log("[TradingViewChart] Data received:", {
-			ohlcvCount: ohlcvData.length,
-			indicatorCount: indicators.length,
-			firstCandle: ohlcvData[0],
-			firstIndicator: indicators[0],
-			dimensions,
-		});
-	}, [ohlcvData, indicators, dimensions]);
-
 	// Organize panels based on indicator types
 	const organizePanels = useCallback((): ChartPanel[] => {
 		const priceIndicators = indicators.filter((ind) =>
@@ -134,7 +123,6 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 			}
 		}
 
-		console.log("[TradingViewChart] Organized panels:", panelList);
 		return panelList;
 	}, [indicators, ohlcvData, height]);
 
@@ -143,10 +131,6 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 		const updateDimensions = () => {
 			if (containerRef.current) {
 				const width = containerRef.current.clientWidth;
-				console.log("[TradingViewChart] Container dimensions updated:", {
-					width,
-					height,
-				});
 				setDimensions({ width, height });
 			}
 		};
@@ -163,17 +147,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
 	// Main chart rendering function
 	const renderChart = useCallback(() => {
-		console.log("[TradingViewChart] renderChart called", {
-			svgRef: !!svgRef.current,
-			ohlcvLength: ohlcvData.length,
-			dimensionsWidth: dimensions.width,
-			panelsLength: panels.length,
-		});
-
 		if (!svgRef.current || !ohlcvData.length || !dimensions.width) {
-			console.warn(
-				"[TradingViewChart] Skipping render due to missing requirements"
-			);
 			return;
 		}
 
@@ -181,11 +155,6 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 		svg.selectAll("*").remove();
 
 		const innerWidth = dimensions.width - margin.left - margin.right;
-
-		console.log(
-			"[TradingViewChart] Starting render with innerWidth:",
-			innerWidth
-		);
 
 		// Create time scale (shared across all panels)
 		const timeExtent = d3.extent(ohlcvData, (d) => new Date(d.timestamp)) as [
@@ -199,8 +168,6 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
 		// Render each panel
 		panels.forEach((panel) => {
-			console.log("[TradingViewChart] Rendering panel:", panel.id, panel.type);
-
 			const panelGroup = svg
 				.append("g")
 				.attr("class", `panel-${panel.id}`)
@@ -423,10 +390,6 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 				setZoomTransform(naturalTransform);
 			});
 		svg.call(zoom);
-
-		console.log(
-			"[TradingViewChart] Chart render complete with improved zoom controls"
-		);
 	}, [ohlcvData, panels, dimensions, zoomTransform]);
 
 	// Candlestick rendering function
@@ -437,13 +400,6 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 		width: number,
 		height: number
 	) => {
-		console.log("[TradingViewChart] renderCandlesticks called", {
-			dataLength: ohlcvData.length,
-			width,
-			height,
-			firstCandle: ohlcvData[0],
-		});
-
 		// Calculate adaptive candle width based on zoom level and data density
 		const zoomLevel = d3.zoomTransform(group.node() || document.body).k;
 		const adaptiveWidth = Math.max(
@@ -457,14 +413,6 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 			const x = xScale(new Date(d.timestamp));
 			return x >= -candleWidth && x <= width + candleWidth;
 		});
-
-		console.log(
-			"[TradingViewChart] Rendering",
-			visibleData.length,
-			"visible candles of",
-			ohlcvData.length,
-			"total"
-		);
 
 		// Add candlesticks
 		const candles = group
@@ -498,10 +446,6 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 			.attr("stroke", (d) => (d.close >= d.open ? "#26a69a" : "#ef5350"))
 			.attr("stroke-width", Math.max(0.5, strokeWidth * 0.8))
 			.attr("opacity", 0.9);
-
-		console.log(
-			"[TradingViewChart] Candlesticks rendered with adaptive sizing"
-		);
 	};
 
 	// Render volume bars

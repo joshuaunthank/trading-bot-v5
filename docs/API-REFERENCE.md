@@ -1,143 +1,264 @@
-# Strategy Manager API Quick Reference
+# API Reference
 
-**Last Updated:** June 20, 2025  
-**Version:** Phase 2 Complete
+## REST API Endpoints
 
-## 🚀 Multi-Strategy Manager Endpoints
+Base URL: `http://localhost:3001/api/v1`
 
-All endpoints are prefixed with `/api/v1/strategies/manager`
+### Strategy Management
 
-### Strategy Lifecycle Management
+#### Get All Strategies
 
-| Method | Endpoint      | Description                | Parameters         |
-| ------ | ------------- | -------------------------- | ------------------ |
-| `POST` | `/:id/start`  | Start a strategy instance  | `id` - Strategy ID |
-| `POST` | `/:id/stop`   | Stop a strategy instance   | `id` - Strategy ID |
-| `POST` | `/:id/pause`  | Pause a strategy instance  | `id` - Strategy ID |
-| `POST` | `/:id/resume` | Resume a strategy instance | `id` - Strategy ID |
-
-### Monitoring & Status
-
-| Method | Endpoint       | Description                    | Returns                          |
-| ------ | -------------- | ------------------------------ | -------------------------------- |
-| `GET`  | `/active`      | Get all active strategies      | Array of running strategies      |
-| `GET`  | `/status`      | Get strategy manager status    | Manager health & stats           |
-| `GET`  | `/:id/status`  | Get individual strategy status | Status of specific strategy      |
-| `GET`  | `/:id/metrics` | Get strategy performance       | Performance metrics for strategy |
-
-## 📝 Example Usage
-
-### Start a Strategy
-
-```bash
-curl -X POST http://localhost:3001/api/v1/strategies/manager/enhanced_rsi_ema_strategy/start
+```
+GET /strategies
 ```
 
-### Get All Active Strategies
+**Status**: ✅ Working  
+**Response**: Array of strategy summaries
 
-```bash
-curl http://localhost:3001/api/v1/strategies/manager/active
+#### Get Strategy by ID
+
+```
+GET /strategies/:id
 ```
 
-### Pause a Strategy
+**Status**: ✅ Working  
+**Response**: Detailed strategy configuration
 
-```bash
-curl -X POST http://localhost:3001/api/v1/strategies/manager/enhanced_rsi_ema_strategy/pause
+#### Create Strategy
+
+```
+POST /strategies
 ```
 
-### Get Strategy Metrics
+**Status**: ✅ Working  
+**Body**: Strategy configuration JSON
 
-```bash
-curl http://localhost:3001/api/v1/strategies/manager/enhanced_rsi_ema_strategy/metrics
+#### Update Strategy
+
+```
+PUT /strategies/:id
 ```
 
-## 🎯 Response Format
+**Status**: ✅ Working  
+**Body**: Updated strategy configuration
 
-All endpoints return JSON in this format:
+#### Delete Strategy
+
+```
+DELETE /strategies/:id
+```
+
+**Status**: ✅ Working
+
+#### Strategy Control
+
+```
+POST /strategies/:id/start
+POST /strategies/:id/stop
+POST /strategies/:id/pause
+POST /strategies/:id/resume
+```
+
+**Status**: ⚠️ Framework only - no actual execution logic
+**Response**: Control operation status
+
+#### Strategy Status
+
+```
+GET /strategies/status
+GET /strategies/:id/status
+```
+
+**Status**: ⚠️ Framework only - returns file-based data
+
+### Indicators
+
+#### Get Indicator Metadata
+
+```
+GET /indicators
+```
+
+**Status**: ✅ Working  
+**Response**: Available indicator types and parameters
+
+#### Calculate Indicators
+
+```
+POST /indicators/calculate
+```
+
+**Status**: ⚠️ Limited functionality  
+**Body**: `{ type, parameters, data }`
+
+### Performance (Not Implemented)
+
+#### Get Performance Metrics
+
+```
+GET /performance
+GET /performance/:id
+```
+
+**Status**: ❌ Stub only - returns placeholder data
+
+## WebSocket API
+
+### Primary WebSocket Endpoint
+
+**URL**: `ws://localhost:3001/ws/ohlcv`
+
+**Query Parameters**:
+
+- `symbol` - Trading pair (default: BTC/USDT)
+- `timeframe` - Chart timeframe (default: 1h)
+- `strategy` - Optional strategy ID for strategy-specific data
+
+**Example**:
+
+```
+ws://localhost:3001/ws/ohlcv?symbol=BTC/USDT&timeframe=1h&strategy=simple_ema_rsi
+```
+
+### Message Types
+
+#### Incoming (Client → Server)
+
+**Strategy Configuration**:
 
 ```json
 {
-  "success": true,
-  "data": { ... },
-  "message": "Operation completed successfully"
+	"type": "config",
+	"strategyId": "strategy_id"
 }
 ```
 
-### Error Response
+**Strategy Control**:
 
 ```json
 {
-	"success": false,
-	"error": "Error description",
-	"details": "Detailed error message"
+	"type": "strategy-control",
+	"action": "start|stop|pause|resume",
+	"strategyId": "strategy_id"
 }
 ```
 
-## 🔄 Strategy States
+#### Outgoing (Server → Client)
 
-- **stopped** - Strategy is not running
-- **starting** - Strategy is being initialized
-- **running** - Strategy is actively processing data
-- **paused** - Strategy is paused (can be resumed)
-- **error** - Strategy encountered an error
-
-## 📊 Metrics Response Example
+**Connection Confirmation**:
 
 ```json
 {
+	"type": "connection",
+	"status": "connected",
+	"symbol": "BTC/USDT",
+	"timeframe": "1h",
+	"strategyId": "strategy_id",
+	"message": "Connected to BTC/USDT 1h with strategy simple_ema_rsi"
+}
+```
+
+**OHLCV Data**:
+
+```json
+{
+	"type": "ohlcv",
+	"updateType": "full|incremental",
+	"data": [
+		{
+			"timestamp": 1691337600000,
+			"open": 29000.5,
+			"high": 29100.25,
+			"low": 28950.75,
+			"close": 29075.0,
+			"volume": 1250.5
+		}
+	],
+	"symbol": "BTC/USDT",
+	"timeframe": "1h"
+}
+```
+
+**Strategy Control Response**:
+
+```json
+{
+	"type": "strategy-control-response",
 	"success": true,
-	"data": {
-		"status": {
-			"status": "running",
-			"uptime": 1234567,
-			"lastUpdate": "2025-06-20T00:00:00.000Z"
-		},
-		"performance": {
-			"totalReturn": 0.05,
-			"winRate": 0.65,
-			"sharpeRatio": 1.2,
-			"maxDrawdown": -0.03,
-			"totalTrades": 15,
-			"currentPosition": "long",
-			"unrealizedPnL": 150.25,
-			"realizedPnL": 1250.75
-		},
-		"indicators": [
-			{
-				"id": "rsi_14",
-				"name": "RSI(14)",
-				"value": 45.23,
-				"timestamp": 1750374345758
-			}
-		],
-		"signals": [
-			{
-				"id": "signal_123",
-				"timestamp": 1750374345758,
-				"type": "entry",
-				"side": "long",
-				"confidence": 0.8,
-				"price": 50000.0,
-				"reason": "RSI oversold with EMA confirmation"
-			}
-		]
-	}
+	"action": "start",
+	"strategyId": "simple_ema_rsi",
+	"message": "Strategy start initiated"
 }
 ```
 
-## 🛠️ Implementation Notes
+**Strategy History** (cached results):
 
-- All strategy IDs must match existing strategy configuration files
-- Endpoints are idempotent where possible (e.g., starting an already running strategy returns success)
-- Real-time updates are available via WebSocket (see WebSocket documentation)
-- Performance metrics are calculated in real-time as strategies process market data
+```json
+{
+	"type": "strategy-history",
+	"strategyId": "simple_ema_rsi",
+	"data": []
+}
+```
 
-## 🔗 Related Documentation
+## Data Structures
 
-- [Multi-Strategy Engine Architecture](../docs/features/MULTI-STRATEGY-ENGINE-ARCHITECTURE.md)
-- [Phase 2 Complete: Real Indicators & Signals](../docs/milestones/PHASE-2-COMPLETE-REAL-INDICATORS-SIGNALS.md)
-- [Strategy Configuration Schema](../local_modules/schemas/strategy.schema.json)
+### OHLCV Data
 
----
+```typescript
+interface OHLCVData {
+	timestamp: number;
+	open: number;
+	high: number;
+	low: number;
+	close: number;
+	volume: number;
+}
+```
 
-**For Support:** Check the main README.md or documentation in `/docs/` directory
+### Strategy Configuration
+
+```typescript
+interface Strategy {
+	id: string;
+	name: string;
+	description: string;
+	symbol: string;
+	timeframe: string;
+	indicators: StrategyIndicator[];
+	signals: StrategySignal[];
+	risk: RiskManagement;
+	enabled: boolean;
+	meta: {
+		version: string;
+		created_at: string;
+		last_updated: string;
+	};
+}
+```
+
+### Calculated Indicator
+
+```typescript
+interface CalculatedIndicator {
+	id: string;
+	name: string;
+	type: string;
+	data: Array<{ x: number; y: number | null }>;
+	color?: string;
+	panel?: "price" | "volume" | "oscillator";
+}
+```
+
+## Current Limitations
+
+- **Strategy execution**: Control endpoints exist but don't run actual trading logic
+- **Indicator calculations**: Limited to basic calculations, no real-time processing
+- **Performance tracking**: No implementation of trade logging or P&L calculations
+- **Trading operations**: All trading endpoints are commented out/not implemented
+
+## Next Steps
+
+1. **Implement strategy execution engine** - Add real indicator calculations and signal generation
+2. **Add trading integration** - Connect CCXT trading functions to strategy signals
+3. **Build performance system** - Implement trade logging and metrics calculation

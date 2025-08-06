@@ -1,43 +1,144 @@
 <!-- Use this file to provide workspace-specific custom instructions to Copilot. For more details, visit https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
 
-# Copilot Instructions: Trading Bot Project (June 2025)
+# Copilot Instructions: Trading Bot Project (August 2025)
 
-## Project Overview
+## 🚨 Current Project Status: Real-Time Market Dashboard (Not Yet Trading Bot)
 
-This project is a modular, extensible, full-stack TypeScript trading bot for Binance margin trading, built on the CCXT framework. It features a modern, maintainable frontend and a robust backend, with a focus on:
+This is a **sophisticated real-time market data visualization dashboard** with excellent trading bot infrastructure, but **lacks core trading bot functionality**.
 
-- Modular strategies and models (ARIMA, MACD, EMA, error correction, etc.)
-- Real-time OHLCV data integration via WebSocket-only architecture
-- WebSocket-based live price streaming using CCXT Pro (1000 candles + real-time updates)
-- User-friendly, configurable UI (Chart.js, table, config modal, summary)
-- Secure handling of API keys via `.env`
+### ✅ What Actually Works (Foundation Complete)
 
-## 📝 **Documentation Guidelines**
+- **Professional D3.js Charts**: TradingView-style interface with multi-panel layout
+- **Real-time Data Streaming**: CCXT Pro WebSocket with 1000+ candles + live updates
+- **Modern React/TypeScript UI**: Clean, responsive component architecture
+- **Strategy Management Interface**: CRUD operations, visual strategy builder (UI only)
+- **RESTful API Structure**: Clean `/api/v1/` endpoints with proper organization
+- **File-based Storage**: JSON strategies/indicators ready for database migration
 
-⚠️ **IMPORTANT FOR DEVELOPERS**:
+### ❌ What's Missing (Critical Development Needed)
 
-- **All new `.md` files MUST be created within the `/docs` directory structure**
-- **Do NOT create `.md` files in the project root** (except README.md)
-- Use appropriate subdirectories:
-  - `/docs/milestones/` - Major achievements and project status updates
-  - `/docs/features/` - Feature implementations and enhancements
-  - `/docs/fixes/` - Bug fixes and cleanup documentation
-- This keeps the project root clean and maintains professional organization
+- **Strategy Execution Engine**: Cannot run trading strategies (0% complete)
+- **Trading Integration**: No order placement or position management (0% complete)
+- **Indicator Calculations**: Static display only, no real-time calculations (0% complete)
+- **Signal Generation**: No buy/sell logic implemented (0% complete)
+- **Performance Tracking**: No P&L or trade history (0% complete)
 
-## 🔍 **Current State (June 26, 2025) - DATA VISUALIZATION READY** ⚠️
+**Bottom Line**: This displays live market data beautifully but cannot trade.
 
-### **CRITICAL STATUS UPDATE: Documentation vs Reality Gap Fixed** �
+## 🎯 Development Priorities (In Order)
 
-**Previous documentation significantly overstated completion status. Accurate assessment:**
+### 1. Strategy Execution Engine (Critical)
 
-- ✅ **Real-time Data Dashboard** - Professional Chart.js visualization working
-- ✅ **WebSocket Streaming** - Stable CCXT Pro data streaming (1000 candles + live)
-- ✅ **Modern Frontend** - React/TypeScript components, responsive design
-- ✅ **Live Chart Updates** - Fixed data ordering and update logic (June 26)
-- ✅ **Solid Foundation** - Clean architecture ready for trading features
-- ❌ **Trading Bot Core** - Strategy execution, trading, calculations NOT implemented
+- Implement real-time indicator calculations using `technicalindicators` library
+- Add signal generation logic based on strategy JSON configuration
+- Build event-driven strategy processing with WebSocket integration
 
-**Reality: This is currently a sophisticated market data visualization tool, not a trading bot.**
+### 2. Trading Integration (Critical)
+
+- Connect CCXT trading functions for actual order placement
+- Implement position management and portfolio tracking
+- Add real-time trade execution based on strategy signals
+
+### 3. Performance System (Important)
+
+- Build trade logging and P&L calculation system
+- Add real-time performance metrics and visualization
+- Implement strategy backtesting capabilities
+
+## 📝 Code Style Guidelines
+
+### Backend Development
+
+- Use TypeScript throughout with strict type checking
+- Follow existing modular API structure in `local_modules/routes/apiRoutes/`
+- Integrate with existing WebSocket architecture in `websocket-main.ts`
+- Use file-based JSON storage (database-ready structure)
+- Follow existing strategy engine framework in `strategy-engine.ts`
+
+### Frontend Development
+
+- Maintain existing React/TypeScript component structure
+- Use existing hooks pattern (`useWebSocket`, `useStrategies`)
+- Follow TradingViewChart.tsx patterns for new chart features
+- Maintain WebSocket-only data architecture (no REST/WebSocket hybrid)
+- Use existing context providers for state management
+
+### Strategy Implementation
+
+- Build on existing JSON strategy format in `local_modules/db/strategies/`
+- Use `technicalindicators` library for calculations
+- Integrate with existing indicator system in `strategyIndicators.ts`
+- Follow event-driven pattern with WebSocket integration
+
+## 🏗️ Architecture Overview
+
+### Current Working Components
+
+```
+Frontend (80% Complete)
+├── TradingViewChart.tsx - Professional D3.js charts ✅
+├── StrategyControls.tsx - Strategy management UI ✅
+├── useWebSocket.tsx - OHLCV data streaming ✅
+└── Context providers - Global state management ✅
+
+Backend (30% Complete)
+├── websocket-main.ts - CCXT Pro WebSocket server ✅
+├── routes/apiRoutes/ - RESTful API structure ✅
+├── db/ - JSON storage system ✅
+└── strategy-engine.ts - Framework only (needs implementation) ❌
+```
+
+### Missing Core Components
+
+```
+Trading Engine (0% Complete)
+├── Strategy execution logic ❌
+├── Real-time indicator calculations ❌
+├── Signal generation ❌
+├── Order placement ❌
+└── Performance tracking ❌
+```
+
+## 🛠️ Technology Stack
+
+- **Frontend**: React 19, TypeScript, D3.js, TailwindCSS
+- **Backend**: Express, CCXT Pro, WebSocket (ws), technicalindicators
+- **Data**: File-based JSON (database-ready structure)
+- **Real-time**: WebSocket-only architecture
+
+## 📊 Available Endpoints
+
+### REST API (`/api/v1/`)
+
+- Strategy CRUD: `GET|POST|PUT|DELETE /strategies` ✅
+- Strategy Control: `POST /strategies/:id/start|stop|pause|resume` (framework only) ⚠️
+- Indicators: `GET /indicators`, `POST /indicators/calculate` (limited) ⚠️
+
+### WebSocket (`/ws/ohlcv`)
+
+- **URL**: `ws://localhost:3001/ws/ohlcv?symbol=BTC/USDT&timeframe=1h&strategy=strategy_id`
+- **Data**: Real-time OHLCV, strategy control messages ✅
+- **Features**: 1000 candles + live updates ✅
+
+## 🚀 Quick Development Setup
+
+```bash
+npm install
+cp .env.example .env  # Add Binance API keys
+npm run dev          # Starts frontend (5173) + backend (3001)
+```
+
+Open `http://localhost:5173` - live BTC/USDT charts work immediately.
+
+## 💡 Implementation Notes
+
+- **Focus on backend trading engine** - frontend is production-ready
+- **Use existing WebSocket infrastructure** - don't rebuild data streaming
+- **Build on strategy-engine.ts framework** - structure exists, needs logic
+- **Leverage technicalindicators library** - already included in dependencies
+- **Follow existing patterns** - consistent architecture throughout
+
+**Priority: Implement strategy execution engine to transform this from a dashboard into a trading bot.**
 
 ### **Previous Milestone: Complete API Modernization** 🚀
 
