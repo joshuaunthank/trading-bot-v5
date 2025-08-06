@@ -135,16 +135,17 @@ export const useDashboard = () => {
 			.map((indicator): CalculatedIndicator => {
 				const lowerType = indicator.type.toLowerCase();
 
-				// Optimized yAxisID determination
+				// Use backend metadata if available, otherwise determine yAxisID
 				const yAxisID =
-					lowerType.includes("rsi") ||
+					indicator.yAxisID ||
+					(lowerType.includes("rsi") ||
 					lowerType.includes("stoch") ||
 					lowerType.includes("williams") ||
 					lowerType.includes("cci")
 						? "oscillator"
 						: lowerType.includes("volume") || lowerType.includes("obv")
 						? "volume"
-						: "price";
+						: "price");
 
 				// Optimized type mapping
 				const type = lowerType.includes("ema")
@@ -164,11 +165,19 @@ export const useDashboard = () => {
 					name: indicator.name,
 					data: indicator.data, // Direct assignment for performance
 					color:
+						indicator.color || // Use backend color first
 						strategyColors[indicator.id] ||
 						strategyColors[indicator.name] ||
 						"#ffffff",
 					yAxisID,
 					type,
+					// Include all styling metadata from backend
+					renderType: indicator.renderType,
+					strokeWidth: indicator.strokeWidth,
+					opacity: indicator.opacity,
+					fillColor: indicator.fillColor,
+					lineStyle: indicator.lineStyle,
+					zIndex: indicator.zIndex,
 				};
 			});
 
@@ -242,9 +251,40 @@ export const useDashboard = () => {
 			setLoading(true);
 			try {
 				if (editingStrategyId) {
-					// TODO: Implement update strategy API call
+					// Update existing strategy
+					const response = await fetch(
+						`/api/v1/strategies/${editingStrategyId}`,
+						{
+							method: "PUT",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify(strategyData),
+						}
+					);
+
+					if (!response.ok) {
+						const errorData = await response.json();
+						throw new Error(errorData.message || "Failed to update strategy");
+					}
+
+					console.log("Strategy updated successfully");
 				} else {
-					// TODO: Implement create strategy API call
+					// Create new strategy
+					const response = await fetch("/api/v1/strategies", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify(strategyData),
+					});
+
+					if (!response.ok) {
+						const errorData = await response.json();
+						throw new Error(errorData.message || "Failed to create strategy");
+					}
+
+					console.log("Strategy created successfully");
 				}
 
 				await loadStrategies();
@@ -253,7 +293,11 @@ export const useDashboard = () => {
 				setEditingStrategy(null);
 			} catch (error) {
 				console.error("Failed to save strategy:", error);
-				setError("Failed to save strategy");
+				setError(
+					`Failed to save strategy: ${
+						error instanceof Error ? error.message : "Unknown error"
+					}`
+				);
 			} finally {
 				setLoading(false);
 			}

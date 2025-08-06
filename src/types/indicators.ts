@@ -15,6 +15,13 @@ export interface CalculatedIndicator {
 	color: string;
 	yAxisID: string;
 	type: IndicatorType;
+	// Extended metadata for complete styling control
+	renderType?: "line" | "histogram" | "area" | "band";
+	strokeWidth?: number;
+	opacity?: number;
+	fillColor?: string;
+	lineStyle?: "solid" | "dashed" | "dotted";
+	zIndex?: number;
 }
 
 export type IndicatorType =

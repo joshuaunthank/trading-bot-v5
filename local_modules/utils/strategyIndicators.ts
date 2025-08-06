@@ -10,6 +10,10 @@ import * as fs from "fs";
 import * as path from "path";
 import { alignIndicatorData, IndicatorValue } from "./indicatorUtils";
 import { indicatorCalculatorsByCategory } from "../routes/api-utils/indicator-calculations";
+import {
+	createIndicatorMetadata,
+	IndicatorDefaultConfig,
+} from "./indicatorDefaults";
 
 export interface IndicatorParam {
 	name: string;
@@ -48,9 +52,18 @@ export interface CalculatedIndicatorResult {
 	id: string;
 	name: string;
 	type: string;
-	data: IndicatorValue[]; // Aligned with timestamps
+	data: IndicatorValue[];
+	// Complete styling metadata
+	color?: string;
+	yAxisID?: "price" | "oscillator" | "volume";
+	renderType?: "line" | "histogram" | "area" | "band";
+	strokeWidth?: number;
+	opacity?: number;
+	fillColor?: string;
+	lineStyle?: "solid" | "dashed" | "dotted";
+	dashArray?: string;
+	zIndex?: number;
 }
-
 const STRATEGIES_DIR = path.join(__dirname, "../db/strategies");
 
 // Dynamic indicator calculator lookup
@@ -259,11 +272,20 @@ export function calculateIndicatorsForStrategy(
 					timestamps,
 					startIndex
 				);
+
+				// Create complete metadata including user colors and intelligent defaults
+				const metadata = createIndicatorMetadata(
+					indicator.type,
+					indicator.id,
+					indicator.parameters
+				);
+
 				results.push({
 					id: indicator.id,
 					name: indicator.name,
 					type: indicator.type,
 					data: alignedData,
+					...metadata, // Include all styling metadata
 				});
 				break;
 			}
@@ -290,22 +312,39 @@ export function calculateIndicatorsForStrategy(
 				const histogramStartIndex =
 					macdStartIndex + (macdLine.length - histogram.length);
 				if (macdLine.length) {
+					const macdMetadata = createIndicatorMetadata(
+						"macd_line",
+						`${indicator.id}_macd`,
+						indicator.parameters
+					);
 					results.push({
 						id: `${indicator.id}_macd`,
 						name: `MACD Line (${params.fastPeriod || 12})`,
 						type: "macd_line",
 						data: alignIndicatorData(macdLine, timestamps, macdStartIndex),
+						...macdMetadata,
 					});
 				}
 				if (signalLine.length) {
+					const signalMetadata = createIndicatorMetadata(
+						"macd_signal",
+						`${indicator.id}_signal`,
+						indicator.parameters
+					);
 					results.push({
 						id: `${indicator.id}_signal`,
 						name: `MACD Signal (${params.signalPeriod || 9})`,
 						type: "macd_signal",
 						data: alignIndicatorData(signalLine, timestamps, signalStartIndex),
+						...signalMetadata,
 					});
 				}
 				if (histogram.length) {
+					const histogramMetadata = createIndicatorMetadata(
+						"macd_histogram",
+						`${indicator.id}_histogram`,
+						indicator.parameters
+					);
 					results.push({
 						id: `${indicator.id}_histogram`,
 						name: `MACD Histogram`,
@@ -315,6 +354,7 @@ export function calculateIndicatorsForStrategy(
 							timestamps,
 							histogramStartIndex
 						),
+						...histogramMetadata,
 					});
 				}
 				break;
@@ -329,6 +369,11 @@ export function calculateIndicatorsForStrategy(
 				);
 				const startIndex = (params.period || 20) - 1;
 				if (calculatedValues.upper) {
+					const upperMetadata = createIndicatorMetadata(
+						"bb_upper",
+						`${indicator.id}_upper`,
+						indicator.parameters
+					);
 					results.push({
 						id: `${indicator.id}_upper`,
 						name: `BB Upper (${params.period || 20})`,
@@ -338,9 +383,15 @@ export function calculateIndicatorsForStrategy(
 							timestamps,
 							startIndex
 						),
+						...upperMetadata,
 					});
 				}
 				if (calculatedValues.middle) {
+					const middleMetadata = createIndicatorMetadata(
+						"bb_middle",
+						`${indicator.id}_middle`,
+						indicator.parameters
+					);
 					results.push({
 						id: `${indicator.id}_middle`,
 						name: `BB Middle (${params.period || 20})`,
@@ -350,9 +401,15 @@ export function calculateIndicatorsForStrategy(
 							timestamps,
 							startIndex
 						),
+						...middleMetadata,
 					});
 				}
 				if (calculatedValues.lower) {
+					const lowerMetadata = createIndicatorMetadata(
+						"bb_lower",
+						`${indicator.id}_lower`,
+						indicator.parameters
+					);
 					results.push({
 						id: `${indicator.id}_lower`,
 						name: `BB Lower (${params.period || 20})`,
@@ -362,6 +419,7 @@ export function calculateIndicatorsForStrategy(
 							timestamps,
 							startIndex
 						),
+						...lowerMetadata,
 					});
 				}
 				break;
@@ -381,11 +439,20 @@ export function calculateIndicatorsForStrategy(
 					timestamps,
 					startIndex
 				);
+
+				// Create complete metadata including user colors and intelligent defaults
+				const metadata = createIndicatorMetadata(
+					indicator.type,
+					indicator.id,
+					indicator.parameters
+				);
+
 				results.push({
 					id: indicator.id,
 					name: indicator.name,
 					type: indicator.type,
 					data: alignedData,
+					...metadata, // Include all styling metadata
 				});
 				break;
 			}
@@ -403,11 +470,20 @@ export function calculateIndicatorsForStrategy(
 					timestamps,
 					startIndex
 				);
+
+				// Create complete metadata including user colors and intelligent defaults
+				const metadata = createIndicatorMetadata(
+					indicator.type,
+					indicator.id,
+					indicator.parameters
+				);
+
 				results.push({
 					id: indicator.id,
 					name: indicator.name,
 					type: indicator.type,
 					data: alignedData,
+					...metadata, // Include all styling metadata
 				});
 				break;
 			}
@@ -428,11 +504,20 @@ export function calculateIndicatorsForStrategy(
 					timestamps,
 					startIndex
 				);
+
+				// Create complete metadata including user colors and intelligent defaults
+				const metadata = createIndicatorMetadata(
+					indicator.type,
+					indicator.id,
+					indicator.parameters
+				);
+
 				results.push({
 					id: indicator.id,
 					name: indicator.name,
 					type: indicator.type,
 					data: alignedData,
+					...metadata, // Include all styling metadata
 				});
 				break;
 			}

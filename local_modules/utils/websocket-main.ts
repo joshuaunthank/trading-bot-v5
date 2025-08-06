@@ -1028,7 +1028,19 @@ async function startWatchLoop(
 											`[Indicators] Full calculation: ${fullResults.length} indicators`
 										);
 
-										// Convert to consistent format expected by frontend
+										// DEBUG: Check what backend actually provides
+										console.log(`[DEBUG] Backend indicator sample:`, {
+											id: fullResults[0]?.id,
+											hasColor: !!fullResults[0]?.color,
+											hasYAxisID: !!fullResults[0]?.yAxisID,
+											hasRenderType: !!fullResults[0]?.renderType,
+											actualColor: fullResults[0]?.color,
+											actualYAxisID: fullResults[0]?.yAxisID,
+											actualRenderType: fullResults[0]?.renderType,
+											allKeys: Object.keys(fullResults[0] || {}),
+										});
+
+										// Convert to consistent format expected by frontend - INCLUDE ALL STYLING METADATA
 										indicatorResults = {};
 										for (const result of fullResults) {
 											indicatorResults[result.id] = {
@@ -1036,6 +1048,16 @@ async function startWatchLoop(
 												name: result.name,
 												type: result.type,
 												data: result.data,
+												// Include complete styling metadata from hybrid system
+												color: result.color,
+												yAxisID: result.yAxisID,
+												renderType: result.renderType,
+												strokeWidth: result.strokeWidth,
+												opacity: result.opacity,
+												fillColor: result.fillColor,
+												lineStyle: result.lineStyle,
+												dashArray: result.dashArray,
+												zIndex: result.zIndex,
 											};
 										}
 										indicatorUpdateType = "full";

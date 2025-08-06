@@ -1,6 +1,6 @@
 import React from "react";
 import DataTable from "../DataTable";
-import TradingViewChart from "../TradingViewChart";
+import ModernTradingChart from "../ModernTradingChart";
 import { OHLCVData, CalculatedIndicator } from "../../types/indicators";
 
 interface ChartTabProps {
@@ -25,8 +25,8 @@ const ChartTab: React.FC<ChartTabProps> = ({
 }) => {
 	return (
 		<div className="space-y-6">
-			{/* TradingView-Style Chart with Multi-Panel Layout */}
-			<TradingViewChart
+			{/* Modern Trading Chart with Clean Multi-Panel Layout */}
+			<ModernTradingChart
 				ohlcvData={ohlcvData}
 				indicators={indicators}
 				symbol={symbol}

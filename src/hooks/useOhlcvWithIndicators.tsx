@@ -21,6 +21,15 @@ interface BackendIndicatorResult {
 	name: string;
 	type: string;
 	data: IndicatorValue[];
+	// Complete styling metadata from hybrid system
+	color?: string;
+	yAxisID?: string;
+	renderType?: "line" | "histogram" | "area" | "band";
+	strokeWidth?: number;
+	opacity?: number;
+	fillColor?: string;
+	lineStyle?: "solid" | "dashed" | "dotted";
+	zIndex?: number;
 }
 
 export interface OHLCVWithIndicatorsResult {
@@ -114,6 +123,15 @@ export const useOhlcvWithIndicators = (
 					name: backendIndicator.name,
 					type: backendIndicator.type,
 					data: backendIndicator.data,
+					// Include all styling metadata from backend
+					color: backendIndicator.color,
+					yAxisID: backendIndicator.yAxisID,
+					renderType: backendIndicator.renderType,
+					strokeWidth: backendIndicator.strokeWidth,
+					opacity: backendIndicator.opacity,
+					fillColor: backendIndicator.fillColor,
+					lineStyle: backendIndicator.lineStyle,
+					zIndex: backendIndicator.zIndex,
 				});
 			}
 		});

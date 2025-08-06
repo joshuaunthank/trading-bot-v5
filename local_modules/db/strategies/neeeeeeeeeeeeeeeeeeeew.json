@@ -1,0 +1,88 @@
+{
+  "id": "neeeeeeeeeeeeeeeeeeeew",
+  "name": "new test RSI, MACD & BB",
+  "description": "test",
+  "symbol": "BTC/USDT",
+  "timeframe": "1h",
+  "enabled": true,
+  "tags": [
+    "test"
+  ],
+  "indicators": [
+    {
+      "rsi": {
+        "description": "Momentum oscillator that measures the speed and magnitude of recent price changes to evaluate overbought or oversold conditions",
+        "params": [
+          {
+            "name": "period",
+            "default": 14,
+            "type": "number",
+            "color": "#6366f1"
+          }
+        ]
+      }
+    },
+    {
+      "macd": {
+        "description": "Trend-following momentum indicator that shows the relationship between two moving averages of prices.",
+        "params": [
+          {
+            "name": "fastPeriod",
+            "default": 12,
+            "type": "number",
+            "color": "#6366f1"
+          },
+          {
+            "name": "slowPeriod",
+            "default": 26,
+            "type": "number",
+            "color": "#6366f1"
+          },
+          {
+            "name": "signalPeriod",
+            "default": 9,
+            "type": "number",
+            "color": "#6366f1"
+          }
+        ]
+      }
+    },
+    {
+      "bollingerBands": {
+        "description": "Volatility indicator consisting of a moving average with upper and lower bands based on standard deviation",
+        "params": [
+          {
+            "name": "period",
+            "default": 20,
+            "type": "number",
+            "color": "#6366f1"
+          },
+          {
+            "name": "stdDev",
+            "default": 2,
+            "type": "number",
+            "color": "#6366f1"
+          }
+        ]
+      }
+    }
+  ],
+  "signals": [],
+  "risk": {
+    "position_size_type": "percent_equity",
+    "risk_per_trade": 2,
+    "stop_loss_percent": 1.5,
+    "take_profit_percent": 3,
+    "trailing_stop": false,
+    "max_drawdown_percent": 10
+  },
+  "ml_models": [],
+  "postprocessing": [],
+  "metadata": {
+    "version": "1.0",
+    "created": "2025-08-06T17:47:57.690Z",
+    "author": "user"
+  },
+  "created_at": "2025-08-06T17:48:23.591Z",
+  "updated_at": "2025-08-06T17:49:12.901Z"
+}
