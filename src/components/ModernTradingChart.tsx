@@ -92,13 +92,34 @@ const ModernTradingChart: React.FC<ModernChartProps> = ({
 			return config.yAxisID === "volume";
 		});
 
-		const oscillatorIndicators = indicators.filter((ind) => {
+		// Group oscillators by type for separate panels
+		const rsiIndicators = indicators.filter((ind) => {
 			const config = getIndicatorConfig(ind);
-			return config.yAxisID === "oscillator";
+			return (
+				config.yAxisID === "oscillator" &&
+				(ind.id?.includes("rsi") || ind.name?.toLowerCase().includes("rsi"))
+			);
 		});
 
-		// Price panel (70% of height)
-		const priceHeight = Math.floor(height * 0.7);
+		const macdIndicators = indicators.filter((ind) => {
+			const config = getIndicatorConfig(ind);
+			return (
+				config.yAxisID === "oscillator" &&
+				(ind.id?.includes("macd") || ind.name?.toLowerCase().includes("macd"))
+			);
+		});
+
+		const otherOscillators = indicators.filter((ind) => {
+			const config = getIndicatorConfig(ind);
+			return (
+				config.yAxisID === "oscillator" &&
+				!rsiIndicators.includes(ind) &&
+				!macdIndicators.includes(ind)
+			);
+		});
+
+		// Price panel (60% of height)
+		const priceHeight = Math.floor(height * 0.6);
 		panels.push({
 			id: "price",
 			type: "price",
@@ -108,10 +129,10 @@ const ModernTradingChart: React.FC<ModernChartProps> = ({
 		});
 		currentY += priceHeight + CHART_CONFIG.panelGap;
 
-		// Volume panel (15% if needed)
+		// Volume panel (10% if needed)
 		const hasVolumeData = ohlcvData.some((d) => d.volume > 0);
 		if (hasVolumeData || volumeIndicators.length > 0) {
-			const volumeHeight = Math.floor(height * 0.15);
+			const volumeHeight = Math.floor(height * 0.1);
 			panels.push({
 				id: "volume",
 				type: "volume",
@@ -122,16 +143,52 @@ const ModernTradingChart: React.FC<ModernChartProps> = ({
 			currentY += volumeHeight + CHART_CONFIG.panelGap;
 		}
 
-		// Oscillator panel (remaining space)
-		if (oscillatorIndicators.length > 0) {
-			const oscillatorHeight = height - currentY - CHART_CONFIG.margin.bottom;
-			panels.push({
-				id: "oscillator",
-				type: "oscillator",
-				height: oscillatorHeight,
-				yOffset: currentY,
-				indicators: oscillatorIndicators,
-			});
+		// Calculate remaining space for oscillators
+		const remainingHeight = height - currentY - CHART_CONFIG.margin.bottom;
+		const oscillatorPanelCount =
+			(rsiIndicators.length > 0 ? 1 : 0) +
+			(macdIndicators.length > 0 ? 1 : 0) +
+			(otherOscillators.length > 0 ? 1 : 0);
+
+		if (oscillatorPanelCount > 0) {
+			const oscillatorHeight =
+				Math.floor(remainingHeight / oscillatorPanelCount) -
+				CHART_CONFIG.panelGap;
+
+			// RSI Panel
+			if (rsiIndicators.length > 0) {
+				panels.push({
+					id: "rsi",
+					type: "oscillator",
+					height: oscillatorHeight,
+					yOffset: currentY,
+					indicators: rsiIndicators,
+				});
+				currentY += oscillatorHeight + CHART_CONFIG.panelGap;
+			}
+
+			// MACD Panel
+			if (macdIndicators.length > 0) {
+				panels.push({
+					id: "macd",
+					type: "oscillator",
+					height: oscillatorHeight,
+					yOffset: currentY,
+					indicators: macdIndicators,
+				});
+				currentY += oscillatorHeight + CHART_CONFIG.panelGap;
+			}
+
+			// Other Oscillators Panel
+			if (otherOscillators.length > 0) {
+				panels.push({
+					id: "other_oscillators",
+					type: "oscillator",
+					height: oscillatorHeight,
+					yOffset: currentY,
+					indicators: otherOscillators,
+				});
+			}
 		}
 
 		return panels;
@@ -270,7 +327,7 @@ const ModernTradingChart: React.FC<ModernChartProps> = ({
 			.attr("fill", CHART_CONFIG.colors.text)
 			.attr("font-size", "12px")
 			.attr("font-weight", "bold")
-			.text(panel.type.toUpperCase());
+			.text(panel.id.toUpperCase().replace("_", " "));
 	};
 
 	// Create appropriate Y scale for panel type
@@ -368,9 +425,18 @@ const ModernTradingChart: React.FC<ModernChartProps> = ({
 		yScale: d3.ScaleLinear<number, number>,
 		width: number
 	) => {
+		// Calculate candle width based on zoom level and time range
+		const timeRange = timeScale.domain();
+		const visibleDuration = timeRange[1].getTime() - timeRange[0].getTime();
+		const candlesInView = ohlcvData.filter((d) => {
+			const time = new Date(d.timestamp).getTime();
+			return time >= timeRange[0].getTime() && time <= timeRange[1].getTime();
+		}).length;
+
+		// Responsive candle width: wider when zoomed in, thinner when zoomed out
 		const candleWidth = Math.max(
-			1,
-			Math.min(20, (width / ohlcvData.length) * 0.8)
+			2, // Minimum width for visibility
+			Math.min(40, (width / Math.max(candlesInView, 10)) * 0.7) // Dynamic based on visible candles
 		);
 
 		// Filter visible data for performance

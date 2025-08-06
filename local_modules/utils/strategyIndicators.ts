@@ -37,6 +37,7 @@ export interface ProcessedIndicator {
 	type: string;
 	parameters: Record<string, any>;
 	color: string;
+	parameterColors?: Record<string, string>; // Parameter name to color mapping for multi-component indicators
 }
 
 export interface OHLCVData {
@@ -151,18 +152,28 @@ function processIndicatorsFromNewFormat(
 		Object.keys(indicatorGroup).forEach((indicatorName) => {
 			const definition = indicatorGroup[indicatorName];
 
-			// Extract parameters with defaults
+			// Extract parameters with defaults and colors
 			const parameters: Record<string, any> = {};
+			const parameterColors: Record<string, string> = {};
 			let primaryColor = "#6B7280"; // Default color
 
 			if (definition.params) {
 				definition.params.forEach((param) => {
 					parameters[param.name] = param.default;
-					// Use the first color we find as primary
-					if (param.color && primaryColor === "#6B7280") {
-						primaryColor = param.color;
+					// Store individual parameter colors
+					if (param.color) {
+						parameterColors[param.name] = param.color;
+						// Use the first color we find as primary
+						if (primaryColor === "#6B7280") {
+							primaryColor = param.color;
+						}
 					}
 				});
+			}
+
+			// Add the primary color to parameters so extractUserColor can find it
+			if (primaryColor !== "#6B7280") {
+				parameters.color = primaryColor;
 			}
 
 			// Map indicator names to calculator types
@@ -183,6 +194,7 @@ function processIndicatorsFromNewFormat(
 				type,
 				parameters,
 				color: primaryColor,
+				parameterColors,
 			});
 		});
 	});
@@ -195,6 +207,84 @@ function mapIndicatorNameToCalculatorType(
 	indicatorName: string
 ): string | null {
 	return indicatorName.toLowerCase();
+}
+
+/**
+ * Dynamic parameter-to-component color mapping
+ * Maps indicator component types to parameter names based on conventions
+ */
+function getParameterColorForComponent(
+	componentType: string,
+	parameterColors: Record<string, string>,
+	fallbackColor?: string
+): string | undefined {
+	// Define component-to-parameter mapping patterns
+	const componentMappings: Record<string, string[]> = {
+		// MACD components
+		macd_line: ["fastPeriod", "fast", "macdPeriod"],
+		macd_signal: ["signalPeriod", "signal", "signalLine"],
+		macd_histogram: ["slowPeriod", "slow", "histogram"],
+
+		// Bollinger Bands components
+		bb_upper: ["period", "upperBand", "upper"],
+		bb_middle: ["period", "middleBand", "middle", "sma"],
+		bb_lower: ["stdDev", "standardDeviation", "lowerBand", "lower"],
+
+		// Stochastic components
+		stoch_k: ["kPeriod", "k", "fastK"],
+		stoch_d: ["dPeriod", "d", "slowD"],
+
+		// RSI and single-component indicators
+		rsi: ["period", "rsiPeriod"],
+		sma: ["period", "smaPeriod"],
+		ema: ["period", "emaPeriod"],
+		atr: ["period", "atrPeriod"],
+		cci: ["period", "cciPeriod"],
+		adx: ["period", "adxPeriod"],
+		vwap: ["period", "vwapPeriod"],
+	};
+
+	// Get possible parameter names for this component
+	const possibleParams = componentMappings[componentType] || ["period"];
+
+	// Find the first matching parameter that has a color
+	for (const paramName of possibleParams) {
+		if (parameterColors[paramName]) {
+			return parameterColors[paramName];
+		}
+	}
+
+	// Fallback to any available color
+	const availableColors = Object.values(parameterColors);
+	if (availableColors.length > 0) {
+		return availableColors[0];
+	}
+
+	return fallbackColor;
+}
+
+/**
+ * Create metadata with dynamic color mapping for any component type
+ */
+function createComponentMetadata(
+	componentType: string,
+	componentId: string,
+	baseParameters: Record<string, any>,
+	parameterColors: Record<string, string> = {}
+): any {
+	// Create new parameters with the appropriate color
+	const componentParams = { ...baseParameters };
+	const dynamicColor = getParameterColorForComponent(
+		componentType,
+		parameterColors,
+		baseParameters.color
+	);
+
+	if (dynamicColor) {
+		componentParams.color = dynamicColor;
+	}
+
+	return createIndicatorMetadata(componentType, componentId, componentParams);
 }
 
 /**
@@ -256,9 +346,6 @@ export function calculateIndicatorsForStrategy(
 		const params = indicator.parameters || {};
 		const results: CalculatedIndicatorResult[] = [];
 
-		// Dynamic argument construction based on indicator type
-		// For most indicators, pass closes and period; for others, pass OHLCV or custom
-		// This can be further improved by using a config map for argument structure
 		let calculatedValues: any;
 		switch (type) {
 			case "sma":
@@ -273,7 +360,6 @@ export function calculateIndicatorsForStrategy(
 					startIndex
 				);
 
-				// Create complete metadata including user colors and intelligent defaults
 				const metadata = createIndicatorMetadata(
 					indicator.type,
 					indicator.id,
@@ -285,7 +371,7 @@ export function calculateIndicatorsForStrategy(
 					name: indicator.name,
 					type: indicator.type,
 					data: alignedData,
-					...metadata, // Include all styling metadata
+					...metadata,
 				});
 				break;
 			}
@@ -312,10 +398,11 @@ export function calculateIndicatorsForStrategy(
 				const histogramStartIndex =
 					macdStartIndex + (macdLine.length - histogram.length);
 				if (macdLine.length) {
-					const macdMetadata = createIndicatorMetadata(
+					const macdMetadata = createComponentMetadata(
 						"macd_line",
 						`${indicator.id}_macd`,
-						indicator.parameters
+						indicator.parameters,
+						indicator.parameterColors || {}
 					);
 					results.push({
 						id: `${indicator.id}_macd`,
@@ -326,10 +413,11 @@ export function calculateIndicatorsForStrategy(
 					});
 				}
 				if (signalLine.length) {
-					const signalMetadata = createIndicatorMetadata(
+					const signalMetadata = createComponentMetadata(
 						"macd_signal",
 						`${indicator.id}_signal`,
-						indicator.parameters
+						indicator.parameters,
+						indicator.parameterColors || {}
 					);
 					results.push({
 						id: `${indicator.id}_signal`,
@@ -340,10 +428,11 @@ export function calculateIndicatorsForStrategy(
 					});
 				}
 				if (histogram.length) {
-					const histogramMetadata = createIndicatorMetadata(
+					const histogramMetadata = createComponentMetadata(
 						"macd_histogram",
 						`${indicator.id}_histogram`,
-						indicator.parameters
+						indicator.parameters,
+						indicator.parameterColors || {}
 					);
 					results.push({
 						id: `${indicator.id}_histogram`,
@@ -369,10 +458,11 @@ export function calculateIndicatorsForStrategy(
 				);
 				const startIndex = (params.period || 20) - 1;
 				if (calculatedValues.upper) {
-					const upperMetadata = createIndicatorMetadata(
+					const upperMetadata = createComponentMetadata(
 						"bb_upper",
 						`${indicator.id}_upper`,
-						indicator.parameters
+						indicator.parameters,
+						indicator.parameterColors || {}
 					);
 					results.push({
 						id: `${indicator.id}_upper`,
@@ -387,10 +477,11 @@ export function calculateIndicatorsForStrategy(
 					});
 				}
 				if (calculatedValues.middle) {
-					const middleMetadata = createIndicatorMetadata(
+					const middleMetadata = createComponentMetadata(
 						"bb_middle",
 						`${indicator.id}_middle`,
-						indicator.parameters
+						indicator.parameters,
+						indicator.parameterColors || {}
 					);
 					results.push({
 						id: `${indicator.id}_middle`,
@@ -405,10 +496,11 @@ export function calculateIndicatorsForStrategy(
 					});
 				}
 				if (calculatedValues.lower) {
-					const lowerMetadata = createIndicatorMetadata(
+					const lowerMetadata = createComponentMetadata(
 						"bb_lower",
 						`${indicator.id}_lower`,
-						indicator.parameters
+						indicator.parameters,
+						indicator.parameterColors || {}
 					);
 					results.push({
 						id: `${indicator.id}_lower`,
@@ -440,7 +532,6 @@ export function calculateIndicatorsForStrategy(
 					startIndex
 				);
 
-				// Create complete metadata including user colors and intelligent defaults
 				const metadata = createIndicatorMetadata(
 					indicator.type,
 					indicator.id,
@@ -452,7 +543,7 @@ export function calculateIndicatorsForStrategy(
 					name: indicator.name,
 					type: indicator.type,
 					data: alignedData,
-					...metadata, // Include all styling metadata
+					...metadata,
 				});
 				break;
 			}
@@ -471,7 +562,6 @@ export function calculateIndicatorsForStrategy(
 					startIndex
 				);
 
-				// Create complete metadata including user colors and intelligent defaults
 				const metadata = createIndicatorMetadata(
 					indicator.type,
 					indicator.id,
@@ -483,19 +573,15 @@ export function calculateIndicatorsForStrategy(
 					name: indicator.name,
 					type: indicator.type,
 					data: alignedData,
-					...metadata, // Include all styling metadata
+					...metadata,
 				});
 				break;
 			}
-			// Add dynamic support for all other indicators
 			default: {
-				// Try to pass closes and period if possible
 				const closes = ohlcvData.map((d) => d.close);
 				try {
-					// Try closes, period
 					calculatedValues = calculator(closes, params.period || 14);
 				} catch {
-					// Try OHLCV
 					calculatedValues = calculator(ohlcvData, params.period || 14);
 				}
 				const startIndex = (params.period || 14) - 1;
@@ -505,7 +591,6 @@ export function calculateIndicatorsForStrategy(
 					startIndex
 				);
 
-				// Create complete metadata including user colors and intelligent defaults
 				const metadata = createIndicatorMetadata(
 					indicator.type,
 					indicator.id,
@@ -517,7 +602,7 @@ export function calculateIndicatorsForStrategy(
 					name: indicator.name,
 					type: indicator.type,
 					data: alignedData,
-					...metadata, // Include all styling metadata
+					...metadata,
 				});
 				break;
 			}
