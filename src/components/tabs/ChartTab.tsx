@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import DataTable from "../DataTable";
-import ModernTradingChart from "../ModernTradingChart";
+import TradingChart from "../TradingChart";
 import { OHLCVData, CalculatedIndicator } from "../../types/indicators";
 
 interface ChartTabProps {
@@ -23,18 +23,33 @@ const ChartTab: React.FC<ChartTabProps> = ({
 	loading,
 	error,
 }) => {
+	const [isFullscreen, setIsFullscreen] = useState(false);
+
+	// Better height calculation for mobile and fullscreen
+	const chartHeight = isFullscreen
+		? window.innerHeight - 60 // Minimal padding in fullscreen
+		: Math.min(window.innerHeight * 0.8, 600); // Responsive height, max 600px
+
 	return (
-		<div className="space-y-6">
-			{/* Modern Trading Chart with Clean Multi-Panel Layout */}
-			<ModernTradingChart
-				ohlcvData={ohlcvData}
-				indicators={indicators}
-				symbol={symbol}
-				timeframe={timeframe}
-				height={600}
-				loading={loading}
-				error={error}
-			/>
+		<div className="space-y-4 sm:space-y-6 w-full">
+			{/* Chart Component */}
+			<div
+				className={`w-full ${
+					isFullscreen ? "fixed inset-0 z-50 bg-gray-900 p-4" : ""
+				}`}
+			>
+				<TradingChart
+					ohlcvData={ohlcvData}
+					indicators={indicators}
+					symbol={symbol}
+					timeframe={timeframe}
+					height={chartHeight}
+					loading={loading}
+					error={error}
+					isFullscreen={isFullscreen}
+					onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+				/>
+			</div>
 
 			{/* Chart Stats */}
 			{!loading && ohlcvData.length > 0 && (
