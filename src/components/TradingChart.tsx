@@ -58,71 +58,6 @@ interface ChartDimensions {
 	};
 }
 
-// Responsive configuration that scales properly with mobile-first approach
-const useResponsiveConfig = (
-	containerWidth: number,
-	containerHeight: number
-) => {
-	return useMemo(() => {
-		const isMobile = containerWidth < 640;
-		const isTablet = containerWidth >= 640 && containerWidth < 1024;
-
-		// Mobile-optimized margins - much smaller padding
-		const rightMargin = isMobile
-			? Math.max(30, containerWidth * 0.05) // 5% on mobile (was 8%)
-			: Math.max(60, containerWidth * 0.08);
-		const leftMargin = isMobile
-			? Math.max(25, containerWidth * 0.04) // 4% on mobile (was 6%)
-			: Math.max(50, containerWidth * 0.06);
-		const bottomMargin = isMobile
-			? Math.max(25, containerHeight * 0.05) // 5% on mobile (was 8%)
-			: Math.max(40, containerHeight * 0.08);
-		const topMargin = isMobile ? 15 : 20;
-
-		return {
-			margin: {
-				top: topMargin,
-				right: rightMargin,
-				bottom: bottomMargin,
-				left: leftMargin,
-			},
-			chartWidth: containerWidth - leftMargin - rightMargin,
-			chartHeight: containerHeight - topMargin - bottomMargin,
-			panelGap: isMobile ? 6 : 12, // Smaller gaps on mobile
-			colors: {
-				background: "#1a1a1a",
-				panel: "#262626",
-				grid: "#404040",
-				text: "#e5e5e5",
-				textSecondary: "#a3a3a3",
-				candleUp: "#22c55e",
-				candleDown: "#ef4444",
-				border: "#525252",
-				accent: "#3b82f6",
-			},
-			text: {
-				title: isMobile ? "14px" : "16px",
-				axis: isMobile ? "11px" : "12px",
-				label: isMobile ? "10px" : "11px",
-			},
-			panels: {
-				price: 0.55, // 55% for price
-				volume: 0.15, // 15% for volume
-				oscillator: 0.3, // 30% for oscillators (split among them)
-			},
-			zoom: {
-				scaleExtent: [0.1, 50] as [number, number],
-			},
-			responsive: {
-				isMobile,
-				isTablet,
-				candleMinWidth: isMobile ? 1 : 2,
-				candleMaxWidth: isMobile ? 8 : 20,
-			},
-		};
-	}, [containerWidth, containerHeight]);
-};
-
 const TradingChart: React.FC<TradingChartProps> = ({
 	ohlcvData,
 	indicators,
@@ -139,21 +74,56 @@ const TradingChart: React.FC<TradingChartProps> = ({
 
 	// State management
 	const [dimensions, setDimensions] = useState({
-		containerWidth: 800,
+		containerWidth: 320, // Start with mobile minimum
 		containerHeight: height,
-		chartWidth: 700,
+		chartWidth: 250,
 		chartHeight: height - 60,
-		margin: { top: 20, right: 80, bottom: 40, left: 60 },
+		margin: { top: 15, right: 30, bottom: 25, left: 25 }, // Mobile-first margins
 	});
 
 	const [zoomTransform, setZoomTransform] = useState(d3.zoomIdentity);
 	const [isReady, setIsReady] = useState(false);
 
-	// Get responsive configuration
-	const config = useResponsiveConfig(
-		dimensions.containerWidth,
-		dimensions.containerHeight
-	);
+	// Get responsive configuration based on current dimensions
+	const config = useMemo(() => {
+		const isMobile = dimensions.containerWidth < 640;
+		const isTablet =
+			dimensions.containerWidth >= 640 && dimensions.containerWidth < 1024;
+
+		return {
+			panelGap: isMobile ? 4 : 8, // Tighter gaps on mobile
+			colors: {
+				background: "#1a1a1a",
+				panel: "#262626",
+				grid: "#404040",
+				text: "#e5e5e5",
+				textSecondary: "#a3a3a3",
+				candleUp: "#22c55e",
+				candleDown: "#ef4444",
+				border: "#525252",
+				accent: "#3b82f6",
+			},
+			text: {
+				title: isMobile ? "12px" : "16px", // Smaller text on mobile
+				axis: isMobile ? "10px" : "12px",
+				label: isMobile ? "9px" : "11px",
+			},
+			panels: {
+				price: isMobile ? 0.6 : 0.55, // More space for price on mobile
+				volume: isMobile ? 0.12 : 0.15, // Less space for volume on mobile
+				oscillator: isMobile ? 0.28 : 0.3, // Adjust oscillator space
+			},
+			zoom: {
+				scaleExtent: [0.1, 50] as [number, number],
+			},
+			responsive: {
+				isMobile,
+				isTablet,
+				candleMinWidth: isMobile ? 1 : 2,
+				candleMaxWidth: isMobile ? 6 : 20, // Smaller max width on mobile
+			},
+		};
+	}, [dimensions.containerWidth]);
 
 	// Enhanced resize observer that properly calculates dimensions
 	useEffect(() => {
@@ -163,17 +133,43 @@ const TradingChart: React.FC<TradingChartProps> = ({
 		const updateDimensions = () => {
 			const rect = container.getBoundingClientRect();
 			const containerWidth = Math.max(320, rect.width); // Minimum 320px width
-			const containerHeight = height;
+
+			// Responsive height - smaller on mobile
+			const isMobile = containerWidth < 640;
+			const responsiveHeight = isMobile ? Math.min(height, 500) : height;
+
+			// Calculate responsive margins
+			const rightMargin = isMobile
+				? Math.max(20, containerWidth * 0.08) // Increased for mobile Y-axis
+				: Math.max(60, containerWidth * 0.08);
+			const leftMargin = isMobile
+				? Math.max(15, containerWidth * 0.04) // Minimal left margin on mobile
+				: Math.max(50, containerWidth * 0.06);
+			const bottomMargin = isMobile
+				? Math.max(20, responsiveHeight * 0.05) // Minimal bottom margin
+				: Math.max(40, responsiveHeight * 0.08);
+			const topMargin = isMobile ? 10 : 20; // Very tight top margin on mobile
+
+			const chartWidth = containerWidth - leftMargin - rightMargin;
+			const chartHeight = responsiveHeight - topMargin - bottomMargin;
 
 			const newDimensions = {
 				containerWidth,
-				containerHeight,
-				chartWidth: containerWidth - config.margin.left - config.margin.right,
-				chartHeight: containerHeight - config.margin.top - config.margin.bottom,
-				margin: config.margin,
+				containerHeight: responsiveHeight,
+				chartWidth: Math.max(200, chartWidth), // Ensure minimum chart width
+				chartHeight: Math.max(150, chartHeight), // Ensure minimum chart height
+				margin: {
+					top: topMargin,
+					right: rightMargin,
+					bottom: bottomMargin,
+					left: leftMargin,
+				},
 			};
 
-			console.log("[TradingChart] Dimensions updated:", newDimensions);
+			console.log(
+				`[TradingChart] Responsive update - Mobile: ${isMobile}, Dimensions:`,
+				newDimensions
+			);
 			setDimensions(newDimensions);
 			setIsReady(true);
 		};
@@ -199,7 +195,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
 			resizeObserver.disconnect();
 			clearTimeout(timeoutId);
 		};
-	}, [height, config.margin]);
+	}, [height]); // Remove config.margin dependency
 
 	// Force re-initialization when data becomes available
 	useEffect(() => {
@@ -337,7 +333,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
 			.append("g")
 			.attr(
 				"transform",
-				`translate(${config.margin.left}, ${config.margin.top})`
+				`translate(${dimensions.margin.left}, ${dimensions.margin.top})`
 			);
 
 		// Render each panel
@@ -953,10 +949,12 @@ const TradingChart: React.FC<TradingChartProps> = ({
 
 	// Loading state
 	if (loading || (!isReady && ohlcvData.length > 0)) {
+		const responsiveHeight =
+			dimensions.containerWidth < 640 ? Math.min(height, 500) : height;
 		return (
 			<div
 				className="bg-gray-900 rounded-lg flex items-center justify-center border border-gray-700"
-				style={{ height: `${height}px` }}
+				style={{ height: `${responsiveHeight}px` }}
 			>
 				<div className="text-gray-400 text-sm">
 					{loading ? "Loading chart..." : "Initializing chart..."}
@@ -967,10 +965,12 @@ const TradingChart: React.FC<TradingChartProps> = ({
 
 	// Error state
 	if (error) {
+		const responsiveHeight =
+			dimensions.containerWidth < 640 ? Math.min(height, 500) : height;
 		return (
 			<div
 				className="bg-gray-900 rounded-lg flex items-center justify-center border border-gray-700"
-				style={{ height: `${height}px` }}
+				style={{ height: `${responsiveHeight}px` }}
 			>
 				<div className="text-red-400 text-sm">Error: {error}</div>
 			</div>
@@ -979,10 +979,12 @@ const TradingChart: React.FC<TradingChartProps> = ({
 
 	// No data state
 	if (!ohlcvData.length) {
+		const responsiveHeight =
+			dimensions.containerWidth < 640 ? Math.min(height, 500) : height;
 		return (
 			<div
 				className="bg-gray-900 rounded-lg flex items-center justify-center border border-gray-700"
-				style={{ height: `${height}px` }}
+				style={{ height: `${responsiveHeight}px` }}
 			>
 				<div className="text-gray-400 text-sm">No data available</div>
 			</div>
@@ -992,22 +994,22 @@ const TradingChart: React.FC<TradingChartProps> = ({
 	return (
 		<div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
 			{/* Header */}
-			<div className="flex items-center justify-between p-4 border-b border-gray-700">
-				<div className="flex items-center space-x-4">
-					<h3 className="text-white font-semibold text-lg">
+			<div className="flex items-center justify-between p-2 sm:p-4 border-b border-gray-700">
+				<div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
+					<h3 className="text-white font-semibold text-sm sm:text-lg truncate">
 						{symbol} • {timeframe}
 					</h3>
 					{ohlcvData.length > 0 && (
-						<div className="text-green-400 font-mono">
+						<div className="text-green-400 font-mono text-sm sm:text-base">
 							${ohlcvData[ohlcvData.length - 1].close.toFixed(2)}
 						</div>
 					)}
 				</div>
 
-				<div className="flex items-center space-x-3">
+				<div className="flex items-center space-x-1 sm:space-x-3">
 					<button
 						onClick={() => setZoomTransform(d3.zoomIdentity)}
-						className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded transition-colors"
+						className="px-2 py-1 sm:px-3 bg-gray-700 hover:bg-gray-600 text-white text-xs sm:text-sm rounded transition-colors"
 					>
 						Reset
 					</button>
@@ -1015,14 +1017,14 @@ const TradingChart: React.FC<TradingChartProps> = ({
 					{onToggleFullscreen && (
 						<button
 							onClick={onToggleFullscreen}
-							className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition-colors"
+							className="px-2 py-1 sm:px-3 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm rounded transition-colors"
 							title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
 						>
 							{isFullscreen ? "Exit" : "⛶"}
 						</button>
 					)}
 
-					<div className="text-gray-400 text-sm">
+					<div className="text-gray-400 text-xs sm:text-sm hidden sm:block">
 						{indicators.length} indicators
 					</div>
 				</div>
@@ -1032,7 +1034,11 @@ const TradingChart: React.FC<TradingChartProps> = ({
 			<div
 				ref={containerRef}
 				className="w-full relative overflow-hidden"
-				style={{ height: `${height}px`, width: "100%" }}
+				style={{
+					height: `${dimensions.containerHeight}px`,
+					width: "100%",
+					minHeight: config.responsive.isMobile ? "300px" : "400px", // Ensure minimum height
+				}}
 			>
 				<svg
 					ref={svgRef}
